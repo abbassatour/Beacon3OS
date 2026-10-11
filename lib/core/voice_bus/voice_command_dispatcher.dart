@@ -42,6 +42,7 @@ class VoiceCommandDispatcher {
     String? base64Image,
     BuildContext? context,
     Map<String, dynamic>? systemContext,
+    Future<Map<String, dynamic>> Function()? contextProvider,
   }) async {
     final effectiveContext = context ?? _navigatorKey?.currentContext;
     final normalized = rawQuery.trim().toLowerCase();
@@ -54,7 +55,7 @@ class VoiceCommandDispatcher {
 
     final handlers = _registeredHandlers;
 
-    // ⚡ المستوى 1: المسار السريع الفوري (Sub-5ms Fast Path)
+    // ⚡ المستوى 1: المسار السريع الفوري (Sub-5ms Fast Path - دون أي استعلام قاعدة بيانات)
     for (final handler in handlers) {
       if (handler.canHandle(intentContext)) {
         log('VoiceDispatcher: ⚡ Fast-path matched [${handler.intentId}] for query: "$rawQuery"');
@@ -70,12 +71,16 @@ class VoiceCommandDispatcher {
     }
 
     // 🧠 المستوى 2: المعالجة التوليدية بالذكاء الاصطناعي (Gemini 2.0 Flash)
+    // 💡 جلب السياق فقط عند هذه اللحظة لمنع إبطاء الأوامر المحلية
     log('VoiceDispatcher: 🧠 Invoking Gemini 2.0 Multimodal...');
     try {
+      final resolvedContext =
+          systemContext ?? (await contextProvider?.call() ?? {});
+
       final llmResult = await _assistant.processLlmCommand(
         userCommand: rawQuery,
         base64Image: base64Image,
-        systemContext: systemContext,
+        systemContext: resolvedContext,
       );
 
       final intentName = llmResult['intent'] as String? ?? 'GENERAL_CHAT';
@@ -124,12 +129,14 @@ class VoiceCommandDispatcher {
     BuildContext? context,
     String? base64Image,
     Map<String, dynamic>? systemContext,
+    Future<Map<String, dynamic>> Function()? contextProvider,
   }) async {
     final result = await dispatch(
       rawQuery,
       context: context,
       base64Image: base64Image,
       systemContext: systemContext,
+      contextProvider: contextProvider,
     );
 
     if (result.intent == 'ERROR' || result.intent.endsWith('_FAILED')) {

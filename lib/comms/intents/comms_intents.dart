@@ -1,5 +1,5 @@
 // lib/comms/intents/comms_intents.dart
-import 'package:beacon_os/core/voice_bus/voice_bus.dart'; // 👈 السطر المضاف الذي يحل الخطأ
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -142,7 +142,9 @@ class SaveContactIntentHandler extends VoiceIntentHandler {
         if (phoneMatch != null) {
           phoneNumber = phoneMatch.group(1)!.replaceAll(RegExp(r'[\s-]'), '');
           name = query.replaceFirst(phoneMatch.group(1)!, '').trim();
-          name = name.replaceAll(RegExp(r'\b(number|phone|with)\b', caseSensitive: false), '').trim();
+          name = name
+              .replaceAll(RegExp(r'\b(number|phone|with)\b', caseSensitive: false), '')
+              .trim();
         } else if (name.isEmpty) {
           name = query;
         }
@@ -239,7 +241,7 @@ class DeleteContactIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج مزامنة جهات اتصال الهاتف صوتياً (SYNC_CONTACTS)
+/// معالج مزامنة جهات اتصال الهاتف صوتياً (SYNC_CONTACTS) مع دعم إحصائيات الحذف والإضافة
 class SyncContactsIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'SYNC_CONTACTS';
@@ -261,9 +263,18 @@ class SyncContactsIntentHandler extends VoiceIntentHandler {
     final commsRepo = context.read<CommsRepository>();
     final result = await commsRepo.syncDeviceContactsToVault();
 
-    final feedback = result.addedCount == 0 && result.updatedCount == 0
-        ? 'Your contacts are already up to date.'
-        : 'Synced ${result.addedCount} new contacts and updated ${result.updatedCount}.';
+    String feedback;
+    if (result.addedCount == 0 &&
+        result.updatedCount == 0 &&
+        result.deletedCount == 0) {
+      feedback = 'Your contacts are already up to date.';
+    } else {
+      final summary = <String>[];
+      if (result.addedCount > 0) summary.add('${result.addedCount} added');
+      if (result.updatedCount > 0) summary.add('${result.updatedCount} updated');
+      if (result.deletedCount > 0) summary.add('${result.deletedCount} removed');
+      feedback = 'Contacts synced: ${summary.join(', ')}.';
+    }
 
     return LauncherCommandResult(
       intent: 'SYNC_CONTACTS',

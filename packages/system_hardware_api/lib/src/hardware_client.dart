@@ -46,14 +46,12 @@ class HardwareClient {
   /// جلب جهات الاتصال المسجلة في نظام أندرويد وتنظيف أرقامها
   Future<List<DeviceContactRecord>> getDeviceContacts() async {
     try {
-      // 1. طلب إذن القراءة بالطريقة الحديثة لـ flutter_contacts 2.x
       final status = await FlutterContacts.permissions.request(PermissionType.read);
       if (status != PermissionStatus.granted) {
         log('HardwareClient: Read contacts permission denied by user.');
         return [];
       }
 
-      // 2. جلب جهات الاتصال مع أرقام الهواتف عبر getAll
       final rawContacts = await FlutterContacts.getAll(
         properties: {ContactProperty.phone},
       );
@@ -65,7 +63,6 @@ class HardwareClient {
         if (displayName.isEmpty || contact.phones.isEmpty) continue;
 
         for (final phone in contact.phones) {
-          // تنظيف الرقم من المسافات، الشحطات، والأقواس (مثال: +1 (234) 567-890 -> +1234567890)
           final cleanNumber = phone.number.replaceAll(RegExp(r'[\s\(\)\-\.]'), '').trim();
           if (cleanNumber.length >= 3) {
             records.add(
@@ -83,6 +80,44 @@ class HardwareClient {
     } catch (e, st) {
       log('HardwareClient: Error reading phone contacts: $e', stackTrace: st);
       return [];
+    }
+  }
+
+  /// 📲 كتابة جهة اتصال جديدة مباشرة داخل سجل هاتف أندرويد الرسمي
+  /// 📲 كتابة جهة اتصال جديدة مباشرة داخل سجل هاتف أندرويد الرسمي
+  Future<bool> saveDeviceContact({
+    required String name,
+    required String phoneNumber,
+  }) async {
+    try {
+      final status = await FlutterContacts.permissions.request(PermissionType.readWrite);
+      if (status != PermissionStatus.granted) {
+        log('HardwareClient: Write contacts permission denied by user.');
+        return false;
+      }
+
+      final nameParts = name.trim().split(' ');
+      final firstName = nameParts.first;
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+      // ⚡️ التوافق مع flutter_contacts 2.x: إنشاء كائن Contact غير قابل للتعديل
+      final newContact = Contact(
+        name: Name(
+          first: firstName,
+          last: lastName.isNotEmpty ? lastName : null,
+        ),
+        phones: [
+          Phone(number: phoneNumber.trim()),
+        ],
+      );
+
+      // ⚡️ استخدام FlutterContacts.create بدلاً من newContact.insert()
+      await FlutterContacts.create(newContact);
+      log('HardwareClient: Contact successfully written to Android phonebook: $name');
+      return true;
+    } catch (e, st) {
+      log('HardwareClient: Error writing contact to device phonebook: $e', stackTrace: st);
+      return false;
     }
   }
 

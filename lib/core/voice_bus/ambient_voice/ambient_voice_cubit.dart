@@ -5,7 +5,7 @@ import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/core/voice_bus/ambient_voice/ambient_voice_state.dart'; // 👈 إزالة /cubit/
+import 'package:beacon_os/core/voice_bus/ambient_voice/ambient_voice_state.dart';
 import 'package:beacon_os/core/voice_bus/voice_command_dispatcher.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
@@ -146,12 +146,11 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
       return;
     }
 
-    final systemContext = await _fetchLiveSystemContext();
-
+    // ⚡️ تمرير _fetchLiveSystemContext كـ Provider يتم استدعاؤه كسولاً فقط إذا احتاجه الموديل
     final result = await _dispatcher.dispatchAndAnnounce(
       effectiveQuery,
       context: context,
-      systemContext: systemContext,
+      contextProvider: _fetchLiveSystemContext,
     );
 
     final isError =
@@ -174,23 +173,53 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     });
   }
 
+  /// تجميع سياق النظام بشكل متوازٍ ومحصن بمهلات زمنية وسقف للبيانات
   Future<Map<String, dynamic>> _fetchLiveSystemContext() async {
     try {
-      final tasks = await _tasksRepo.getPendingTasks();
-      final alarms = await _focusRepo.watchAlarms().first;
-      final settings = await _settingsRepo.getSettings();
+      const timeout = Duration(milliseconds: 700);
 
-      List<VoiceMemo> memos = const [];
-      try {
-        memos = await _tasksRepo.watchMemos().first;
-      } catch (_) {}
+      // 🚀 تنفيذ الاستعلامات بالتوازي عبر Future.wait بدلاً من التسلسل البطيء
+      final results = await Future.wait([
+        _tasksRepo.getPendingTasks().timeout(timeout, onTimeout: () => []),
+        _focusRepo.watchAlarms().first.timeout(timeout, onTimeout: () => []),
+        _settingsRepo.getSettings().timeout(
+              timeout,
+              onTimeout: () => AppSetting(
+                id: 'fallback',
+                userPersona: 'digital_minimalist',
+                hasCompletedOnboarding: true,
+                speechRate: 0.5,
+                hapticsEnabled: true,
+                soundCuesEnabled: true,
+                isHighContrast: false,
+                defaultPriority: 'medium',
+                autoArchiveCompleted: true,
+                speakDueDatesAloud: true,
+                autoDialEmergency: true,
+                shareGpsOnSos: true,
+                speakIncomingSms: true,
+                voiceChimeHalfway: true,
+                vibrateOnSessionFinish: true,
+                syncAlarmsWithAndroidClock: true,
+                visionInspectionDetail: 'concise',
+                autoFlashlightInDark: true,
+                preferredCurrency: 'USD / Local',
+                updatedAt: DateTime.now(), // 👈 استبدال null بـ DateTime.now() وإزالة const
+                isSynced: true,
+              ),
+            ),
+        _tasksRepo.watchMemos().first.timeout(timeout, onTimeout: () => []),
+        _commsRepo != null
+            ? _commsRepo!.watchContacts().first.timeout(timeout, onTimeout: () => [])
+            : Future.value(<Contact>[]),
+      ]);
 
-      List<Contact> contacts = const [];
-      if (_commsRepo != null) {
-        try {
-          contacts = await _commsRepo.watchContacts().first;
-        } catch (_) {}
-      }
+      // 🛡️ تحديد سقف منطقي لحجم البيانات لحماية التوكنز وتسريع الاستجابة
+      final tasks = (results[0] as List<Task>).take(15).toList();
+      final alarms = (results[1] as List<Alarm>).take(10).toList();
+      final settings = results[2] as AppSetting;
+      final memos = (results[3] as List<VoiceMemo>).take(5).toList();
+      final contacts = (results[4] as List<Contact>).take(20).toList();
 
       return {
         'tasks': tasks
@@ -214,7 +243,9 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
             .map((m) => {
                   'id': m.id,
                   'title': m.title,
-                  'content': m.content,
+                  'content': m.content.length > 120
+                      ? '${m.content.substring(0, 120)}...'
+                      : m.content,
                 })
             .toList(),
         'contacts': contacts

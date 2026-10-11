@@ -1,4 +1,5 @@
 // lib/vision/cubit/vision_cubit.dart
+import 'dart:async';
 import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
@@ -35,7 +36,6 @@ class VisionCubit extends Cubit<VisionState> {
   final HapticManager _haptics;
   final SoundController _sound;
 
-  /// تبديل وضع الفحص مع إشعار صوتي فوري
   Future<void> setMode(VisionMode mode) async {
     if (state.activeMode == mode) return;
 
@@ -68,7 +68,6 @@ class VisionCubit extends Cubit<VisionState> {
     await _assistantRepo.speak(announcement);
   }
 
-  /// تبديل كشاف الهاتف للإضاءة
   Future<void> toggleTorch() async {
     final next = !state.isTorchOn;
     await _haptics.successNotification();
@@ -77,14 +76,12 @@ class VisionCubit extends Cubit<VisionState> {
     await _assistantRepo.speak(next ? 'Flashlight on.' : 'Flashlight off.');
   }
 
-  /// إيقاف النطق الصوتي فوراً عند نقر الشاشة أثناء القراءة
   Future<void> stopSpeaking() async {
     await _sound.stopAll();
     await _assistantRepo.stopSpeaking();
     emit(state.copyWith(status: VisionStatus.idle));
   }
 
-  /// الالتقاط الفوري والتحليل الذكي المتوافق مع تفضيلات الطابق الأول ونظام الأذونات
   Future<void> captureAndAnalyze() async {
     if (state.isBusy) return;
 
@@ -127,51 +124,46 @@ class VisionCubit extends Cubit<VisionState> {
       } catch (_) {}
 
       final shouldAutoTorch =
-          (settings?.autoFlashlightInDark ?? false) && !state.isTorchOn;
+          (settings?.autoFlashlightInDark ?? false) || state.isTorchOn;
 
       emit(state.copyWith(status: VisionStatus.capturing));
 
-      String? base64Image;
-      try {
-        if (shouldAutoTorch) {
-          await _hardwareRepo.toggleFlashlight(enable: true);
-        }
-        base64Image = await _camera.captureAsBase64();
-      } finally {
-        if (shouldAutoTorch) {
-          await _hardwareRepo.toggleFlashlight(enable: false);
-        }
-      }
+      // 🛡️ استخدام CameraService بدون تعارض الفلاش الخارجي
+      final captureResult = await _camera.captureFrame(
+        enableTorch: shouldAutoTorch,
+      );
 
-      if (base64Image == null || base64Image.isEmpty) {
-        final recheckedPerm = await _camera.getPermissionState();
-        final isPermIssue = recheckedPerm != CameraPermissionState.granted;
-
+      if (!captureResult.isSuccess || captureResult.base64Image == null) {
         emit(
           state.copyWith(
             status: VisionStatus.error,
-            errorMessage: isPermIssue
-                ? 'Camera permission denied.'
-                : 'Unable to capture frame from camera.',
+            errorMessage: captureResult.errorMessage ?? 'Capture failed',
           ),
         );
         await _sound.play(SoundCue.error);
         await _haptics.errorAlert();
-        await _assistantRepo.speak(
-          isPermIssue
-              ? 'Camera permission was not granted.'
-              : 'Camera capture failed. Please tap again to retry.',
-        );
+
+        if (captureResult.error == CameraCaptureError.noHardwareFound) {
+          await _assistantRepo.speak(
+            'No camera hardware detected on this device or emulator.',
+          );
+        } else if (captureResult.error == CameraCaptureError.permissionDenied) {
+          await _assistantRepo.speak('Camera permission was not granted.');
+        } else {
+          await _assistantRepo.speak('Camera capture failed. Please tap again to retry.');
+        }
         return;
       }
 
       emit(state.copyWith(status: VisionStatus.analyzing));
       final prompt = _buildPromptForMode(state.activeMode, settings);
 
-      final spokenResult = await _assistantRepo.analyzeVisionFrame(
-        base64Image: base64Image,
-        prompt: prompt,
-      );
+      final spokenResult = await _assistantRepo
+          .analyzeVisionFrame(
+            base64Image: captureResult.base64Image!,
+            prompt: prompt,
+          )
+          .timeout(const Duration(seconds: 15));
 
       await _haptics.successNotification();
       await _sound.play(SoundCue.success);
@@ -185,6 +177,19 @@ class VisionCubit extends Cubit<VisionState> {
 
       await _assistantRepo.speak(spokenResult);
       emit(state.copyWith(status: VisionStatus.idle));
+    } on TimeoutException {
+      log('VisionCubit: Vision analysis timed out.');
+      emit(
+        state.copyWith(
+          status: VisionStatus.error,
+          errorMessage: 'Inspection timed out.',
+        ),
+      );
+      await _haptics.errorAlert();
+      await _sound.play(SoundCue.error);
+      await _assistantRepo.speak(
+        'Visual inspection took too long. Please tap screen to retry.',
+      );
     } catch (e, st) {
       log('VisionCubit: Error analyzing scene: $e', stackTrace: st);
       emit(
@@ -199,7 +204,6 @@ class VisionCubit extends Cubit<VisionState> {
     }
   }
 
-  /// إعادة نطق آخر وصف صوتي
   Future<void> replayDescription() async {
     if (state.lastSpokenResult.isNotEmpty) {
       await _haptics.successNotification();
@@ -209,7 +213,6 @@ class VisionCubit extends Cubit<VisionState> {
     }
   }
 
-  /// حفظ النتيجة البصرية كملاحظة دائمة في بنك الذاكرة
   Future<void> saveScanResultAsNote() async {
     if (state.lastSpokenResult.isEmpty || state.isSavingNote) return;
 
@@ -273,5 +276,4 @@ class VisionCubit extends Cubit<VisionState> {
   }
 }
 
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
 typedef SpatialVisionCubit = VisionCubit;

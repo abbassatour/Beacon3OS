@@ -1,4 +1,5 @@
 // packages/voice_ai_api/lib/src/llm_agent.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
@@ -23,7 +24,7 @@ Current System Time: ${now.toIso8601String()}
 CURRENT SYSTEM CONTEXT (ACTIVE DATABASE RECORDS):
 $contextJson
 
-You MUST output your response ONLY as a valid JSON object. No markdown, no commentary outside the JSON.
+You MUST output your response ONLY as a single valid JSON object. No markdown wrappers, no introductory or trailing text.
 
 Available Intents & Database Actions:
 - "SAVE_TASK": Add a new task.
@@ -38,7 +39,7 @@ Available Intents & Database Actions:
 - "CALL_CONTACT": Dial a phone contact.
 - "SAVE_CONTACT": Save a new contact.
 - "DELETE_CONTACT": Remove a contact (Match contact_id from context).
-- "UPDATE_SETTINGS": Change an OS preference (speech rate, haptics, theme, auto-flashlight, vision detail, etc.).
+- "UPDATE_SETTINGS": Change an OS preference.
 - "FLASHLIGHT": Toggle camera torch.
 - "LOCK_SCREEN": Put screen to sleep.
 - "OPEN_APP": Launch external Android app.
@@ -49,24 +50,7 @@ Output format:
 {
   "intent": "<ONE_OF_THE_ABOVE_INTENTS>",
   "spoken_response": "1-2 short, crisp, natural sentences to read aloud to the user.",
-  "parameters": {
-     // For SAVE_TASK: "title" (string), "due_date" (ISO 8601 or null), "priority" ("high"|"medium"|"low")
-     // For COMPLETE_TASK: "task_id" (string matching context)
-     // For DELETE_TASK: "task_id" (string matching context)
-     // For UPDATE_TASK: "task_id" (string), "title" (optional string), "due_date" (optional ISO 8601), "priority" (optional string)
-     // For SAVE_MEMO: "title" (string), "content" (string)
-     // For DELETE_MEMO: "memo_id" (string matching context)
-     // For SET_ALARM: "time" ("HH:MM"), "label" (string)
-     // For TOGGLE_ALARM: "alarm_id" (string), "is_active" (boolean)
-     // For DELETE_ALARM: "alarm_id" (string)
-     // For CALL_CONTACT: "contact_name" (string)
-     // For SAVE_CONTACT: "name" (string), "phone_number" (string), "relationship" (optional string), "is_emergency" (boolean)
-     // For DELETE_CONTACT: "contact_id" (string)
-     // For UPDATE_SETTINGS: "key" ("speech_rate"|"haptics_enabled"|"sound_cues_enabled"|"is_high_contrast"|"vision_inspection_detail"|"auto_flashlight_in_dark"), "value" (dynamic)
-     // For FLASHLIGHT: "enable" (boolean)
-     // For OPEN_APP: "app_name" (string)
-     // For VISUAL_QUERY, GENERAL_CHAT: {}
-  }
+  "parameters": {}
 }
 
 Rules:
@@ -82,7 +66,10 @@ Rules:
   }) async {
     try {
       final messages = <Map<String, dynamic>>[
-        {'role': 'system', 'content': _getSystemPrompt(systemContext: systemContext)},
+        {
+          'role': 'system',
+          'content': _getSystemPrompt(systemContext: systemContext),
+        },
       ];
 
       if (base64Image != null && base64Image.isNotEmpty) {
@@ -91,7 +78,8 @@ Rules:
           'content': [
             {
               'type': 'text',
-              'text': userCommand.isEmpty ? 'What is in front of me?' : userCommand,
+              'text':
+                  userCommand.isEmpty ? 'What is in front of me?' : userCommand,
             },
             {
               'type': 'image_url',
@@ -103,58 +91,51 @@ Rules:
         messages.add({'role': 'user', 'content': userCommand});
       }
 
-      final response = await http.post(
-        Uri.parse(_endpoint),
-        headers: {
-          'Authorization': 'Bearer $openRouterApiKey',
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/abbassatour/BeaconOS',
-          'X-Title': 'BeaconOS',
-        },
-        body: jsonEncode({
-          'model': 'google/gemini-2.0-flash-001',
-          'models': [
-            'google/gemini-2.0-flash-001',
-            'google/gemini-2.5-flash',
-            'openai/gpt-4o-mini',
-          ],
-          'messages': messages,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(_endpoint),
+            headers: {
+              'Authorization': 'Bearer $openRouterApiKey',
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://github.com/abbassatour/BeaconOS',
+              'X-Title': 'BeaconOS',
+            },
+            body: jsonEncode({
+              'model': 'google/gemini-2.0-flash-001',
+              'models': [
+                'google/gemini-2.0-flash-001',
+                'google/gemini-2.5-flash',
+                'openai/gpt-4o-mini',
+              ],
+              'response_format': {'type': 'json_object'},
+              'messages': messages,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        String content = data['choices'][0]['message']['content'] as String;
-
-        content = content
-            .replaceAll(RegExp(r'```json\n?'), '')
-            .replaceAll(RegExp(r'```'), '')
-            .trim();
-
-        final dynamic parsed = jsonDecode(content);
-        if (parsed is Map) {
-          final safeMap = Map<String, dynamic>.from(parsed);
-          if (safeMap['parameters'] is Map) {
-            safeMap['parameters'] = Map<String, dynamic>.from(
-              safeMap['parameters'] as Map,
-            );
-          } else {
-            safeMap['parameters'] = <String, dynamic>{};
-          }
-          return safeMap;
-        }
-
+      if (response.statusCode != 200) {
+        log('LlmAgent Server Error: [${response.statusCode}] ${response.body}');
         return <String, dynamic>{
-          'intent': 'GENERAL_CHAT',
-          'spoken_response': content,
+          'intent': 'ERROR',
+          'spoken_response': 'Server error. Please try again shortly.',
           'parameters': <String, dynamic>{},
         };
-      } else {
-        log('LlmAgent Error: [${response.statusCode}] ${response.body}');
-        throw Exception('OpenRouter API Error: ${response.statusCode}');
       }
+
+      final data = jsonDecode(response.body);
+      final rawContent = data['choices'][0]['message']['content'] as String;
+
+      return _parseSafely(rawContent);
+    } on TimeoutException {
+      log('LlmAgent Timeout: Request took longer than 15 seconds.');
+      return <String, dynamic>{
+        'intent': 'ERROR',
+        'spoken_response':
+            'The network request timed out. Please check your connection and try again.',
+        'parameters': <String, dynamic>{},
+      };
     } catch (e, st) {
-      log('LlmAgent Exception: $e', stackTrace: st);
+      log('LlmAgent Network Exception: $e', stackTrace: st);
       return <String, dynamic>{
         'intent': 'ERROR',
         'spoken_response':
@@ -162,5 +143,48 @@ Rules:
         'parameters': <String, dynamic>{},
       };
     }
+  }
+
+  Map<String, dynamic> _parseSafely(String rawContent) {
+    try {
+      String cleaned = rawContent
+          .replaceAll(RegExp(r'```json\s*', caseSensitive: false), '')
+          .replaceAll('```', '')
+          .trim();
+
+      final firstBrace = cleaned.indexOf('{');
+      final lastBrace = cleaned.lastIndexOf('}');
+
+      if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      }
+
+      final dynamic parsed = jsonDecode(cleaned);
+
+      if (parsed is Map) {
+        final safeMap = Map<String, dynamic>.from(parsed);
+
+        final intent = safeMap['intent'] as String? ?? 'GENERAL_CHAT';
+        final spoken = safeMap['spoken_response'] as String? ?? 'Done.';
+        final parameters = safeMap['parameters'] is Map
+            ? Map<String, dynamic>.from(safeMap['parameters'] as Map)
+            : <String, dynamic>{};
+
+        return {
+          'intent': intent,
+          'spoken_response': spoken,
+          'parameters': parameters,
+        };
+      }
+    } catch (e) {
+      log('LlmAgent: JSON Parse failed, falling back to GENERAL_CHAT: $e');
+    }
+
+    return <String, dynamic>{
+      'intent': 'GENERAL_CHAT',
+      'spoken_response':
+          rawContent.replaceAll(RegExp(r'[\{\}\"\[\]]'), '').trim(),
+      'parameters': <String, dynamic>{},
+    };
   }
 }

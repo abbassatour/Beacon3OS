@@ -1,4 +1,5 @@
 // lib/core/services/camera_service.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
@@ -9,6 +10,29 @@ enum CameraPermissionState {
   granted,
   denied,
   permanentlyDenied,
+}
+
+enum CameraCaptureError {
+  none,
+  permissionDenied,
+  noHardwareFound,
+  hardwareBusy,
+  timeout,
+  unknown,
+}
+
+class CameraCaptureResult {
+  const CameraCaptureResult({
+    this.base64Image,
+    this.error = CameraCaptureError.none,
+    this.errorMessage,
+  });
+
+  final String? base64Image;
+  final CameraCaptureError error;
+  final String? errorMessage;
+
+  bool get isSuccess => error == CameraCaptureError.none && base64Image != null;
 }
 
 class CameraService {
@@ -40,19 +64,30 @@ class CameraService {
     return openAppSettings();
   }
 
-  /// التقاط صورة فورية مع فحص وطلب الإذن تلقائياً وتحرير الموارد فوراً
-  Future<String?> captureAsBase64() async {
-    if (_isCapturing) return null;
+  /// التقاط صورة مع حماية التعارض العتادي مع الفلاش والتحكم بالمهلة الزمنية
+  Future<CameraCaptureResult> captureFrame({
+    bool enableTorch = false,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    if (_isCapturing) {
+      return const CameraCaptureResult(
+        error: CameraCaptureError.hardwareBusy,
+        errorMessage: 'Camera is currently busy capturing another frame.',
+      );
+    }
     _isCapturing = true;
 
-    // 1. فحص إذن الكاميرا وطلبه وقت التشغيل إن لم يكن ممنوحاً
+    // 1. التحقق من صلاحية الكاميرا وطلبها فورياً
     final isGranted = await Permission.camera.isGranted;
     if (!isGranted) {
       final requested = await Permission.camera.request();
       if (!requested.isGranted) {
         log('CameraService: Camera permission denied by user.');
         _isCapturing = false;
-        return null;
+        return const CameraCaptureResult(
+          error: CameraCaptureError.permissionDenied,
+          errorMessage: 'Camera permission denied.',
+        );
       }
     }
 
@@ -60,8 +95,12 @@ class CameraService {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        log('CameraService: No cameras found on device.');
-        return null;
+        log('CameraService: No physical cameras found (Emulator environment).');
+        _isCapturing = false;
+        return const CameraCaptureResult(
+          error: CameraCaptureError.noHardwareFound,
+          errorMessage: 'No cameras detected on this device.',
+        );
       }
 
       final backCamera = cameras.firstWhere(
@@ -69,35 +108,72 @@ class CameraService {
         orElse: () => cameras.first,
       );
 
-      // تهيئة مؤقتة لالتقاط لقطة واحدة فقط
       controller = CameraController(
         backCamera,
         ResolutionPreset.medium,
         enableAudio: false,
       );
 
-      await controller.initialize();
-      final XFile file = await controller.takePicture();
+      await controller.initialize().timeout(const Duration(seconds: 4));
+
+      // ⚡️ تشغيل الفلاش بأمان داخل نفس الجلسة لمنع انهيار العتاد
+      if (enableTorch) {
+        try {
+          await controller.setFlashMode(FlashMode.torch);
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+        } catch (e) {
+          log('CameraService: FlashMode.torch not supported on this lens: $e');
+        }
+      }
+
+      final XFile file = await controller.takePicture().timeout(
+        const Duration(seconds: 4),
+      );
+
+      if (enableTorch) {
+        try {
+          await controller.setFlashMode(FlashMode.off);
+        } catch (_) {}
+      }
 
       final bytes = await File(file.path).readAsBytes();
       final base64String = base64Encode(bytes);
 
-      // مسح الملف المؤقت فوراً لحماية الخصوصية وتوفير المساحة
       await File(file.path).delete();
-      log('CameraService: Scene captured and encoded successfully.');
+      log('CameraService: Frame captured (${bytes.lengthInBytes} bytes).');
 
-      return base64String;
+      return CameraCaptureResult(base64Image: base64String);
+    } on TimeoutException {
+      log('CameraService: Capture timed out.');
+      return const CameraCaptureResult(
+        error: CameraCaptureError.timeout,
+        errorMessage: 'Camera hardware timed out.',
+      );
     } on CameraException catch (e, st) {
-      log('CameraService: CameraException [${e.code}]: ${e.description}', stackTrace: st);
-      return null;
+      log('CameraService: CameraException [${e.code}]: ${e.description}',
+          stackTrace: st);
+      return CameraCaptureResult(
+        error: CameraCaptureError.hardwareBusy,
+        errorMessage: e.description ?? e.code,
+      );
     } catch (e, st) {
-      log('CameraService: General Capture Error: $e', stackTrace: st);
-      return null;
+      log('CameraService: General error during capture: $e', stackTrace: st);
+      return CameraCaptureResult(
+        error: CameraCaptureError.unknown,
+        errorMessage: e.toString(),
+      );
     } finally {
-      // إغلاق الكاميرا وتحرير العتاد فوراً (يسمح للكشاف بالعمل ويمنع استهلاك البطارية)
-      await controller?.dispose();
+      try {
+        await controller?.dispose();
+      } catch (_) {}
       _isCapturing = false;
     }
+  }
+
+  /// دالة توافقية سريعة للاستدعاء البسيط
+  Future<String?> captureAsBase64({bool enableTorch = false}) async {
+    final result = await captureFrame(enableTorch: enableTorch);
+    return result.base64Image;
   }
 
   void dispose() {}

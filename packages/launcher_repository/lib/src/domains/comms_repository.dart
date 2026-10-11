@@ -1,4 +1,5 @@
 // packages/launcher_repository/lib/src/domains/comms_repository.dart
+import 'dart:async';
 import 'dart:developer';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
@@ -18,8 +19,9 @@ abstract class CommsRepository {
   });
   Future<void> deleteContact(dynamic contactOrId);
 
-  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية والسحابية
-  Future<({int addedCount, int updatedCount})> syncDeviceContactsToVault();
+  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية عبر خوارزمية تفاضلية (Diffing Engine)
+  Future<({int addedCount, int updatedCount, int deletedCount})>
+      syncDeviceContactsToVault();
 
   Stream<List<MessagesVaultData>> watchMessages(String contactIdentifier);
   Future<List<MessagesVaultData>> getUnreadMessages();
@@ -40,6 +42,12 @@ abstract class CommsRepository {
 
   Future<void> restoreCommsFromCloud();
   Future<void> syncPendingComms();
+
+  /// 🛰️ بدء الاستماع اللحظي للسحابة وتحديث الخزنة فوراً
+  void initializeRealtimeSync();
+
+  /// 🛑 إيقاف الاشتراكات اللحظية بأمان
+  void dispose();
 }
 
 class CommsRepositoryImpl implements CommsRepository {
@@ -55,6 +63,120 @@ class CommsRepositoryImpl implements CommsRepository {
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
   final _uuid = const Uuid();
+
+  StreamSubscription<dynamic>? _authSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _realtimeContactsSubscription;
+
+  // ===========================================================================
+  // 🛰️ إدارة الاستماع اللحظي السحابي (Supabase Realtime Sync)
+  // ===========================================================================
+
+  @override
+  void initializeRealtimeSync() {
+    _authSubscription?.cancel();
+    _authSubscription = _cloud.authStateChanges?.listen((authState) {
+      if (_cloud.isAuthenticated) {
+        _subscribeToRealtimeContacts();
+      } else {
+        _realtimeContactsSubscription?.cancel();
+        _realtimeContactsSubscription = null;
+      }
+    });
+
+    if (_cloud.isAuthenticated) {
+      _subscribeToRealtimeContacts();
+    }
+  }
+
+  void _subscribeToRealtimeContacts() {
+    _realtimeContactsSubscription?.cancel();
+    final stream = _cloud.streamContacts();
+    if (stream != null) {
+      _realtimeContactsSubscription = stream.listen(
+        _handleCloudRealtimeContacts,
+        onError: (Object error) {
+          log('CommsRepository: Realtime contacts stream error: $error');
+        },
+      );
+      log('CommsRepository: 🛰️ Subscribed to Supabase Realtime contacts stream.');
+    }
+  }
+
+  Future<void> _handleCloudRealtimeContacts(
+    List<Map<String, dynamic>> cloudContacts,
+  ) async {
+    try {
+      if (cloudContacts.isEmpty) return;
+
+      final localContacts = await (_db.select(_db.contacts)).get();
+      final Map<String, Contact> localMap = {
+        for (final c in localContacts) c.id: c,
+      };
+
+      await _db.batch((batch) {
+        for (final cloudItem in cloudContacts) {
+          final id = cloudItem['id'] as String?;
+          if (id == null || id.isEmpty) continue;
+
+          final local = localMap[id];
+
+          // 🛡️ فض النزاعات: حماية التعديلات المحلية غير المزامنة (Offline First)
+          if (local != null && !local.isSynced) {
+            continue;
+          }
+
+          final deletedAtStr = cloudItem['deleted_at'] as String?;
+          final DateTime? deletedAt =
+              deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+          if (deletedAt != null) {
+            // حذف وارد من السحابة: إزالته فوراً من قاعدة البيانات المحلية
+            if (local != null) {
+              batch.delete(
+                _db.contacts,
+                ContactsCompanion(id: Value(id)),
+              );
+            }
+          } else {
+            // إضافة أو تحديث وارد من السحابة
+            final name = (cloudItem['name'] as String? ?? '').trim();
+            final phone = (cloudItem['phone_number'] as String? ?? '').trim();
+            if (name.isEmpty || phone.isEmpty) continue;
+
+            final relationship = cloudItem['relationship'] as String?;
+            final isEmergency = cloudItem['is_emergency'] as bool? ?? false;
+
+            batch.insert(
+              _db.contacts,
+              ContactsCompanion.insert(
+                id: id,
+                name: name,
+                phoneNumber: phone,
+                relationship: Value(relationship),
+                isEmergency: Value(isEmergency),
+                isSynced: const Value(true),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
+          }
+        }
+      });
+      log('CommsRepository: ⚡ Reconciled ${cloudContacts.length} realtime cloud contacts.');
+    } catch (e, st) {
+      log('CommsRepository: Error reconciling realtime contacts: $e',
+          stackTrace: st);
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _realtimeContactsSubscription?.cancel();
+  }
+
+  // ===========================================================================
+  // 📇 العمليات الأساسية لجهات الاتصال
+  // ===========================================================================
 
   @override
   Stream<List<Contact>> watchContacts() => _db.watchAllContacts();
@@ -80,6 +202,15 @@ class CommsRepositoryImpl implements CommsRepository {
       isEmergency: isEmergency,
     );
 
+    // المزامنة الثنائية: كتابة جهة الاتصال في سجل هاتف أندرويد
+    _hardware.saveDeviceContact(
+      name: name,
+      phoneNumber: phoneNumber,
+    ).catchError((Object error) {
+      log('CommsRepository: Device contact write skipped/failed: $error');
+      return false;
+    });
+
     _cloud.syncContact(
       id: id,
       name: name,
@@ -104,39 +235,74 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
-  Future<({int addedCount, int updatedCount})> syncDeviceContactsToVault() async {
+  Future<({int addedCount, int updatedCount, int deletedCount})>
+      syncDeviceContactsToVault() async {
     try {
-      // 1. جلب جهات اتصال الجهاز الحقيقية
       final deviceRecords = await _hardware.getDeviceContacts();
       if (deviceRecords.isEmpty) {
         log('CommsRepository: No contacts found on device or permission rejected.');
-        return (addedCount: 0, updatedCount: 0);
+        return (addedCount: 0, updatedCount: 0, deletedCount: 0);
       }
 
-      // 2. جلب جهات الاتصال المسجلة حالياً في Drift (المشفرة محلياً)
-      final existingContacts = await (_db.select(_db.contacts)..where((c) => c.deletedAt.isNull())).get();
+      final existingContacts = await (_db.select(_db.contacts)
+            ..where((c) => c.deletedAt.isNull()))
+          .get();
 
-      // خريطة لتسريع البحث باستخدام رقم الهاتف كمفتاح أساسي
-      final Map<String, Contact> phoneMap = {
-        for (final c in existingContacts) _sanitizeNumber(c.phoneNumber): c,
-      };
+      final Map<String, Contact> map9 = {};
+      final Map<String, Contact> map8 = {};
+
+      for (final c in existingContacts) {
+        final digits = c.phoneNumber.replaceAll(RegExp(r'\D'), '');
+        if (digits.isEmpty) continue;
+
+        if (digits.length >= 9) {
+          map9[digits.substring(digits.length - 9)] = c;
+        } else {
+          map9[digits] = c;
+        }
+
+        if (digits.length >= 8) {
+          map8[digits.substring(digits.length - 8)] = c;
+        }
+      }
 
       var addedCount = 0;
       var updatedCount = 0;
+      var deletedCount = 0;
 
-      // 3. المعالجة الدفعية في Drift (Batch Operation)
+      final Set<String> matchedExistingIds = {};
+      final Set<String> processedDeviceKeys = {};
+
       await _db.batch((batch) {
         for (final record in deviceRecords) {
           final cleanPhone = _sanitizeNumber(record.phoneNumber);
-          final existing = phoneMap[cleanPhone];
+          final digits = cleanPhone.replaceAll(RegExp(r'\D'), '');
+          if (digits.length < 3) continue;
+
+          final key9 = digits.length >= 9
+              ? digits.substring(digits.length - 9)
+              : digits;
+          final key8 = digits.length >= 8
+              ? digits.substring(digits.length - 8)
+              : null;
+
+          if (processedDeviceKeys.contains(key9)) continue;
+          processedDeviceKeys.add(key9);
+
+          final existing = map9[key9] ?? (key8 != null ? map8[key8] : null);
 
           if (existing != null) {
-            // جهة الاتصال موجودة: إذا تغيّر الاسم في الهاتف نقوم بتحديثه مع الحفاظ على خصائص الطوارئ والـ ID
-            if (existing.name != record.name) {
+            matchedExistingIds.add(existing.id);
+
+            final nameChanged = existing.name != record.name;
+            final phoneChanged = existing.phoneNumber != cleanPhone;
+
+            if (nameChanged || phoneChanged) {
               batch.update(
                 _db.contacts,
                 ContactsCompanion(
                   name: Value(record.name),
+                  phoneNumber: Value(cleanPhone),
                   updatedAt: Value(DateTime.now()),
                   isSynced: const Value(false),
                 ),
@@ -145,7 +311,6 @@ class CommsRepositoryImpl implements CommsRepository {
               updatedCount++;
             }
           } else {
-            // جهة اتصال جديدة تماماً: نقوم بإضافتها
             final newId = _uuid.v4();
             batch.insert(
               _db.contacts,
@@ -160,19 +325,43 @@ class CommsRepositoryImpl implements CommsRepository {
             addedCount++;
           }
         }
+
+        for (final existing in existingContacts) {
+          if (!matchedExistingIds.contains(existing.id)) {
+            if (existing.isEmergency) {
+              log('CommsRepository: Retaining emergency contact missing from device: ${existing.name}');
+              continue;
+            }
+
+            batch.update(
+              _db.contacts,
+              ContactsCompanion(
+                deletedAt: Value(DateTime.now()),
+                updatedAt: Value(DateTime.now()),
+                isSynced: const Value(false),
+              ),
+              where: (tbl) => tbl.id.equals(existing.id),
+            );
+            deletedCount++;
+          }
+        }
       });
 
-      log('CommsRepository: Device contacts reconciled. Added: $addedCount, Updated: $updatedCount');
+      log('CommsRepository: Reconciliation Diff Complete -> Added: $addedCount, Updated: $updatedCount, Deleted: $deletedCount');
 
-      // 4. تشغيل المزامنة السحابية غير المعطلة للأسماء غير المزامنة
       syncPendingComms().catchError((Object err) {
-        log('CommsRepository: Cloud sync deferred after import: $err');
+        log('CommsRepository: Cloud sync deferred after diffing: $err');
       });
 
-      return (addedCount: addedCount, updatedCount: updatedCount);
+      return (
+        addedCount: addedCount,
+        updatedCount: updatedCount,
+        deletedCount: deletedCount,
+      );
     } catch (e, st) {
-      log('CommsRepository: Error during contacts synchronization: $e', stackTrace: st);
-      return (addedCount: 0, updatedCount: 0);
+      log('CommsRepository: Error during contacts reconciliation diff: $e',
+          stackTrace: st);
+      return (addedCount: 0, updatedCount: 0, deletedCount: 0);
     }
   }
 
@@ -288,21 +477,27 @@ class CommsRepositoryImpl implements CommsRepository {
     if (!_cloud.isAuthenticated) return;
     try {
       final cloudContacts = await _cloud.fetchContacts();
-      for (final c in cloudContacts) {
-        await _db.into(_db.contacts).insert(
-          ContactsCompanion.insert(
-            id: c['id'] as String,
-            name: c['name'] as String,
-            phoneNumber: c['phone_number'] as String,
-            relationship: Value(c['relationship'] as String?),
-            isEmergency: Value(c['is_emergency'] as bool? ?? false),
-            isSynced: const Value(true),
-          ),
-          mode: InsertMode.insertOrReplace,
-        );
-      }
-    } catch (e) {
-      log('CommsRepository: Contacts cloud restore error: $e');
+      if (cloudContacts.isEmpty) return;
+
+      await _db.batch((batch) {
+        for (final c in cloudContacts) {
+          batch.insert(
+            _db.contacts,
+            ContactsCompanion.insert(
+              id: c['id'] as String,
+              name: c['name'] as String,
+              phoneNumber: c['phone_number'] as String,
+              relationship: Value(c['relationship'] as String?),
+              isEmergency: Value(c['is_emergency'] as bool? ?? false),
+              isSynced: const Value(true),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+      log('CommsRepository: ⚡ Restored ${cloudContacts.length} contacts from cloud in batch.');
+    } catch (e, st) {
+      log('CommsRepository: Contacts cloud restore error: $e', stackTrace: st);
     }
   }
 
@@ -313,24 +508,36 @@ class CommsRepositoryImpl implements CommsRepository {
       final pending = await (_db.select(_db.contacts)
             ..where((c) => c.isSynced.equals(false)))
           .get();
-      for (final c in pending) {
-        if (c.deletedAt != null) {
-          await _cloud.softDeleteContactInCloud(c.id);
-          await _db.deleteContact(c.id);
-        } else {
-          await _cloud.syncContact(
-            id: c.id,
-            name: c.name,
-            phoneNumber: c.phoneNumber,
-            relationship: c.relationship,
-            isEmergency: c.isEmergency,
-          );
-          await (_db.update(_db.contacts)..where((tbl) => tbl.id.equals(c.id)))
-              .write(const ContactsCompanion(isSynced: Value(true)));
-        }
+      if (pending.isEmpty) return;
+
+      final toDelete = pending.where((c) => c.deletedAt != null).toList();
+      final toUpsert = pending.where((c) => c.deletedAt == null).toList();
+
+      if (toDelete.isNotEmpty) {
+        final deleteIds = toDelete.map((c) => c.id).toList();
+        await _cloud.softDeleteContactsBatchInCloud(deleteIds);
+        await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds))).go();
+        log('CommsRepository: ⚡ Synced and purged ${deleteIds.length} deleted contacts in cloud.');
       }
-    } catch (e) {
-      log('CommsRepository: Pending sync error: $e');
+
+      if (toUpsert.isNotEmpty) {
+        final upsertPayload = toUpsert.map((c) => {
+          'id': c.id,
+          'name': c.name,
+          'phone_number': c.phoneNumber,
+          'relationship': c.relationship,
+          'is_emergency': c.isEmergency,
+        }).toList();
+
+        await _cloud.syncContactsBatch(upsertPayload);
+
+        final upsertIds = toUpsert.map((c) => c.id).toList();
+        await (_db.update(_db.contacts)..where((tbl) => tbl.id.isIn(upsertIds)))
+            .write(const ContactsCompanion(isSynced: Value(true)));
+        log('CommsRepository: ⚡ Batch synced ${upsertIds.length} active contacts to Supabase.');
+      }
+    } catch (e, st) {
+      log('CommsRepository: Pending batch sync error: $e', stackTrace: st);
     }
   }
 }

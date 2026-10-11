@@ -146,26 +146,45 @@ class CommsCubit extends Cubit<CommsState> {
     emit(state.copyWith(isSosBroadcasting: false));
   }
 
-  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة مع تغذية صوتية ولمسية
+  /// مزامنة جهات اتصال الهاتف وتسويتها تفاضلياً داخل الخزنة مع تغذية صوتية ولمسية
   Future<void> syncDeviceContacts() async {
     if (state.isSyncingContacts) return;
 
     emit(state.copyWith(isSyncingContacts: true));
     _haptics.selectionClick();
     await _sound.play(SoundCue.processing);
-    await _assistant.speak('Syncing contacts from your device...');
+    await _assistant.speak('Reconciling contacts from your device...');
 
     final result = await _commsRepo.syncDeviceContactsToVault();
 
     await _haptics.successNotification();
     await _sound.play(SoundCue.success);
 
-    final feedback = result.addedCount == 0 && result.updatedCount == 0
-        ? 'Your contacts are already up to date.'
-        : 'Synced ${result.addedCount} new contacts and updated ${result.updatedCount}.';
+    final feedback = _buildSyncFeedback(
+      added: result.addedCount,
+      updated: result.updatedCount,
+      deleted: result.deletedCount,
+    );
 
     await _assistant.speak(feedback);
     emit(state.copyWith(isSyncingContacts: false));
+  }
+
+  String _buildSyncFeedback({
+    required int added,
+    required int updated,
+    required int deleted,
+  }) {
+    if (added == 0 && updated == 0 && deleted == 0) {
+      return 'Your contacts are already completely up to date.';
+    }
+
+    final summaryParts = <String>[];
+    if (added > 0) summaryParts.add('$added new contacts added');
+    if (updated > 0) summaryParts.add('$updated updated');
+    if (deleted > 0) summaryParts.add('$deleted removed');
+
+    return 'Contacts reconciled: ${summaryParts.join(', ')}.';
   }
 
   @override

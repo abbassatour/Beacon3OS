@@ -58,6 +58,9 @@ class LauncherRepository {
     hardware = hardwareRepository ?? SystemHardwareRepositoryImpl(hardwareClient: hw);
     comms = commsRepository ?? CommsRepositoryImpl(database: db, cloudSync: cloud, hardware: hw);
     assistant = assistantRepository ?? AssistantRepositoryImpl(speechEngine: speechEngine, ttsEngine: ttsEngine, llmAgent: llmAgent);
+
+    // 🛰️ تفعيل الاستماع اللحظي للرادار وجهات الاتصال مع سحابة Supabase
+    comms.initializeRealtimeSync();
   }
 
   // --- الوصول المباشر للمستودعات الستة المتخصصة ---
@@ -110,5 +113,10 @@ class LauncherRepository {
     final result = await assistant.processLlmCommand(userCommand: userQuery, base64Image: base64Image);
     final response = result['spoken_response'] as String? ?? 'Done.';
     return LauncherCommandResult(intent: result['intent'] as String? ?? 'GENERAL', spokenResponse: response);
+  }
+
+  /// 🛑 تحرير موارد النواة والاستماعات اللحظية
+  void dispose() {
+    comms.dispose();
   }
 }

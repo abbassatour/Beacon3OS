@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// عميل المزامنة السحابية وبث الرادار لمنظومة BeaconOS عبر Supabase.
-/// يدعم معمارية UUID والحذف الناعم والبث اللحظي (Realtime Streams).
+/// يدعم معمارية UUID والحذف الناعم والدفع الجماعي (Batch Operations) والبث اللحظي (Realtime Streams).
 class CloudSyncClient {
   CloudSyncClient();
 
@@ -115,7 +115,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 📇 3. جهات الاتصال ورادار الطوارئ (Contacts - Complete with Streams)
+  // 📇 3. جهات الاتصال ورادار الطوارئ (Contacts - Complete with Batch Sync & Streams)
   // ===========================================================================
 
   Future<void> syncContact({
@@ -146,6 +146,27 @@ class CloudSyncClient {
     }
   }
 
+  /// ⚡ مزامنة دفعة كاملة من جهات الاتصال في طلب شبكي واحد (Batch Upsert)
+  Future<void> syncContactsBatch(List<Map<String, dynamic>> contactsList) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null || contactsList.isEmpty) return;
+
+    try {
+      final payload = contactsList.map((contact) {
+        return {
+          ...contact,
+          'user_id': userId,
+        };
+      }).toList();
+
+      await client.from('contacts').upsert(payload);
+      log('CloudSyncClient: ⚡ Batch synced ${payload.length} contacts to cloud successfully.');
+    } catch (e, st) {
+      log('CloudSyncClient: Batch contact sync skipped/failed: $e', stackTrace: st);
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchContacts() async {
     final client = _client;
     final userId = currentUser?.id;
@@ -156,7 +177,7 @@ class CloudSyncClient {
           .from('contacts')
           .select()
           .eq('user_id', userId)
-          .filter('deleted_at', 'is', null) // استثناء المحذوف
+          .filter('deleted_at', 'is', null)
           .order('name', ascending: true);
 
       return List<Map<String, dynamic>>.from(response);
@@ -178,7 +199,6 @@ class CloudSyncClient {
         .order('name', ascending: true);
   }
 
-  /// حذف ناعم في السحابة مع الاحتفاظ بالسجل للمزامنة
   Future<void> softDeleteContactInCloud(String contactId) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -193,7 +213,22 @@ class CloudSyncClient {
     }
   }
 
-  /// حذف نهائي قطعي (إذا لزم الأمر)
+  /// ⚡ حذف ناعم دفعة واحدة في السحابة لمجموعة معرفات
+  Future<void> softDeleteContactsBatchInCloud(List<String> contactIds) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null || contactIds.isEmpty) return;
+
+    try {
+      await client.from('contacts').update({
+        'deleted_at': DateTime.now().toIso8601String(),
+      }).inFilter('id', contactIds).eq('user_id', userId);
+      log('CloudSyncClient: ⚡ Batch soft-deleted ${contactIds.length} contacts in cloud.');
+    } catch (e) {
+      log('CloudSyncClient: Failed to batch soft delete contacts: $e');
+    }
+  }
+
   Future<void> hardDeleteContact(String contactId) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -211,7 +246,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 💬 4. سجل التراسل الصامت (Messages Vault - Complete with Streams)
+  // 💬 4. سجل التراسل الصامت (Messages Vault)
   // ===========================================================================
 
   Future<void> syncMessage({

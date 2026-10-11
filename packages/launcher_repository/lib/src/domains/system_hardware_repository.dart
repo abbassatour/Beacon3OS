@@ -8,7 +8,8 @@ abstract class SystemHardwareRepository {
   Future<String> getBatteryStatus();
   Future<int> getBatteryPercentage();
   Future<GpsCoordinates?> getCurrentLocation();
-  Future<List<DeviceContactRecord>> getDeviceContacts(); // 👈 إضافة إلى العقد
+  Future<List<DeviceContactRecord>> getDeviceContacts();
+  Future<bool> saveDeviceContact({required String name, required String phoneNumber});
   Future<bool> toggleFlashlight({bool? enable});
   Future<bool> lockScreen();
   Future<bool> openApp(String packageNameOrCommonName);
@@ -37,7 +38,14 @@ class SystemHardwareRepositoryImpl implements SystemHardwareRepository {
 
   @override
   Future<List<DeviceContactRecord>> getDeviceContacts() =>
-      _hardware.getDeviceContacts(); // 👈 تطبيق الدالة
+      _hardware.getDeviceContacts();
+
+  @override
+  Future<bool> saveDeviceContact({
+    required String name,
+    required String phoneNumber,
+  }) =>
+      _hardware.saveDeviceContact(name: name, phoneNumber: phoneNumber);
 
   @override
   Future<String> getBatteryStatus() => _hardware.getBatteryStatus();
