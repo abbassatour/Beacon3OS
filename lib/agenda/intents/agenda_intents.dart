@@ -1,5 +1,5 @@
 // lib/agenda/intents/agenda_intents.dart
-import 'package:beacon_os/core/spatial_kernel/voice_intent_handler.dart';
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';

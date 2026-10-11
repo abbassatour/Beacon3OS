@@ -1,0 +1,14 @@
+// lib/onboarding/onboarding.dart
+export 'cubit/accessible_onboarding_cubit.dart';
+export 'cubit/minimalist_onboarding_cubit.dart';
+export 'view/accessible_onboarding_page.dart';
+export 'view/gateway_page.dart';
+export 'view/minimalist_onboarding_page.dart';
+export 'view/steps/audio_tuning_step.dart';
+export 'view/steps/compass_training_step.dart';
+export 'view/steps/minimalist_cockpit_step.dart';
+export 'view/steps/minimalist_focus_step.dart';
+export 'view/steps/minimalist_launcher_step.dart';
+export 'view/steps/minimalist_manifesto_step.dart';
+export 'view/steps/sos_setup_step.dart';
+export 'view/steps/vision_test_step.dart';

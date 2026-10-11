@@ -1,10 +1,10 @@
 // lib/agenda/agenda_module.dart
 import 'package:beacon_os/agenda/intents/agenda_intents.dart';
-import 'package:beacon_os/agenda/view/agenda_view.dart';
-import 'package:beacon_os/agenda/view/settings_agenda_room.dart';
+import 'package:beacon_os/agenda/view/agenda_floor_0_view.dart';
+import 'package:beacon_os/agenda/view/agenda_floor_1_view.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
-import 'package:beacon_os/core/spatial_kernel/spatial_module.dart';
-import 'package:beacon_os/core/spatial_kernel/voice_intent_handler.dart';
+import 'package:beacon_os/core/topology/topology.dart';
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/material.dart';
 
 class AgendaModule extends SpatialModule {
@@ -42,19 +42,19 @@ class AgendaModule extends SpatialModule {
         SaveMemoIntentHandler(),
         CompleteTaskIntentHandler(),
         DeleteTaskIntentHandler(),
-        UpdateTaskIntentHandler(), // 👈 مسجل حديثاً لـ UPDATE_TASK
-        DeleteMemoIntentHandler(), // 👈 مسجل حديثاً لـ DELETE_MEMO
+        UpdateTaskIntentHandler(),
+        DeleteMemoIntentHandler(),
       ];
 
   @override
   Widget buildFloorView(BuildContext context, int floorLevel) {
     if (floorLevel == 1) {
-      return const SettingsAgendaRoom(
-        key: ValueKey('settings_agenda_room_view'),
+      return const AgendaFloor1View(
+        key: ValueKey('agenda_floor_1_view'),
       );
     }
-    return const AgendaContentView(
-      key: ValueKey('agenda_content_view'),
+    return const AgendaFloor0View(
+      key: ValueKey('agenda_floor_0_view'),
     );
   }
 }

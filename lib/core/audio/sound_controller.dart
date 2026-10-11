@@ -2,7 +2,7 @@
 import 'dart:developer';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
-import 'package:beacon_os/spatial_compass/cubit/spatial_compass_state.dart';
+import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/widgets.dart';
 
 class SoundController {

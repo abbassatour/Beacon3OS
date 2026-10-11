@@ -2,7 +2,7 @@
 import 'package:beacon_os/auth/cubit/auth_cubit.dart';
 import 'package:beacon_os/auth/cubit/auth_state.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/spatial_compass/view/spatial_compass_page.dart';
+import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

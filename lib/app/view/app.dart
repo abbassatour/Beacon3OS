@@ -1,18 +1,17 @@
 // lib/app/view/app.dart
 import 'package:beacon_os/auth/cubit/auth_cubit.dart';
 import 'package:beacon_os/core/services/permission_service.dart';
-import 'package:beacon_os/core/spatial_kernel/spatial_topology.dart';
-import 'package:beacon_os/core/spatial_kernel/voice_command_dispatcher.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
-import 'package:beacon_os/onboarding/gateway/view/onboarding_gateway_page.dart';
-import 'package:beacon_os/spatial_compass/view/spatial_compass_page.dart';
+import 'package:beacon_os/core/topology/topology.dart';
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/onboarding/onboarding.dart';
+import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 
-/// المفتاح العام للملاحة للوصول للسياق الجذري عند تنفيذ الأوامر الصوتية
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class App extends StatefulWidget {
@@ -38,17 +37,14 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
 
-    // 1. بناء شبكة الطوبولوجيا الفضائية المحملة بالموديولات الخمسة
     _topology = SpatialTopology.defaultTopology();
 
-    // 2. تشغيل حافلة الأوامر الصوتية الذكية
     _voiceDispatcher = VoiceCommandDispatcher(
       topology: _topology,
       assistantRepository: widget._launcherRepository.assistant,
       navigatorKey: appNavigatorKey,
     );
 
-    // 3. ربط حافلة الأوامر بالمستودع المركزي لتعمل عبر Zero-UI والتطبيق كاملاً
     widget._launcherRepository.registerVoiceDispatcher(
       (query, {base64Image}) => _voiceDispatcher.dispatch(
         query,
@@ -56,7 +52,6 @@ class _AppState extends State<App> {
       ),
     );
 
-    // 4. طلب كافة الأذونات السيادية فور اكتمال رسم أول إطار في الواجهة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PermissionService.instance.requestAllPermissions();
     });
@@ -115,8 +110,8 @@ class _AppState extends State<App> {
                   ? AppTheme.highContrastOledTheme
                   : AppTheme.warmPaperTheme,
               home: hasCompletedOnboarding
-                  ? const SpatialCompassPage()
-                  : const OnboardingGatewayPage(),
+                  ? const SpatialShellPage()
+                  : const GatewayPage(),
             );
           },
         ),
