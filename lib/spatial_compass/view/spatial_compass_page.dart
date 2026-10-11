@@ -155,9 +155,13 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
     _activePointers++;
     _pointerDownPos = event.position;
 
+    // 🛡️ فور نزول إصبع ثانٍ، نلغي أي مؤقت أو جلسة صوتية لمصلحة إيماءة المصعد
     if (_activePointers == 2) {
       _holdToSpeakTimer?.cancel();
-      _isHoldingToSpeak = false;
+      if (_isHoldingToSpeak) {
+        _isHoldingToSpeak = false;
+        voiceCubit.closeSession();
+      }
       _multiTouchStartTime = DateTime.now();
       _hasTwoFingerMoved = false;
       _tapCount = 0;
@@ -255,7 +259,15 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
   }
 
   void _onScaleStart(ScaleStartDetails details) {
-    if (_isHoldingToSpeak) return;
+    if (details.pointerCount >= 2) {
+      _holdToSpeakTimer?.cancel();
+      if (_isHoldingToSpeak) {
+        _isHoldingToSpeak = false;
+        context.read<AmbientVoiceCubit>().closeSession();
+      }
+    } else if (_isHoldingToSpeak) {
+      return;
+    }
 
     _panX.stop();
     _panY.stop();
@@ -276,23 +288,28 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
 
     final state = context.read<SpatialCompassCubit>().state;
 
-    // 🌟 1. معالجة المصعد الرأسي: توسيع لدخول الطابق 1، ضم للعودة للطابق 0
-    if (_isTwoFingerElevator || details.pointerCount >= 2) {
+    // 🌟 1. معالجة المصعد الرأسي بدقة طالما الإصبعان على الشاشة
+    if (details.pointerCount >= 2) {
       _isTwoFingerElevator = true;
+
+      final topology = context.read<SpatialTopology>();
+      final minFloor = topology.minFloor.toDouble();
+      final maxFloor = topology.maxFloor.toDouble();
 
       final scaleDelta = (details.scale - 1.0) * 1.5;
       final rawZ = _initialScale + scaleDelta;
 
       double computedZ;
-      if (rawZ < 0.0) {
-        computedZ = -SpatialPhysics.applyRubberBanding(
-          delta: -rawZ,
-          limit: 0.20,
-        );
-      } else if (rawZ > 1.0) {
-        computedZ = 1.0 +
+      if (rawZ < minFloor) {
+        computedZ = minFloor -
             SpatialPhysics.applyRubberBanding(
-              delta: rawZ - 1.0,
+              delta: minFloor - rawZ,
+              limit: 0.20,
+            );
+      } else if (rawZ > maxFloor) {
+        computedZ = maxFloor +
+            SpatialPhysics.applyRubberBanding(
+              delta: rawZ - maxFloor,
               limit: 0.20,
             );
       } else {
@@ -301,17 +318,25 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
 
       _floorZ.value = computedZ;
 
-      // نبض لمسي ذكي بنظام Hysteresis دقيق يمنع التكرار العشوائي
-      if ((_floorZ.value >= 0.50 && _initialScale < 0.50) ||
-          (_floorZ.value <= 0.50 && _initialScale >= 0.50)) {
+      // نبض لمسي ذكي بنظام Hysteresis دقيق عند منتصف أي طابقين متتاليين
+      final currentBaseFloor = _floorZ.value.floorToDouble();
+      final midPoint = currentBaseFloor + 0.50;
+
+      if ((_floorZ.value >= midPoint && _initialScale < midPoint) ||
+          (_floorZ.value <= midPoint && _initialScale >= midPoint)) {
         if (!_hapticDetentFired) {
           HapticManager.instance.selectionClick();
           _hapticDetentFired = true;
         }
-      } else if ((_floorZ.value < 0.35 && _initialScale < 0.50) ||
-          (_floorZ.value > 0.65 && _initialScale >= 0.50)) {
+      } else if ((_floorZ.value < midPoint - 0.15 && _initialScale < midPoint) ||
+          (_floorZ.value > midPoint + 0.15 && _initialScale >= midPoint)) {
         _hapticDetentFired = false;
       }
+      return;
+    }
+
+    // 🛡️ حماية حاسمة: إذا رفع المستخدم إصبعاً واحداً أثناء حركة المصعد، نتجاهل تحديث scale
+    if (_isTwoFingerElevator && details.pointerCount < 2) {
       return;
     }
 
@@ -460,29 +485,33 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
     final screenH = MediaQuery.of(context).size.height;
     final state = cubit.state;
 
-    // 🌟 2. معالجة انتهاء إيماءة المصعد الرأسي بعزم فيزيائي متصل
+    // 🌟 2. معالجة انتهاء إيماءة المصعد الرأسي بخوارزمية العزم المستمر لأي طابق N
     if (_isTwoFingerElevator) {
       _isTwoFingerElevator = false;
       _isTransitioningViaGesture = true;
 
+      final topology = context.read<SpatialTopology>();
+      final minFloor = topology.minFloor;
+      final maxFloor = topology.maxFloor;
+
       final scaleVel = details.scaleVelocity;
-      final vz = scaleVel * 1.5;
+      final vz = (scaleVel * 1.5).clamp(-4.0, 4.0);
+
+      final velocityBias = vz.clamp(-1.5, 1.5) * 0.35;
+      final projectedZ = _floorZ.value + velocityBias;
 
       int targetFloor;
-      if (_initialScale < 0.5) {
-        if (_floorZ.value > 0.35 || vz > 0.5) {
-          targetFloor = 1;
-        } else {
-          targetFloor = 0;
-        }
+      final deltaFromInitial = _floorZ.value - _initialScale;
+
+      if (deltaFromInitial > 0.30 || vz > 0.5) {
+        targetFloor = (_initialScale + 1).round();
+      } else if (deltaFromInitial < -0.30 || vz < -0.5) {
+        targetFloor = (_initialScale - 1).round();
       } else {
-        if (_floorZ.value < 0.65 || vz < -0.5) {
-          targetFloor = 0;
-        } else {
-          targetFloor = 1;
-        }
+        targetFloor = projectedZ.round();
       }
 
+      targetFloor = targetFloor.clamp(minFloor, maxFloor);
       final targetZ = targetFloor.toDouble();
 
       _floorZ
@@ -490,7 +519,7 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
         SpatialPhysics.createZAxisSimulation(
           start: _floorZ.value,
           end: targetZ,
-          velocity: vz.clamp(-4.0, 4.0),
+          velocity: vz,
         ),
       )
           .whenComplete(() {
@@ -671,6 +700,7 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
   Widget build(BuildContext context) {
     final compassCubit = context.read<SpatialCompassCubit>();
     final ambientVoiceCubit = context.read<AmbientVoiceCubit>();
+    final topology = context.read<SpatialTopology>();
 
     return BlocListener<SpatialCompassCubit, SpatialCompassState>(
       listenWhen: (previous, current) =>
@@ -714,103 +744,47 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
                     return AnimatedBuilder(
                       animation: Listenable.merge([_panX, _panY, _floorZ]),
                       builder: (context, child) {
-                        final rawZ = _floorZ.value.clamp(0.0, 1.0);
-
-                        // 🌀 1. التلاشي المنحني المتصل خماسي الحدود (Perlin's Smootherstep)
-                        final t = SpatialPhysics.smootherStep(rawZ);
-                        final coreOpacity = (1.0 - t).clamp(0.0, 1.0);
-                        final settingsOpacity = t.clamp(0.0, 1.0);
-
-                        // 🔍 2. التكبير والتصغير المنظوري للعمق
-                        final coreScale = 1.0 + (rawZ * 0.10);
-                        final settingsScale = 0.88 + (rawZ * 0.12);
-
-                        // 🛗 3. إزاحة البارالاكس الرأسي المتزامن مع نغمة المصعد
-                        final coreParallaxY =
-                            rawZ * SpatialPhysics.elevationLiftOffset;
-                        final settingsParallaxY = (1.0 - rawZ) *
-                            -SpatialPhysics.elevationLiftOffset;
-
-                        // 📐 4. زاوية الميلان ثلاثية الأبعاد السينمائية (3D Pitch Angle)
-                        final coreTiltX = -0.04 * rawZ;
-                        final settingsTiltX = 0.04 * (1.0 - rawZ);
-
-                        // 🎥 5. بناء مصفوفات المنظور ثلاثي الأبعاد
-                        final coreMatrix = Matrix4.identity()
-                          ..setEntry(
-                            3,
-                            2,
-                            SpatialPhysics.perspectiveCoefficient,
-                          )
-                          ..translate(0.0, coreParallaxY)
-                          ..scale(coreScale, coreScale)
-                          ..rotateX(coreTiltX);
-
-                        final settingsMatrix = Matrix4.identity()
-                          ..setEntry(
-                            3,
-                            2,
-                            SpatialPhysics.perspectiveCoefficient,
-                          )
-                          ..translate(0.0, settingsParallaxY)
-                          ..scale(settingsScale, settingsScale)
-                          ..rotateX(settingsTiltX);
-
+                        final minF = topology.minFloor;
+                        final maxF = topology.maxFloor;
+                        final currentZ = _floorZ.value;
                         final panOffset = Offset(_panX.value, _panY.value);
+
+                        // 🔍 1. استخراج الطوابق المرئية لحظياً (فقط الطابقان المحيطان بموضع المصعد)
+                        final lowerFloor = currentZ.floor().clamp(minF, maxF);
+                        final upperFloor = currentZ.ceil().clamp(minF, maxF);
+
+                        final visibleFloors = <int>{lowerFloor, upperFloor}
+                            .where((f) => topology.hasFloor(f))
+                            .toList()
+                          // 📐 ترتيب الرسم (Z-Order): رسم الطوابق الأعمق/الأعلى أولاً لتكون الطوابق الأقرب في المقدمة
+                          ..sort((a, b) => b.compareTo(a));
+
+                        final activeFloor = currentZ.round().clamp(minF, maxF);
 
                         return Stack(
                           children: [
-                            // ⚙️ الطابق 1 (الإعدادات ومحركات الغرف - ينبثق من العمق السحيق)
-                            if (settingsOpacity > 0.001)
-                              Transform(
-                                alignment: Alignment.center,
-                                transform: settingsMatrix,
-                                child: Opacity(
-                                  opacity: settingsOpacity,
-                                  child: IgnorePointer(
-                                    ignoring: rawZ < 0.5,
-                                    child: SpatialFloorLayout(
-                                      key: const ValueKey(
-                                        'spatial_floor_layout_1',
-                                      ),
-                                      direction: state.currentDirection,
-                                      floorLevel: 1,
-                                      panOffset: panOffset,
-                                    ),
-                                  ),
-                                ),
+                            // 🌟 2. المُصيّر ثلاثي الأبعاد الديناميكي (Dynamic Virtualized Viewport)
+                            for (final floor in visibleFloors)
+                              _buildFloorTransform(
+                                floor: floor,
+                                currentZ: currentZ,
+                                panOffset: panOffset,
+                                direction: state.currentDirection,
+                                isActive: floor == activeFloor,
                               ),
 
-                            // 🏠 الطابق 0 (قمرة القيادة والغرف اليومية - يتسع للأمام ويتلاشى بنعومة)
-                            if (coreOpacity > 0.001)
-                              Transform(
-                                alignment: Alignment.center,
-                                transform: coreMatrix,
-                                child: Opacity(
-                                  opacity: coreOpacity,
-                                  child: IgnorePointer(
-                                    ignoring: rawZ >= 0.5,
-                                    child: SpatialFloorLayout(
-                                      key: const ValueKey(
-                                        'spatial_floor_layout_0',
-                                      ),
-                                      direction: state.currentDirection,
-                                      floorLevel: 0,
-                                      panOffset: panOffset,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            // 🗺️ شريط الـ HUD الملاحي المتزامن عند منتصف العبور
+                            // 🗺️ 3. شريط الـ HUD الملاحي المتزامن مع الطابق النشط
+                            // 🗺️ 3. شريط الـ HUD الملاحي المتزامن مع الطابق النشط
                             SpatialCompassHud(
                               direction: state.currentDirection,
-                              currentFloor: rawZ >= 0.5 ? 1 : 0,
+                              currentFloor: activeFloor,
                               onCenterTap: compassCubit.returnToCenter,
                               onFloorToggle: compassCubit.toggleFloor,
+                              onAscend: compassCubit.ascend,
+                              onDescend: compassCubit.descend,
                             ),
 
-                            // 🎙️ لوحة المساعد الصوتي العائمة
+                            // 🎙️ 4. لوحة المساعد الصوتي العائمة
                             const AmbientVoiceOverlay(),
                           ],
                         );
@@ -820,6 +794,66 @@ class _SpatialCompassBodyState extends State<_SpatialCompassBody>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 📐 معادلة المنظور ثلاثي الأبعاد الموحدة لأي طابق مهما كان رقمه
+  Widget _buildFloorTransform({
+    required int floor,
+    required double currentZ,
+    required Offset panOffset,
+    required CompassDirection direction,
+    required bool isActive,
+  }) {
+    final relativeDistance = floor - currentZ;
+    final distanceAbs = relativeDistance.abs();
+
+    if (distanceAbs >= 1.0) return const SizedBox.shrink();
+
+    // 🌀 1. التلاشي المنحني المتصل خماسي الحدود (Perlin's Smootherstep)
+    final opacity = SpatialPhysics.smootherStep(
+      (1.0 - distanceAbs).clamp(0.0, 1.0),
+    );
+
+    // 🔍 2. التكبير والتصغير المنظوري للعمق
+    final double scale;
+    if (relativeDistance >= 0) {
+      // الطابق أعلى منا (في العمق البصري)
+      scale = 1.0 - (relativeDistance * 0.12);
+    } else {
+      // الطابق أسفل منا (يتسع للأمام نحو الكاميرا)
+      scale = 1.0 - (relativeDistance * 0.10);
+    }
+
+    // 🛗 3. إزاحة البارالاكس الرأسي المتزامن مع نغمة المصعد
+    final translateY = -relativeDistance * SpatialPhysics.elevationLiftOffset;
+
+    // 📐 4. زاوية الميلان ثلاثية الأبعاد السينمائية (3D Pitch Angle)
+    final tiltX = relativeDistance * 0.04;
+
+    // 🎥 5. بناء مصفوفة التحويلات الفضائية Matrix4
+    final matrix = Matrix4.identity()
+      ..setEntry(3, 2, SpatialPhysics.perspectiveCoefficient)
+      ..translate(0.0, translateY)
+      ..scale(scale, scale)
+      ..rotateX(tiltX);
+
+    return Transform(
+      key: ValueKey('spatial_floor_transform_$floor'),
+      alignment: Alignment.center,
+      transform: matrix,
+      child: Opacity(
+        opacity: opacity,
+        child: IgnorePointer(
+          ignoring: !isActive,
+          child: SpatialFloorLayout(
+            key: ValueKey('spatial_floor_layout_$floor'),
+            direction: direction,
+            floorLevel: floor,
+            panOffset: panOffset,
           ),
         ),
       ),

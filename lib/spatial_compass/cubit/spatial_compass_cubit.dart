@@ -1,5 +1,5 @@
 // lib/spatial_compass/cubit/spatial_compass_cubit.dart
-import 'dart:async'; 
+import 'dart:async';
 import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
@@ -30,22 +30,24 @@ class SpatialCompassCubit extends Cubit<SpatialCompassState> {
   // 🏢 1. التحكم الرأسي متعدد الطوابق (Dynamic Z-Axis Vertical Control)
   // ===========================================================================
 
+  /// الصعود طابقاً واحداً للأعلى إن وُجد في الخريطة
   Future<void> ascend() async {
     final nextFloor = state.currentFloor + 1;
-    final available = _topology.availableFloors;
-    if (available.isNotEmpty && !available.contains(nextFloor)) return;
+    if (!_topology.hasFloor(nextFloor)) return;
     await jumpToFloor(nextFloor);
   }
 
+  /// الهبوط طابقاً واحداً للأسفل إن وُجد في الخريطة
   Future<void> descend() async {
     final nextFloor = state.currentFloor - 1;
-    final available = _topology.availableFloors;
-    if (available.isNotEmpty && !available.contains(nextFloor)) return;
+    if (!_topology.hasFloor(nextFloor)) return;
     await jumpToFloor(nextFloor);
   }
 
+  /// الانتقال المباشر لأي طابق مسجل في النظام مع إطلاق النغمة المناسبة والاهتزاز
   Future<void> jumpToFloor(int targetFloor) async {
     if (state.currentFloor == targetFloor) return;
+    if (!_topology.hasFloor(targetFloor)) return; // 🛡️ حماية ضد الطوابق غير المسجلة
 
     final isAscending = targetFloor > state.currentFloor;
     final cue = isAscending ? SoundCue.elevatorUp : SoundCue.elevatorDown;
@@ -57,14 +59,16 @@ class SpatialCompassCubit extends Cubit<SpatialCompassState> {
     emit(state.copyWith(currentFloor: targetFloor));
   }
 
+  /// دوال مساعدة للتوافق العكسي
   Future<void> goToSettingsFloor() => jumpToFloor(1);
   Future<void> returnToGroundFloor() => jumpToFloor(0);
 
+  /// التبديل التلقائي: الصعود إن أمكن ذلك، أو الهبوط عند الوصول للقمة
   void toggleFloor() {
-    if (state.currentFloor == 0) {
-      goToSettingsFloor();
+    if (_topology.canAscendFrom(state.currentFloor)) {
+      ascend();
     } else {
-      returnToGroundFloor();
+      descend();
     }
   }
 
@@ -126,7 +130,7 @@ class SpatialCompassCubit extends Cubit<SpatialCompassState> {
 
     await _haptics.successNotification();
 
-    // 🌟 استدعاء المحرك النغمي الجديد ذي الطبقات المتمايزة
+    // 🌟 استدعاء المحرك النغمي ذي الطبقات المتمايزة بحسب الاتجاه والطابق
     await _sound.playCompassMove(
       direction: destination,
       floorLevel: state.currentFloor,

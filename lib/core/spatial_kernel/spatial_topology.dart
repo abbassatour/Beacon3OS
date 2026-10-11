@@ -19,18 +19,58 @@ class SpatialTopology {
     final topology = SpatialTopology();
 
     // 🏠 الطابق الأرضي (Floor 0): قمرة اليوم والغرف الأساسية
-    topology.register(floor: 0, direction: CompassDirection.center, module: CockpitModule.instance);
-    topology.register(floor: 0, direction: CompassDirection.north, module: FocusAlarmsModule.instance);
-    topology.register(floor: 0, direction: CompassDirection.south, module: CommunicationsModule.instance);
-    topology.register(floor: 0, direction: CompassDirection.east, module: SpatialVisionModule.instance);
-    topology.register(floor: 0, direction: CompassDirection.west, module: AgendaModule.instance);
+    topology.register(
+      floor: 0,
+      direction: CompassDirection.center,
+      module: CockpitModule.instance,
+    );
+    topology.register(
+      floor: 0,
+      direction: CompassDirection.north,
+      module: FocusAlarmsModule.instance,
+    );
+    topology.register(
+      floor: 0,
+      direction: CompassDirection.south,
+      module: CommunicationsModule.instance,
+    );
+    topology.register(
+      floor: 0,
+      direction: CompassDirection.east,
+      module: SpatialVisionModule.instance,
+    );
+    topology.register(
+      floor: 0,
+      direction: CompassDirection.west,
+      module: AgendaModule.instance,
+    );
 
     // ⚙️ الطابق الثاني (Floor 1): إعدادات ومحركات الغرف
-    topology.register(floor: 1, direction: CompassDirection.center, module: CockpitModule.instance);
-    topology.register(floor: 1, direction: CompassDirection.north, module: FocusAlarmsModule.instance);
-    topology.register(floor: 1, direction: CompassDirection.south, module: CommunicationsModule.instance);
-    topology.register(floor: 1, direction: CompassDirection.east, module: SpatialVisionModule.instance);
-    topology.register(floor: 1, direction: CompassDirection.west, module: AgendaModule.instance);
+    topology.register(
+      floor: 1,
+      direction: CompassDirection.center,
+      module: CockpitModule.instance,
+    );
+    topology.register(
+      floor: 1,
+      direction: CompassDirection.north,
+      module: FocusAlarmsModule.instance,
+    );
+    topology.register(
+      floor: 1,
+      direction: CompassDirection.south,
+      module: CommunicationsModule.instance,
+    );
+    topology.register(
+      floor: 1,
+      direction: CompassDirection.east,
+      module: SpatialVisionModule.instance,
+    );
+    topology.register(
+      floor: 1,
+      direction: CompassDirection.west,
+      module: AgendaModule.instance,
+    );
 
     return topology;
   }
@@ -55,11 +95,26 @@ class SpatialTopology {
     return _grid[floor] ?? const {};
   }
 
-  /// قائمة الطوابق المسجلة مرتبة تصاعدياً (مثل: [0, 1])
+  /// قائمة الطوابق المسجلة مرتبة تصاعدياً (مثل: [0, 1] أو [-1, 0, 1, 2])
   List<int> get availableFloors {
     final floors = _grid.keys.toList()..sort();
     return floors;
   }
+
+  /// أدنى رقم طابق مسجل في النظام (Floor Boundary Minimum)
+  int get minFloor => availableFloors.isEmpty ? 0 : availableFloors.first;
+
+  /// أعلى رقم طابق مسجل في النظام (Floor Boundary Maximum)
+  int get maxFloor => availableFloors.isEmpty ? 0 : availableFloors.last;
+
+  /// فحص هل الطابق المعطى مسجل بالفعل في خريطة النظام
+  bool hasFloor(int floor) => _grid.containsKey(floor);
+
+  /// فحص إمكانية صعود المصعد طابقاً إضافياً من الطابق الحالي
+  bool canAscendFrom(int floor) => floor < maxFloor && hasFloor(floor + 1);
+
+  /// فحص إمكانية هبوط المصعد طابقاً للأسفل من الطابق الحالي
+  bool canDescendFrom(int floor) => floor > minFloor && hasFloor(floor - 1);
 
   /// استرجاع اتجاه موديول معين داخل طابق
   CompassDirection? directionOf(int floor, String moduleId) {

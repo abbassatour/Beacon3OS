@@ -10,7 +10,9 @@ class SpatialCompassHud extends StatelessWidget {
     required this.direction,
     required this.currentFloor,
     required this.onCenterTap,
-    required this.onFloorToggle,
+    this.onFloorToggle,
+    this.onAscend,
+    this.onDescend,
     this.isSettingsFloor = false, // للتوافق العكسي
     super.key,
   });
@@ -19,13 +21,19 @@ class SpatialCompassHud extends StatelessWidget {
   final int currentFloor;
   final bool isSettingsFloor;
   final VoidCallback onCenterTap;
-  final VoidCallback onFloorToggle;
+  final VoidCallback? onFloorToggle;
+  final VoidCallback? onAscend;
+  final VoidCallback? onDescend;
 
   @override
   Widget build(BuildContext context) {
     final isAtCenter = direction == CompassDirection.center;
     final isElevated = currentFloor != 0;
     final colors = context.colors;
+    final topology = context.read<SpatialTopology>();
+
+    final canAscend = topology.canAscendFrom(currentFloor);
+    final canDescend = topology.canDescendFrom(currentFloor);
 
     return Positioned(
       top: 10,
@@ -34,6 +42,7 @@ class SpatialCompassHud extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // 🧭 كبسولة اسم الغرفة والبوصلة المصغرة
           Expanded(
             child: GestureDetector(
               onTap: isAtCenter ? null : onCenterTap,
@@ -77,26 +86,45 @@ class SpatialCompassHud extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+
+          // 🛗 أزرار التحكم بالمصعد والعودة للمركز
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: isElevated ? colors.primary : colors.surface,
-                  foregroundColor: isElevated ? colors.onPrimary : colors.onSurface,
-                  side: BorderSide(color: colors.outline, width: 1.2),
-                  minimumSize: const Size(36, 36),
-                  padding: EdgeInsets.zero,
+              // زر الهبوط للأسفل (يظهر إذا كان هناك طابق أسفل منا)
+              if (canDescend) ...[
+                IconButton.filledTonal(
+                  style: IconButton.styleFrom(
+                    backgroundColor: colors.surface,
+                    foregroundColor: colors.onSurface,
+                    side: BorderSide(color: colors.outline, width: 1.2),
+                    minimumSize: const Size(36, 36),
+                    padding: EdgeInsets.zero,
+                  ),
+                  icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                  tooltip: 'Descend to Floor ${currentFloor - 1}',
+                  onPressed: onDescend ?? onFloorToggle,
                 ),
-                icon: Icon(
-                  isElevated ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                  size: 18,
+                if (canAscend) const SizedBox(width: 5),
+              ],
+
+              // زر الصعود للأعلى (يظهر إذا كان هناك طابق أعلى منا)
+              if (canAscend)
+                IconButton.filledTonal(
+                  style: IconButton.styleFrom(
+                    backgroundColor: isElevated ? colors.surface : colors.primary,
+                    foregroundColor: isElevated ? colors.onSurface : colors.onPrimary,
+                    side: BorderSide(color: isElevated ? colors.outline : colors.primary, width: 1.2),
+                    minimumSize: const Size(36, 36),
+                    padding: EdgeInsets.zero,
+                  ),
+                  icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                  tooltip: 'Ascend to Floor ${currentFloor + 1}',
+                  onPressed: onAscend ?? onFloorToggle,
                 ),
-                tooltip: isElevated
-                    ? 'Descend to Ground Floor'
-                    : 'Ascend to Engine Floor',
-                onPressed: onFloorToggle,
-              ),
+
+              // زر العودة السريعة للمركز
               if (!isAtCenter) ...[
                 const SizedBox(width: 6),
                 IconButton.filledTonal(
