@@ -598,4 +598,75 @@ class CloudSyncClient {
       log('CloudSyncClient: Vision scan sync skipped: $e');
     }
   }
+
+  // ===========================================================================
+  // 🧭 10. العُقد المكانية والشبكة الفضائية (Spatial Nodes & Topology Sync)
+  // ===========================================================================
+
+  Future<void> syncSpatialNode({
+    required String id,
+    required String moduleId,
+    required int floorLevel,
+    required int x,
+    required int y,
+    String? customTitle,
+    String? configJson,
+    bool isVisible = true,
+    DateTime? deletedAt,
+  }) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    try {
+      await client.from('spatial_nodes').upsert({
+        'id': id,
+        'user_id': userId,
+        'module_id': moduleId,
+        'floor_level': floorLevel,
+        'x': x,
+        'y': y,
+        'custom_title': customTitle,
+        'config_json': configJson,
+        'is_visible': isVisible,
+        'deleted_at': deletedAt?.toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+      log('CloudSyncClient: Spatial node synced [$id -> ($x, $y, F$floorLevel)]');
+    } catch (e) {
+      log('CloudSyncClient: Spatial node sync skipped: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSpatialNodes() async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      final response = await client
+          .from('spatial_nodes')
+          .select()
+          .eq('user_id', userId)
+          .filter('deleted_at', 'is', null)
+          .order('floor_level', ascending: true);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e, st) {
+      log('CloudSyncClient: Failed to fetch spatial nodes: $e', stackTrace: st);
+      return [];
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>>? streamSpatialNodes() {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return null;
+
+    return client
+        .from('spatial_nodes')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('floor_level', ascending: true);
+  }
 }

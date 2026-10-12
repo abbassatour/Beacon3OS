@@ -6252,6 +6252,719 @@ class VisionScansCompanion extends UpdateCompanion<VisionScan> {
   }
 }
 
+class $SpatialNodesTable extends SpatialNodes
+    with TableInfo<$SpatialNodesTable, SpatialNode> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpatialNodesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _moduleIdMeta = const VerificationMeta(
+    'moduleId',
+  );
+  @override
+  late final GeneratedColumn<String> moduleId = GeneratedColumn<String>(
+    'module_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _floorLevelMeta = const VerificationMeta(
+    'floorLevel',
+  );
+  @override
+  late final GeneratedColumn<int> floorLevel = GeneratedColumn<int>(
+    'floor_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _xMeta = const VerificationMeta('x');
+  @override
+  late final GeneratedColumn<int> x = GeneratedColumn<int>(
+    'x',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _yMeta = const VerificationMeta('y');
+  @override
+  late final GeneratedColumn<int> y = GeneratedColumn<int>(
+    'y',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _customTitleMeta = const VerificationMeta(
+    'customTitle',
+  );
+  @override
+  late final GeneratedColumn<String> customTitle = GeneratedColumn<String>(
+    'custom_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _configJsonMeta = const VerificationMeta(
+    'configJson',
+  );
+  @override
+  late final GeneratedColumn<String> configJson = GeneratedColumn<String>(
+    'config_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isVisibleMeta = const VerificationMeta(
+    'isVisible',
+  );
+  @override
+  late final GeneratedColumn<bool> isVisible = GeneratedColumn<bool>(
+    'is_visible',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_visible" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    moduleId,
+    floorLevel,
+    x,
+    y,
+    customTitle,
+    configJson,
+    isVisible,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    isSynced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spatial_nodes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpatialNode> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('module_id')) {
+      context.handle(
+        _moduleIdMeta,
+        moduleId.isAcceptableOrUnknown(data['module_id']!, _moduleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_moduleIdMeta);
+    }
+    if (data.containsKey('floor_level')) {
+      context.handle(
+        _floorLevelMeta,
+        floorLevel.isAcceptableOrUnknown(data['floor_level']!, _floorLevelMeta),
+      );
+    }
+    if (data.containsKey('x')) {
+      context.handle(_xMeta, x.isAcceptableOrUnknown(data['x']!, _xMeta));
+    }
+    if (data.containsKey('y')) {
+      context.handle(_yMeta, y.isAcceptableOrUnknown(data['y']!, _yMeta));
+    }
+    if (data.containsKey('custom_title')) {
+      context.handle(
+        _customTitleMeta,
+        customTitle.isAcceptableOrUnknown(
+          data['custom_title']!,
+          _customTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('config_json')) {
+      context.handle(
+        _configJsonMeta,
+        configJson.isAcceptableOrUnknown(data['config_json']!, _configJsonMeta),
+      );
+    }
+    if (data.containsKey('is_visible')) {
+      context.handle(
+        _isVisibleMeta,
+        isVisible.isAcceptableOrUnknown(data['is_visible']!, _isVisibleMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpatialNode map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpatialNode(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      moduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}module_id'],
+      )!,
+      floorLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}floor_level'],
+      )!,
+      x: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}x'],
+      )!,
+      y: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}y'],
+      )!,
+      customTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_title'],
+      ),
+      configJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}config_json'],
+      ),
+      isVisible: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_visible'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+    );
+  }
+
+  @override
+  $SpatialNodesTable createAlias(String alias) {
+    return $SpatialNodesTable(attachedDatabase, alias);
+  }
+}
+
+class SpatialNode extends DataClass implements Insertable<SpatialNode> {
+  /// المعرف الفريد للغرفة (مثل: 'cockpit', 'focus', 'comms', 'vision', 'agenda')
+  final String id;
+
+  /// معرف الموديول البرمجي المشغل لهذه الغرفة
+  final String moduleId;
+
+  /// رقم الطابق (محور الارتفاع Z: مثلاً 0 للأرضي، 1 للإعدادات، -1 للأرشيف)
+  final int floorLevel;
+
+  /// الإحداثي الأفقي X (0 في المركز، سالب لليسار، موجب لليمين)
+  final int x;
+
+  /// الإحداثي الرأسي Y (0 في المركز، موجب للأعلى/الشمال، سالب للأسفل/الجنوب)
+  final int y;
+
+  /// عنوان مخصص اختياري للغرفة
+  final String? customTitle;
+
+  /// إعدادات مخصصة بصيغة JSON (مثل روابط كاميرات RTSP، معرفات الأجهزة)
+  final String? configJson;
+
+  /// هل الغرفة مفعلة ومرئية في الفضاء؟
+  final bool isVisible;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final bool isSynced;
+  const SpatialNode({
+    required this.id,
+    required this.moduleId,
+    required this.floorLevel,
+    required this.x,
+    required this.y,
+    this.customTitle,
+    this.configJson,
+    required this.isVisible,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.isSynced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['module_id'] = Variable<String>(moduleId);
+    map['floor_level'] = Variable<int>(floorLevel);
+    map['x'] = Variable<int>(x);
+    map['y'] = Variable<int>(y);
+    if (!nullToAbsent || customTitle != null) {
+      map['custom_title'] = Variable<String>(customTitle);
+    }
+    if (!nullToAbsent || configJson != null) {
+      map['config_json'] = Variable<String>(configJson);
+    }
+    map['is_visible'] = Variable<bool>(isVisible);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  SpatialNodesCompanion toCompanion(bool nullToAbsent) {
+    return SpatialNodesCompanion(
+      id: Value(id),
+      moduleId: Value(moduleId),
+      floorLevel: Value(floorLevel),
+      x: Value(x),
+      y: Value(y),
+      customTitle: customTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customTitle),
+      configJson: configJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configJson),
+      isVisible: Value(isVisible),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory SpatialNode.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpatialNode(
+      id: serializer.fromJson<String>(json['id']),
+      moduleId: serializer.fromJson<String>(json['moduleId']),
+      floorLevel: serializer.fromJson<int>(json['floorLevel']),
+      x: serializer.fromJson<int>(json['x']),
+      y: serializer.fromJson<int>(json['y']),
+      customTitle: serializer.fromJson<String?>(json['customTitle']),
+      configJson: serializer.fromJson<String?>(json['configJson']),
+      isVisible: serializer.fromJson<bool>(json['isVisible']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'moduleId': serializer.toJson<String>(moduleId),
+      'floorLevel': serializer.toJson<int>(floorLevel),
+      'x': serializer.toJson<int>(x),
+      'y': serializer.toJson<int>(y),
+      'customTitle': serializer.toJson<String?>(customTitle),
+      'configJson': serializer.toJson<String?>(configJson),
+      'isVisible': serializer.toJson<bool>(isVisible),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  SpatialNode copyWith({
+    String? id,
+    String? moduleId,
+    int? floorLevel,
+    int? x,
+    int? y,
+    Value<String?> customTitle = const Value.absent(),
+    Value<String?> configJson = const Value.absent(),
+    bool? isVisible,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    bool? isSynced,
+  }) => SpatialNode(
+    id: id ?? this.id,
+    moduleId: moduleId ?? this.moduleId,
+    floorLevel: floorLevel ?? this.floorLevel,
+    x: x ?? this.x,
+    y: y ?? this.y,
+    customTitle: customTitle.present ? customTitle.value : this.customTitle,
+    configJson: configJson.present ? configJson.value : this.configJson,
+    isVisible: isVisible ?? this.isVisible,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    isSynced: isSynced ?? this.isSynced,
+  );
+  SpatialNode copyWithCompanion(SpatialNodesCompanion data) {
+    return SpatialNode(
+      id: data.id.present ? data.id.value : this.id,
+      moduleId: data.moduleId.present ? data.moduleId.value : this.moduleId,
+      floorLevel: data.floorLevel.present
+          ? data.floorLevel.value
+          : this.floorLevel,
+      x: data.x.present ? data.x.value : this.x,
+      y: data.y.present ? data.y.value : this.y,
+      customTitle: data.customTitle.present
+          ? data.customTitle.value
+          : this.customTitle,
+      configJson: data.configJson.present
+          ? data.configJson.value
+          : this.configJson,
+      isVisible: data.isVisible.present ? data.isVisible.value : this.isVisible,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpatialNode(')
+          ..write('id: $id, ')
+          ..write('moduleId: $moduleId, ')
+          ..write('floorLevel: $floorLevel, ')
+          ..write('x: $x, ')
+          ..write('y: $y, ')
+          ..write('customTitle: $customTitle, ')
+          ..write('configJson: $configJson, ')
+          ..write('isVisible: $isVisible, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    moduleId,
+    floorLevel,
+    x,
+    y,
+    customTitle,
+    configJson,
+    isVisible,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    isSynced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpatialNode &&
+          other.id == this.id &&
+          other.moduleId == this.moduleId &&
+          other.floorLevel == this.floorLevel &&
+          other.x == this.x &&
+          other.y == this.y &&
+          other.customTitle == this.customTitle &&
+          other.configJson == this.configJson &&
+          other.isVisible == this.isVisible &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.isSynced == this.isSynced);
+}
+
+class SpatialNodesCompanion extends UpdateCompanion<SpatialNode> {
+  final Value<String> id;
+  final Value<String> moduleId;
+  final Value<int> floorLevel;
+  final Value<int> x;
+  final Value<int> y;
+  final Value<String?> customTitle;
+  final Value<String?> configJson;
+  final Value<bool> isVisible;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const SpatialNodesCompanion({
+    this.id = const Value.absent(),
+    this.moduleId = const Value.absent(),
+    this.floorLevel = const Value.absent(),
+    this.x = const Value.absent(),
+    this.y = const Value.absent(),
+    this.customTitle = const Value.absent(),
+    this.configJson = const Value.absent(),
+    this.isVisible = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SpatialNodesCompanion.insert({
+    required String id,
+    required String moduleId,
+    this.floorLevel = const Value.absent(),
+    this.x = const Value.absent(),
+    this.y = const Value.absent(),
+    this.customTitle = const Value.absent(),
+    this.configJson = const Value.absent(),
+    this.isVisible = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       moduleId = Value(moduleId);
+  static Insertable<SpatialNode> custom({
+    Expression<String>? id,
+    Expression<String>? moduleId,
+    Expression<int>? floorLevel,
+    Expression<int>? x,
+    Expression<int>? y,
+    Expression<String>? customTitle,
+    Expression<String>? configJson,
+    Expression<bool>? isVisible,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (moduleId != null) 'module_id': moduleId,
+      if (floorLevel != null) 'floor_level': floorLevel,
+      if (x != null) 'x': x,
+      if (y != null) 'y': y,
+      if (customTitle != null) 'custom_title': customTitle,
+      if (configJson != null) 'config_json': configJson,
+      if (isVisible != null) 'is_visible': isVisible,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SpatialNodesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? moduleId,
+    Value<int>? floorLevel,
+    Value<int>? x,
+    Value<int>? y,
+    Value<String?>? customTitle,
+    Value<String?>? configJson,
+    Value<bool>? isVisible,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<bool>? isSynced,
+    Value<int>? rowid,
+  }) {
+    return SpatialNodesCompanion(
+      id: id ?? this.id,
+      moduleId: moduleId ?? this.moduleId,
+      floorLevel: floorLevel ?? this.floorLevel,
+      x: x ?? this.x,
+      y: y ?? this.y,
+      customTitle: customTitle ?? this.customTitle,
+      configJson: configJson ?? this.configJson,
+      isVisible: isVisible ?? this.isVisible,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (moduleId.present) {
+      map['module_id'] = Variable<String>(moduleId.value);
+    }
+    if (floorLevel.present) {
+      map['floor_level'] = Variable<int>(floorLevel.value);
+    }
+    if (x.present) {
+      map['x'] = Variable<int>(x.value);
+    }
+    if (y.present) {
+      map['y'] = Variable<int>(y.value);
+    }
+    if (customTitle.present) {
+      map['custom_title'] = Variable<String>(customTitle.value);
+    }
+    if (configJson.present) {
+      map['config_json'] = Variable<String>(configJson.value);
+    }
+    if (isVisible.present) {
+      map['is_visible'] = Variable<bool>(isVisible.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpatialNodesCompanion(')
+          ..write('id: $id, ')
+          ..write('moduleId: $moduleId, ')
+          ..write('floorLevel: $floorLevel, ')
+          ..write('x: $x, ')
+          ..write('y: $y, ')
+          ..write('customTitle: $customTitle, ')
+          ..write('configJson: $configJson, ')
+          ..write('isVisible: $isVisible, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6266,6 +6979,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $SosAlertsTable sosAlerts = $SosAlertsTable(this);
   late final $VisionScansTable visionScans = $VisionScansTable(this);
+  late final $SpatialNodesTable spatialNodes = $SpatialNodesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6281,6 +6995,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     appSettings,
     sosAlerts,
     visionScans,
+    spatialNodes,
   ];
 }
 
@@ -9383,6 +10098,354 @@ typedef $$VisionScansTableProcessedTableManager =
       VisionScan,
       PrefetchHooks Function()
     >;
+typedef $$SpatialNodesTableCreateCompanionBuilder =
+    SpatialNodesCompanion Function({
+      required String id,
+      required String moduleId,
+      Value<int> floorLevel,
+      Value<int> x,
+      Value<int> y,
+      Value<String?> customTitle,
+      Value<String?> configJson,
+      Value<bool> isVisible,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
+typedef $$SpatialNodesTableUpdateCompanionBuilder =
+    SpatialNodesCompanion Function({
+      Value<String> id,
+      Value<String> moduleId,
+      Value<int> floorLevel,
+      Value<int> x,
+      Value<int> y,
+      Value<String?> customTitle,
+      Value<String?> configJson,
+      Value<bool> isVisible,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
+
+class $$SpatialNodesTableFilterComposer
+    extends Composer<_$AppDatabase, $SpatialNodesTable> {
+  $$SpatialNodesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get moduleId => $composableBuilder(
+    column: $table.moduleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get floorLevel => $composableBuilder(
+    column: $table.floorLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get x => $composableBuilder(
+    column: $table.x,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get y => $composableBuilder(
+    column: $table.y,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configJson => $composableBuilder(
+    column: $table.configJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isVisible => $composableBuilder(
+    column: $table.isVisible,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SpatialNodesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpatialNodesTable> {
+  $$SpatialNodesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get moduleId => $composableBuilder(
+    column: $table.moduleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get floorLevel => $composableBuilder(
+    column: $table.floorLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get x => $composableBuilder(
+    column: $table.x,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get y => $composableBuilder(
+    column: $table.y,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get configJson => $composableBuilder(
+    column: $table.configJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isVisible => $composableBuilder(
+    column: $table.isVisible,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SpatialNodesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpatialNodesTable> {
+  $$SpatialNodesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get moduleId =>
+      $composableBuilder(column: $table.moduleId, builder: (column) => column);
+
+  GeneratedColumn<int> get floorLevel => $composableBuilder(
+    column: $table.floorLevel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get x =>
+      $composableBuilder(column: $table.x, builder: (column) => column);
+
+  GeneratedColumn<int> get y =>
+      $composableBuilder(column: $table.y, builder: (column) => column);
+
+  GeneratedColumn<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get configJson => $composableBuilder(
+    column: $table.configJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isVisible =>
+      $composableBuilder(column: $table.isVisible, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+}
+
+class $$SpatialNodesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpatialNodesTable,
+          SpatialNode,
+          $$SpatialNodesTableFilterComposer,
+          $$SpatialNodesTableOrderingComposer,
+          $$SpatialNodesTableAnnotationComposer,
+          $$SpatialNodesTableCreateCompanionBuilder,
+          $$SpatialNodesTableUpdateCompanionBuilder,
+          (
+            SpatialNode,
+            BaseReferences<_$AppDatabase, $SpatialNodesTable, SpatialNode>,
+          ),
+          SpatialNode,
+          PrefetchHooks Function()
+        > {
+  $$SpatialNodesTableTableManager(_$AppDatabase db, $SpatialNodesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpatialNodesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpatialNodesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpatialNodesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> moduleId = const Value.absent(),
+                Value<int> floorLevel = const Value.absent(),
+                Value<int> x = const Value.absent(),
+                Value<int> y = const Value.absent(),
+                Value<String?> customTitle = const Value.absent(),
+                Value<String?> configJson = const Value.absent(),
+                Value<bool> isVisible = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpatialNodesCompanion(
+                id: id,
+                moduleId: moduleId,
+                floorLevel: floorLevel,
+                x: x,
+                y: y,
+                customTitle: customTitle,
+                configJson: configJson,
+                isVisible: isVisible,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String moduleId,
+                Value<int> floorLevel = const Value.absent(),
+                Value<int> x = const Value.absent(),
+                Value<int> y = const Value.absent(),
+                Value<String?> customTitle = const Value.absent(),
+                Value<String?> configJson = const Value.absent(),
+                Value<bool> isVisible = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpatialNodesCompanion.insert(
+                id: id,
+                moduleId: moduleId,
+                floorLevel: floorLevel,
+                x: x,
+                y: y,
+                customTitle: customTitle,
+                configJson: configJson,
+                isVisible: isVisible,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpatialNodesTable, SpatialNode>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SpatialNodesTable,
+                    SpatialNode
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SpatialNodesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpatialNodesTable,
+      SpatialNode,
+      $$SpatialNodesTableFilterComposer,
+      $$SpatialNodesTableOrderingComposer,
+      $$SpatialNodesTableAnnotationComposer,
+      $$SpatialNodesTableCreateCompanionBuilder,
+      $$SpatialNodesTableUpdateCompanionBuilder,
+      (
+        SpatialNode,
+        BaseReferences<_$AppDatabase, $SpatialNodesTable, SpatialNode>,
+      ),
+      SpatialNode,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9407,4 +10470,6 @@ class $AppDatabaseManager {
       $$SosAlertsTableTableManager(_db, _db.sosAlerts);
   $$VisionScansTableTableManager get visionScans =>
       $$VisionScansTableTableManager(_db, _db.visionScans);
+  $$SpatialNodesTableTableManager get spatialNodes =>
+      $$SpatialNodesTableTableManager(_db, _db.spatialNodes);
 }

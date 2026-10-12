@@ -11,6 +11,7 @@ import 'domains/focus_alarms_repository.dart';
 import 'domains/settings_repository.dart';
 import 'domains/system_hardware_repository.dart';
 import 'domains/task_agenda_repository.dart';
+import 'domains/topology_repository.dart';
 
 export 'domains/assistant_repository.dart';
 export 'domains/comms_repository.dart';
@@ -18,6 +19,7 @@ export 'domains/focus_alarms_repository.dart';
 export 'domains/settings_repository.dart';
 export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
+export 'domains/topology_repository.dart';
 
 class LauncherCommandResult {
   const LauncherCommandResult({
@@ -32,7 +34,6 @@ class LauncherCommandResult {
 }
 
 /// منسق النظام المركزي (Spatial OS Kernel / Orchestrator)
-/// مسؤول فقط عن تهيئة نطاقات النظام وتنسيق العمليات السيادية المتقاطعة.
 class LauncherRepository {
   LauncherRepository({
     AppDatabase? database,
@@ -47,6 +48,7 @@ class LauncherRepository {
     SystemHardwareRepository? hardwareRepository,
     CommsRepository? commsRepository,
     AssistantRepository? assistantRepository,
+    TopologyRepository? topologyRepository,
   }) {
     final db = database ?? AppDatabase();
     final cloud = cloudSyncClient ?? CloudSyncClient();
@@ -58,20 +60,22 @@ class LauncherRepository {
     hardware = hardwareRepository ?? SystemHardwareRepositoryImpl(hardwareClient: hw);
     comms = commsRepository ?? CommsRepositoryImpl(database: db, cloudSync: cloud, hardware: hw);
     assistant = assistantRepository ?? AssistantRepositoryImpl(speechEngine: speechEngine, ttsEngine: ttsEngine, llmAgent: llmAgent);
+    topology = topologyRepository ?? TopologyRepositoryImpl(database: db, cloudSync: cloud);
 
-    // 🛰️ تفعيل الاستماع اللحظي للرادار وجهات الاتصال مع سحابة Supabase
+    // 🛰️ تفعيل الاستماع اللحظي للرادار والطوبولوجيا
     comms.initializeRealtimeSync();
+    topology.initializeRealtimeSync();
   }
 
-  // --- الوصول المباشر للمستودعات الستة المتخصصة ---
+  // --- الوصول المباشر للمستودعات السبعة المتخصصة ---
   late final SettingsRepository settings;
   late final TaskAgendaRepository tasks;
   late final FocusAlarmsRepository focusAlarms;
   late final SystemHardwareRepository hardware;
   late final CommsRepository comms;
   late final AssistantRepository assistant;
+  late final TopologyRepository topology;
 
-  // 🔗 مأخذ توجيه الأوامر الصوتية الذكية (Pluggable Dispatcher Hook)
   Future<LauncherCommandResult> Function(String userQuery, {String? base64Image})? _customVoiceDispatcher;
 
   void registerVoiceDispatcher(
@@ -81,30 +85,25 @@ class LauncherRepository {
     log('LauncherRepository: Custom VoiceCommandDispatcher registered successfully.');
   }
 
-  // ===========================================================================
-  // 🔄 العمليات السيادية المنسقة بين عدة نطاقات (Cross-Domain Operations)
-  // ===========================================================================
-
-  /// استعادة بيانات الخزنة بالكامل من السحابة بتنسيق بين النطاقات
   Future<void> restoreVaultFromCloud() async {
     log('BeaconKernel: Restoring full vault from cloud...');
     await settings.restoreSettingsFromCloud();
     await comms.restoreCommsFromCloud();
     await tasks.restoreTasksAndMemosFromCloud();
+    await topology.restoreTopologyFromCloud();
     log('BeaconKernel: Full vault restoration finished.');
   }
 
-  /// مزامنة كافة العمليات المعلقة دون إنترنت عبر النطاقات
   Future<void> syncPendingOfflineChanges() async {
     log('BeaconKernel: Syncing pending changes...');
     await settings.syncPendingSettings();
     await tasks.syncPendingTasksAndMemos();
     await focusAlarms.syncPendingAlarms();
     await comms.syncPendingComms();
+    await topology.syncPendingTopology();
     log('BeaconKernel: Offline sync cycle finished.');
   }
 
-  /// توجيه الأوامر الصوتية لحافلة النظام الذكية أو المسار الاحتياطي
   Future<LauncherCommandResult> dispatchVoiceCommand(String userQuery, {String? base64Image}) async {
     if (_customVoiceDispatcher != null) {
       return _customVoiceDispatcher!(userQuery, base64Image: base64Image);
@@ -115,8 +114,8 @@ class LauncherRepository {
     return LauncherCommandResult(intent: result['intent'] as String? ?? 'GENERAL', spokenResponse: response);
   }
 
-  /// 🛑 تحرير موارد النواة والاستماعات اللحظية
   void dispose() {
     comms.dispose();
+    topology.dispose();
   }
 }

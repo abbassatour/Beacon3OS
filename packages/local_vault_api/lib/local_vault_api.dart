@@ -10,3 +10,4 @@ export 'src/tables/sos_alerts_table.dart';
 export 'src/tables/tasks_table.dart';
 export 'src/tables/vision_scans_table.dart';
 export 'src/tables/voice_memos_table.dart';
+export 'src/tables/spatial_nodes_table.dart';

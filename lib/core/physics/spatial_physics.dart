@@ -1,5 +1,6 @@
 // lib/core/physics/spatial_physics.dart
 import 'package:flutter/physics.dart';
+import 'package:flutter/widgets.dart';
 
 /// محرك الفيزياء الحركية الفضائية (Spatial Motion Physics Engine)
 /// يعتمد على نوابض Runge-Kutta، المنحنيات التوافقية المتصلة، وحسابات المنظور ثلاثي الأبعاد.
@@ -96,12 +97,36 @@ class SpatialPhysics {
 
   /// دالة التنعيم المتصل خماسية الحدود (Ken Perlin's Smootherstep): 6t⁵ - 15t⁴ + 10t³
   /// تتميز بمشتقين صفريين عند البداية والنهاية (C² Continuous)، مما يمنع الفجوات الميتة
-  /// (Dead Zones) والارتجاج البصري أثناء التلاشي التراكمي للطبقات.
+  /// والارتجاج البصري أثناء التلاشي التراكمي للطبقات.
   static double smootherStep(double t) {
     final clamped = t.clamp(0.0, 1.0);
     return clamped *
         clamped *
         clamped *
         (clamped * (clamped * 6.0 - 15.0) + 10.0);
+  }
+
+  // ===========================================================================
+  // 👁️ 6. محرك الاستبعاد البصري والفحص المكاني (Spatial Culling Tests)
+  // ===========================================================================
+
+  /// فحص هل يتقاطع المستطيل الإحداثي للغرفة مع مجال الرؤية للشاشة حالياً
+  static bool isIntersectingViewport({
+    required Offset roomOffset,
+    required Size screenSize,
+    double cullBuffer = 40.0,
+  }) {
+    final roomLeft = roomOffset.dx;
+    final roomRight = roomOffset.dx + screenSize.width;
+    final roomTop = roomOffset.dy;
+    final roomBottom = roomOffset.dy + screenSize.height;
+
+    // إذا كانت الغرفة خارج الشاشة تماماً لليمين أو اليسار أو الأعلى أو الأسفل
+    if (roomRight < -cullBuffer) return false;
+    if (roomLeft > screenSize.width + cullBuffer) return false;
+    if (roomBottom < -cullBuffer) return false;
+    if (roomTop > screenSize.height + cullBuffer) return false;
+
+    return true;
   }
 }

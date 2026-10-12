@@ -40,27 +40,43 @@ class CameraService {
   static final CameraService instance = CameraService._();
 
   bool _isCapturing = false;
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
-  /// فحص حالة إذن الكاميرا الحالية
+  /// فحص حالة إذن الكاميرا الحالية مع حماية سطح المكتب
   Future<CameraPermissionState> getPermissionState() async {
-    final status = await Permission.camera.status;
-    if (status.isGranted) {
+    if (!_isMobile) {
       return CameraPermissionState.granted;
-    } else if (status.isPermanentlyDenied) {
-      return CameraPermissionState.permanentlyDenied;
-    } else {
-      return CameraPermissionState.denied;
+    }
+
+    try {
+      final status = await Permission.camera.status;
+      if (status.isGranted) {
+        return CameraPermissionState.granted;
+      } else if (status.isPermanentlyDenied) {
+        return CameraPermissionState.permanentlyDenied;
+      } else {
+        return CameraPermissionState.denied;
+      }
+    } catch (_) {
+      return CameraPermissionState.granted;
     }
   }
 
-  /// طلب إذن استخدام الكاميرا من نظام أندرويد
+  /// طلب إذن استخدام الكاميرا من نظام التشغيل
   Future<bool> requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    return status.isGranted;
+    if (!_isMobile) return true;
+
+    try {
+      final status = await Permission.camera.request();
+      return status.isGranted;
+    } catch (_) {
+      return true;
+    }
   }
 
   /// فتح شاشة إعدادات التطبيق في النظام في حال الرفض الدائم
   Future<bool> openSettings() async {
+    if (!_isMobile) return false;
     return openAppSettings();
   }
 
@@ -77,25 +93,38 @@ class CameraService {
     }
     _isCapturing = true;
 
-    // 1. التحقق من صلاحية الكاميرا وطلبها فورياً
-    final isGranted = await Permission.camera.isGranted;
-    if (!isGranted) {
-      final requested = await Permission.camera.request();
-      if (!requested.isGranted) {
-        log('CameraService: Camera permission denied by user.');
-        _isCapturing = false;
-        return const CameraCaptureResult(
-          error: CameraCaptureError.permissionDenied,
-          errorMessage: 'Camera permission denied.',
-        );
+    // 1. التحقق من صلاحية الكاميرا وطلبها فورياً (للهواتف فقط)
+    if (_isMobile) {
+      final isGranted = await Permission.camera.isGranted;
+      if (!isGranted) {
+        final requested = await Permission.camera.request();
+        if (!requested.isGranted) {
+          log('CameraService: Camera permission denied by user.');
+          _isCapturing = false;
+          return const CameraCaptureResult(
+            error: CameraCaptureError.permissionDenied,
+            errorMessage: 'Camera permission denied.',
+          );
+        }
       }
     }
 
     CameraController? controller;
     try {
-      final cameras = await availableCameras();
+      final List<CameraDescription> cameras;
+      try {
+        cameras = await availableCameras();
+      } catch (e) {
+        log('CameraService: availableCameras() failed or unsupported: $e');
+        _isCapturing = false;
+        return const CameraCaptureResult(
+          error: CameraCaptureError.noHardwareFound,
+          errorMessage: 'No cameras detected or platform not supported.',
+        );
+      }
+
       if (cameras.isEmpty) {
-        log('CameraService: No physical cameras found (Emulator environment).');
+        log('CameraService: No physical cameras found.');
         _isCapturing = false;
         return const CameraCaptureResult(
           error: CameraCaptureError.noHardwareFound,
@@ -103,21 +132,21 @@ class CameraService {
         );
       }
 
-      final backCamera = cameras.firstWhere(
+      final targetCamera = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
 
       controller = CameraController(
-        backCamera,
+        targetCamera,
         ResolutionPreset.medium,
         enableAudio: false,
       );
 
       await controller.initialize().timeout(const Duration(seconds: 4));
 
-      // ⚡️ تشغيل الفلاش بأمان داخل نفس الجلسة لمنع انهيار العتاد
-      if (enableTorch) {
+      // ⚡️ تشغيل الفلاش بأمان داخل نفس الجلسة (للهواتف فقط)
+      if (enableTorch && _isMobile) {
         try {
           await controller.setFlashMode(FlashMode.torch);
           await Future<void>.delayed(const Duration(milliseconds: 150));
@@ -130,7 +159,7 @@ class CameraService {
         const Duration(seconds: 4),
       );
 
-      if (enableTorch) {
+      if (enableTorch && _isMobile) {
         try {
           await controller.setFlashMode(FlashMode.off);
         } catch (_) {}

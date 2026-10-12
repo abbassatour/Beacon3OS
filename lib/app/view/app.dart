@@ -1,4 +1,6 @@
 // lib/app/view/app.dart
+import 'dart:async';
+
 import 'package:beacon_os/auth/cubit/auth_cubit.dart';
 import 'package:beacon_os/core/services/permission_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
@@ -32,12 +34,24 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final SpatialTopology _topology;
   late final VoiceCommandDispatcher _voiceDispatcher;
+  StreamSubscription<List<SpatialNode>>? _nodesSubscription;
 
   @override
   void initState() {
     super.initState();
 
     _topology = SpatialTopology.defaultTopology();
+
+    // ⚡️ الاستماع الحي لتحديثات مواقع الغرف من قاعدة البيانات والسحابة
+    _nodesSubscription = widget._launcherRepository.topology
+        .watchNodes()
+        .listen((nodes) {
+      if (nodes.isNotEmpty && mounted) {
+        setState(() {
+          _topology.updateFromNodes(nodes);
+        });
+      }
+    });
 
     _voiceDispatcher = VoiceCommandDispatcher(
       topology: _topology,
@@ -55,6 +69,12 @@ class _AppState extends State<App> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PermissionService.instance.requestAllPermissions();
     });
+  }
+
+  @override
+  void dispose() {
+    _nodesSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -86,6 +106,9 @@ class _AppState extends State<App> {
         ),
         RepositoryProvider<AssistantRepository>.value(
           value: widget._launcherRepository.assistant,
+        ),
+        RepositoryProvider<TopologyRepository>.value(
+          value: widget._launcherRepository.topology,
         ),
       ],
       child: MultiBlocProvider(

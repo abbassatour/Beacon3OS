@@ -1,6 +1,7 @@
 // lib/bootstrap.dart
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:beacon_os/app/app.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
@@ -40,13 +41,17 @@ Future<void> bootstrap() async {
   Bloc.observer = const AppBlocObserver();
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. وضع الشاشة الكاملة الحقيقي (دون تعطيل الإقلاع)
-  try {
-    await SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.immersiveSticky,
-    );
-  } catch (e) {
-    log('Bootstrap: Immersive mode setup bypassed: $e');
+  final isMobile = Platform.isAndroid || Platform.isIOS;
+
+  // 1. وضع الشاشة الكاملة الحقيقي للهواتف فقط
+  if (isMobile) {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.immersiveSticky,
+      );
+    } catch (e) {
+      log('Bootstrap: Immersive mode setup bypassed: $e');
+    }
   }
 
   // 2. تهيئة Supabase بأمان تام
@@ -65,34 +70,38 @@ Future<void> bootstrap() async {
     log('Supabase: Skipped initialization (Keys are empty).');
   }
 
-  // 3. تهيئة خدمات السحابة والاشتراكات بحماية زمنية تمنع تعليق الإقلاع
-  try {
-    await RevenueCatService.initialize().timeout(const Duration(seconds: 2));
-  } catch (e) {
-    log('Bootstrap: RevenueCat init deferred: $e');
-  }
+  // 3. تهيئة خدمات السحابة والاشتراكات للهواتف فقط مع حماية زمنية
+  if (isMobile) {
+    try {
+      await RevenueCatService.initialize().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      log('Bootstrap: RevenueCat init deferred: $e');
+    }
 
-  try {
-    await OneSignalService.initialize().timeout(const Duration(seconds: 2));
-  } catch (e) {
-    log('Bootstrap: OneSignal init deferred: $e');
+    try {
+      await OneSignalService.initialize().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      log('Bootstrap: OneSignal init deferred: $e');
+    }
+  } else {
+    log('Bootstrap: Skipped mobile-only services (OneSignal, RevenueCat) on Desktop.');
   }
 
   // 4. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(llmAgent: llmAgent);
 
-  // ⚡️ 5. تهيئة محركات الصوت (Speech-To-Text و TTS) مع حماية ضد تعليق المحاكي
+  // ⚡️ 5. تهيئة محركات الصوت (Speech-To-Text و TTS) مع حماية ضد التعليق
   try {
     await launcherRepository.assistant
         .initializeEngines()
         .timeout(const Duration(seconds: 2));
     log('Bootstrap: Audio engines initialized.');
   } catch (e) {
-    log('Bootstrap: Audio engines init timed out or bypassed (Safe fallback for emulator): $e');
+    log('Bootstrap: Audio engines init timed out or bypassed (Desktop/Emulator fallback): $e');
   }
 
-  // 🎨 6. قراءة الإعدادات مع كائن احتياطي كامل في حال قفل الـ SQLite أثناء إعادة التشغيل السريع
+  // 🎨 6. قراءة الإعدادات مع كائن احتياطي
   AppSetting initialSettings;
   try {
     initialSettings = await launcherRepository.settings
@@ -125,7 +134,7 @@ Future<void> bootstrap() async {
     );
   }
 
-  // 🎛️ 7. ضبط التفضيلات فوراً وإطلاق سرعة النطق بالتوازي (Non-blocking)
+  // 🎛️ 7. ضبط التفضيلات فوراً
   SoundController.instance.isEnabled = initialSettings.soundCuesEnabled;
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));

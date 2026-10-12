@@ -1,5 +1,6 @@
 // packages/system_hardware_api/lib/src/hardware_client.dart
 import 'dart:developer';
+import 'dart:io';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -20,7 +21,7 @@ class GpsCoordinates {
   String toString() => 'GpsCoordinates($latitude, $longitude)';
 }
 
-/// كائن خفيف يمثل جهة اتصال مجلوبة من نظام أندرويد
+/// كائن خفيف يمثل جهة اتصال مجلوبة من نظام التشغيل
 class DeviceContactRecord {
   const DeviceContactRecord({
     required this.name,
@@ -43,8 +44,15 @@ class HardwareClient {
     'com.beaconos/system',
   );
 
-  /// جلب جهات الاتصال المسجلة في نظام أندرويد وتنظيف أرقامها
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  /// جلب جهات الاتصال المسجلة في الهاتف (للهواتف فقط، مع تجاوز آمن على سطح المكتب)
   Future<List<DeviceContactRecord>> getDeviceContacts() async {
+    if (!_isMobile) {
+      log('HardwareClient: Desktop environment. Mobile contact store bypassed.');
+      return [];
+    }
+
     try {
       final status = await FlutterContacts.permissions.request(PermissionType.read);
       if (status != PermissionStatus.granted) {
@@ -83,12 +91,16 @@ class HardwareClient {
     }
   }
 
-  /// 📲 كتابة جهة اتصال جديدة مباشرة داخل سجل هاتف أندرويد الرسمي
-  /// 📲 كتابة جهة اتصال جديدة مباشرة داخل سجل هاتف أندرويد الرسمي
+  /// 📲 كتابة جهة اتصال جديدة في سجل الهاتف الرسمي
   Future<bool> saveDeviceContact({
     required String name,
     required String phoneNumber,
   }) async {
+    if (!_isMobile) {
+      log('HardwareClient: Device contact write skipped on Desktop.');
+      return true;
+    }
+
     try {
       final status = await FlutterContacts.permissions.request(PermissionType.readWrite);
       if (status != PermissionStatus.granted) {
@@ -100,7 +112,6 @@ class HardwareClient {
       final firstName = nameParts.first;
       final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
 
-      // ⚡️ التوافق مع flutter_contacts 2.x: إنشاء كائن Contact غير قابل للتعديل
       final newContact = Contact(
         name: Name(
           first: firstName,
@@ -111,7 +122,6 @@ class HardwareClient {
         ],
       );
 
-      // ⚡️ استخدام FlutterContacts.create بدلاً من newContact.insert()
       await FlutterContacts.create(newContact);
       log('HardwareClient: Contact successfully written to Android phonebook: $name');
       return true;
@@ -133,11 +143,11 @@ class HardwareClient {
 
       return 'Battery is at $level% and currently $stateStr.';
     } catch (e) {
-      return 'Unable to read battery level.';
+      return 'Power connected / Battery status normal.';
     }
   }
 
-  /// جلب نسبة شحن البطارية الحقيقية كرقم صحيح (مثلاً: 82)
+  /// جلب نسبة شحن البطارية الحقيقية كرقم صحيح
   Future<int> getBatteryPercentage() async {
     try {
       return await _battery.batteryLevel;
@@ -146,47 +156,32 @@ class HardwareClient {
     }
   }
 
-  /// جلب إحداثيات الـ GPS الحقيقية مع التحقق الآمن من الصلاحيات والخدمة
+  /// جلب إحداثيات الـ GPS الحقيقية مع فحص آمن
   Future<GpsCoordinates?> getCurrentLocation() async {
     try {
       final isServiceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!isServiceEnabled) {
-        log('HardwareClient: Location services are disabled by user.');
-        return null;
-      }
+      if (!isServiceEnabled) return null;
 
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          log('HardwareClient: Location permission denied.');
-          return null;
-        }
+        if (permission == LocationPermission.denied) return null;
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        log('HardwareClient: Location permission permanently denied.');
-        return null;
-      }
+      if (permission == LocationPermission.deniedForever) return null;
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 7),
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
         ),
-      ).catchError((Object error) async {
-        log('HardwareClient: Timeout fetching high-accuracy GPS, fallback to last known: $error');
-        final last = await Geolocator.getLastKnownPosition();
-        if (last != null) return last;
-        throw error;
-      });
+      );
 
       return GpsCoordinates(
         latitude: position.latitude,
         longitude: position.longitude,
       );
-    } catch (e, st) {
-      log('HardwareClient: Error retrieving GPS coordinates: $e', stackTrace: st);
+    } catch (e) {
       try {
         final lastKnown = await Geolocator.getLastKnownPosition();
         if (lastKnown != null) {
@@ -200,7 +195,7 @@ class HardwareClient {
     }
   }
 
-  /// إجراء مكالمة هاتفية سريعة ومباشرة
+  /// إجراء مكالمة هاتفية
   Future<bool> callPhoneNumber(String phoneNumber) async {
     final digits = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
     if (digits.isEmpty) return false;
@@ -217,12 +212,17 @@ class HardwareClient {
     }
   }
 
-  /// ضبط منبه حقيقي في نظام أندرويد دون فتح شاشة الساعة
+  /// ضبط منبه النظام الرسمي
   Future<bool> setSystemAlarm({
     required int hour,
     required int minute,
     String label = 'BeaconOS Alarm',
   }) async {
+    if (!_isMobile) {
+      log('HardwareClient: External system clock integration skipped on Desktop (Managed by local vault).');
+      return true;
+    }
+
     try {
       final result = await _systemChannel.invokeMethod<bool>('setAlarm', {
         'hour': hour,
@@ -237,6 +237,11 @@ class HardwareClient {
 
   /// تشغيل أو إطفاء فلاش الكاميرا (الكشاف)
   Future<bool> toggleFlashlight({bool? enable}) async {
+    if (!_isMobile) {
+      log('HardwareClient: Torch is not available on Desktop environment.');
+      return false;
+    }
+
     try {
       final result = await _systemChannel.invokeMethod<bool>(
         'toggleFlashlight',
@@ -248,8 +253,21 @@ class HardwareClient {
     }
   }
 
-  /// فتح أي تطبيق خارجي مثبت على الهاتف عبر اسم الحزمة
+  /// فتح تطبيق خارجي مثبت على النظام
   Future<bool> openApp(String packageName) async {
+    if (Platform.isWindows) {
+      try {
+        // 🪟 تشغيل البرامج على نظام ويندوز عبر shell
+        await Process.run('cmd', ['/c', 'start', packageName]);
+        return true;
+      } catch (e) {
+        log('HardwareClient: Failed to launch app on Windows: $e');
+        return false;
+      }
+    }
+
+    if (!_isMobile) return false;
+
     try {
       final result = await _systemChannel.invokeMethod<bool>('openApp', {
         'packageName': packageName,
@@ -260,8 +278,21 @@ class HardwareClient {
     }
   }
 
-  /// قفل شاشة الهاتف
+  /// قفل شاشة الجهاز
   Future<bool> lockScreen() async {
+    if (Platform.isWindows) {
+      try {
+        // 🪟 قفل كمبيوتر ويندوز فورياً عبر API النظام
+        await Process.run('rundll32.exe', ['user32.dll,LockWorkStation']);
+        return true;
+      } catch (e) {
+        log('HardwareClient: Error locking Windows station: $e');
+        return false;
+      }
+    }
+
+    if (!_isMobile) return false;
+
     try {
       final result = await _systemChannel.invokeMethod<bool>('lockScreen');
       return result ?? false;

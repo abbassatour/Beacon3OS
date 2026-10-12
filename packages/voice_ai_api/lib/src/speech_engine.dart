@@ -1,6 +1,7 @@
 // packages/voice_ai_api/lib/src/speech_engine.dart
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart';
 
 /// حدث استلام الكلمات المنطوقة من الميكروفون
@@ -28,6 +29,8 @@ class SpeechEngine {
   final SpeechToText _speechToText;
   bool _isInitialized = false;
 
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
   // --- Broadcast StreamControllers للبث الحي لعدة مستمعين في وقت واحد ---
   final _textController = StreamController<String>.broadcast();
   final _soundLevelController = StreamController<double>.broadcast();
@@ -48,12 +51,19 @@ class SpeechEngine {
   Stream<VoiceRecognitionEvent> get recognitionStream =>
       _recognitionController.stream;
 
-  bool get isListening => _speechToText.isListening;
+  bool get isListening => _isMobile && _speechToText.isListening;
   bool get isInitialized => _isInitialized;
 
-  /// تهيئة المحرك وربط مستمعي الحالة والأخطاء
+  /// تهيئة المحرك وربط مستمعي الحالة والأخطاء (محصن ضد انهيار سطح المكتب)
   Future<bool> initialize() async {
     if (_isInitialized) return true;
+
+    // 🛡️ حماية سطح المكتب: مكتبة speech_to_text لا تدعم ويندوز
+    if (!_isMobile) {
+      log('SpeechEngine: Desktop environment detected. Operating in passive mode.');
+      _isInitialized = false;
+      return false;
+    }
 
     try {
       _isInitialized = await _speechToText.initialize(
@@ -71,6 +81,7 @@ class SpeechEngine {
       return _isInitialized;
     } catch (e, st) {
       log('SpeechEngine: Init exception: $e', stackTrace: st);
+      _isInitialized = false;
       return false;
     }
   }
@@ -82,6 +93,11 @@ class SpeechEngine {
     Duration pauseFor = const Duration(seconds: 3),
     Duration listenFor = const Duration(seconds: 30),
   }) async {
+    if (!_isMobile) {
+      log('SpeechEngine: startListening is bypassed on Desktop.');
+      return;
+    }
+
     if (!_isInitialized) {
       final initialized = await initialize();
       if (!initialized) {
@@ -96,32 +112,39 @@ class SpeechEngine {
 
     _isListeningController.add(true);
 
-    await _speechToText.listen(
-      onResult: (result) {
-        final words = result.recognizedWords;
-        final isFinal = result.finalResult;
+    try {
+      await _speechToText.listen(
+        onResult: (result) {
+          final words = result.recognizedWords;
+          final isFinal = result.finalResult;
 
-        _textController.add(words);
-        _recognitionController.add(
-          VoiceRecognitionEvent(text: words, isFinal: isFinal),
-        );
+          _textController.add(words);
+          _recognitionController.add(
+            VoiceRecognitionEvent(text: words, isFinal: isFinal),
+          );
 
-        onResult?.call(words, isFinal);
-      },
-      onSoundLevelChange: (level) {
-        _soundLevelController.add(level);
-        onSoundLevel?.call(level);
-      },
-      listenMode: ListenMode.dictation,
-      cancelOnError: false,
-      partialResults: true,
-      pauseFor: pauseFor,
-      listenFor: listenFor,
-    );
+          onResult?.call(words, isFinal);
+        },
+        onSoundLevelChange: (level) {
+          _soundLevelController.add(level);
+          onSoundLevel?.call(level);
+        },
+        listenMode: ListenMode.dictation,
+        cancelOnError: false,
+        partialResults: true,
+        pauseFor: pauseFor,
+        listenFor: listenFor,
+      );
+    } catch (e) {
+      log('SpeechEngine: Error during listen: $e');
+      _isListeningController.add(false);
+    }
   }
 
   /// إيقاف الاستماع مع إرجاع النص النهائي المنطوق
   Future<String> stopListening() async {
+    if (!_isMobile) return '';
+
     if (_speechToText.isListening) {
       await _speechToText.stop();
       await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -132,6 +155,8 @@ class SpeechEngine {
 
   /// إلغاء جلسة الاستماع وتجاهل النتائج فوراً
   Future<void> cancelListening() async {
+    if (!_isMobile) return;
+
     if (_speechToText.isListening) {
       await _speechToText.cancel();
     }

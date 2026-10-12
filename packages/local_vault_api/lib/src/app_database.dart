@@ -9,6 +9,7 @@ import 'tables/focus_sessions_table.dart';
 import 'tables/messages_vault_table.dart';
 import 'tables/notifications_table.dart';
 import 'tables/sos_alerts_table.dart';
+import 'tables/spatial_nodes_table.dart';
 import 'tables/tasks_table.dart';
 import 'tables/vision_scans_table.dart';
 import 'tables/voice_memos_table.dart';
@@ -27,6 +28,7 @@ part 'app_database.g.dart';
     AppSettings,
     SosAlerts,
     VisionScans,
+    SpatialNodes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -38,9 +40,9 @@ class AppDatabase extends _$AppDatabase {
   static const String defaultSettingsId = 'local_device_settings';
   final _uuid = const Uuid();
 
-  // 1. ترقية رقم الإصدار إلى 6
+  // 1. ترقية رقم الإصدار إلى 7 لدعم الشبكة الإحداثية
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   // 2. تحديث استراتيجية الترقية الآمنة
   @override
@@ -51,6 +53,7 @@ class AppDatabase extends _$AppDatabase {
         await into(appSettings).insert(
           AppSettingsCompanion.insert(id: defaultSettingsId),
         );
+        await _seedDefaultSpatialNodes();
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 5) {
@@ -62,13 +65,158 @@ class AppDatabase extends _$AppDatabase {
             mode: InsertMode.insertOrIgnore,
           );
         }
-        // الترقية الآمنة للنسخة 6 بإضافة أعمدة الهوية والتهيئة
         if (from < 6) {
           await m.addColumn(appSettings, appSettings.userPersona);
           await m.addColumn(appSettings, appSettings.hasCompletedOnboarding);
         }
+        // 🌟 الترقية للإصدار 7: إنشاء جدول العقد الفضائية وبذر الغرف الافتراضية
+        if (from < 7) {
+          await m.createTable(spatialNodes);
+          await _seedDefaultSpatialNodes();
+        }
       },
     );
+  }
+
+  // ===========================================================================
+  // 🧭 0. إدارة الشبكة الإحداثية الفضائية (Spatial Grid Topology Engine)
+  // ===========================================================================
+
+  /// مراقبة جميع الغرف والعُقد النشطة في الفضاء بشكل لحظي
+  Stream<List<SpatialNode>> watchAllSpatialNodes() => (select(spatialNodes)
+        ..where((n) => n.deletedAt.isNull() & n.isVisible.equals(true))
+        ..orderBy([
+          (n) => OrderingTerm.asc(n.floorLevel),
+          (n) => OrderingTerm.asc(n.id),
+        ]))
+      .watch();
+
+  /// جلب كافة العُقد الفضائية لمرة واحدة
+  Future<List<SpatialNode>> getAllSpatialNodes() => (select(spatialNodes)
+        ..where((n) => n.deletedAt.isNull() & n.isVisible.equals(true)))
+      .get();
+
+  /// تحديث موقع غرفة معين في الفضاء (X, Y, Floor) مع وسم غير متزامن للسحابة
+  Future<void> updateNodeCoordinates({
+    required String id,
+    required int x,
+    required int y,
+    required int floorLevel,
+  }) {
+    return (update(spatialNodes)..where((n) => n.id.equals(id))).write(
+      SpatialNodesCompanion(
+        x: Value(x),
+        y: Value(y),
+        floorLevel: Value(floorLevel),
+        updatedAt: Value(DateTime.now()),
+        isSynced: const Value(false),
+      ),
+    );
+  }
+
+  /// إدراج أو تعديل عقدة فضائية كاملة
+  Future<void> upsertSpatialNode(SpatialNodesCompanion node) {
+    return into(spatialNodes).insert(
+      node.copyWith(
+        updatedAt: Value(DateTime.now()),
+        isSynced: const Value(false),
+      ),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  /// الحذف الناعم لغرفة فضائية
+  Future<void> softDeleteSpatialNode(String id) {
+    return (update(spatialNodes)..where((n) => n.id.equals(id))).write(
+      SpatialNodesCompanion(
+        deletedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        isSynced: const Value(false),
+      ),
+    );
+  }
+
+  /// البذر التلقائي الذكي للغرف الخمس الأساسية على الطابقين 0 و 1
+  Future<void> _seedDefaultSpatialNodes() async {
+    final defaultNodes = <SpatialNodesCompanion>[
+      // 🏠 الطابق الأرضي (Floor 0)
+      const SpatialNodesCompanion(
+        id: Value('cockpit_f0'),
+        moduleId: Value('cockpit'),
+        floorLevel: Value(0),
+        x: Value(0),
+        y: Value(0), // Center
+      ),
+      const SpatialNodesCompanion(
+        id: Value('focus_f0'),
+        moduleId: Value('focus'),
+        floorLevel: Value(0),
+        x: Value(0),
+        y: Value(1), // North
+      ),
+      const SpatialNodesCompanion(
+        id: Value('comms_f0'),
+        moduleId: Value('comms'),
+        floorLevel: Value(0),
+        x: Value(0),
+        y: Value(-1), // South
+      ),
+      const SpatialNodesCompanion(
+        id: Value('vision_f0'),
+        moduleId: Value('vision'),
+        floorLevel: Value(0),
+        x: Value(1),
+        y: Value(0), // East
+      ),
+      const SpatialNodesCompanion(
+        id: Value('agenda_f0'),
+        moduleId: Value('agenda'),
+        floorLevel: Value(0),
+        x: Value(-1),
+        y: Value(0), // West
+      ),
+
+      // ⚙️ الطابق الأول (Floor 1 - Settings & Engines)
+      const SpatialNodesCompanion(
+        id: Value('cockpit_f1'),
+        moduleId: Value('cockpit'),
+        floorLevel: Value(1),
+        x: Value(0),
+        y: Value(0),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('focus_f1'),
+        moduleId: Value('focus'),
+        floorLevel: Value(1),
+        x: Value(0),
+        y: Value(1),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('comms_f1'),
+        moduleId: Value('comms'),
+        floorLevel: Value(1),
+        x: Value(0),
+        y: Value(-1),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('vision_f1'),
+        moduleId: Value('vision'),
+        floorLevel: Value(1),
+        x: Value(1),
+        y: Value(0),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('agenda_f1'),
+        moduleId: Value('agenda'),
+        floorLevel: Value(1),
+        x: Value(-1),
+        y: Value(0),
+      ),
+    ];
+
+    for (final node in defaultNodes) {
+      await into(spatialNodes).insert(node, mode: InsertMode.insertOrIgnore);
+    }
   }
 
   // ===========================================================================
@@ -487,6 +635,9 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteAlarm(String id) =>
       (delete(alarms)..where((a) => a.id.equals(id))).go();
+
+  Future<int> deleteSpatialNode(String id) =>
+      (delete(spatialNodes)..where((n) => n.id.equals(id))).go();
   
   // ===========================================================================
   // 📋 عمليات المهام الإضافية للتعديل بالذكاء الاصطناعي
