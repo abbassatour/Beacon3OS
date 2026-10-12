@@ -20,14 +20,27 @@
         tools:ignore="QueryAllPackagesCondition" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- ميزات العتاد الاختيارية حتى لا يتم رفض تثبيت التطبيق إن كان الجهاز بلا فلاش -->
+
+    <!-- 🌟 3. ميزات العتاد الاختيارية (مهم جداً لقبول التطبيق على Fire TV وجميع الأجهزة) -->
+    <!-- إلغاء شرط شاشة اللمس ليعمل التطبيق على التلفزيون -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- تفعيل واجهة التلفزيون Leanback كخيار غير إلزامي ليعمل على الهاتف والتلفزيون معاً -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <!-- أجهزة Fire TV لا تحتوي شريحة اتصال أو كشاف أو كاميرا مدمجة -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
 
     <application
         android:label="${appName}"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:banner="@mipmap/ic_launcher"> <!-- 🌟 راية العرض على شاشة التلفزيون -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -46,12 +59,18 @@
               android:resource="@style/NormalTheme"
               />            
             
+            <!-- إطلاق التطبيق كمشغل نظام رسمي للهاتف (Phone Launcher) -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-                <!-- تسجيل التطبيق كمشغل نظام رسمي (Home Launcher) -->
                 <category android:name="android.intent.category.HOME"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- 🌟 إطلاق التطبيق على تلفزيونات Fire TV و Android TV (Leanback Launcher) -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity>
         
@@ -60,7 +79,7 @@
             android:value="2" />
     </application>
 
-    <!-- 3. استعلامات النظام (System Queries) -->
+    <!-- 4. استعلامات النظام (System Queries) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
