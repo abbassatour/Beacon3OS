@@ -1,6 +1,6 @@
 // lib/spatial_shell/widgets/spatial_compass_hud.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/core/topology/topology.dart'; // 👈 تم التصحيح
+import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +10,7 @@ class SpatialCompassHud extends StatelessWidget {
     required this.direction,
     required this.currentFloor,
     required this.onCenterTap,
+    this.currentCoordinate,
     this.onFloorToggle,
     this.onAscend,
     this.onDescend,
@@ -19,6 +20,7 @@ class SpatialCompassHud extends StatelessWidget {
 
   final SpatialDirection direction;
   final int currentFloor;
+  final SpatialCoordinate? currentCoordinate;
   final bool isSettingsFloor;
   final VoidCallback onCenterTap;
   final VoidCallback? onFloorToggle;
@@ -27,7 +29,7 @@ class SpatialCompassHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAtCenter = direction == SpatialDirection.center;
+    final isAtCenter = currentCoordinate?.isOrigin ?? (direction == SpatialDirection.center);
     final isElevated = currentFloor != 0;
     final colors = context.colors;
     final topology = context.read<SpatialTopology>();
@@ -43,45 +45,51 @@ class SpatialCompassHud extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: GestureDetector(
-              onTap: isAtCenter ? null : onCenterTap,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: colors.surface.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isElevated ? colors.primary : colors.outline,
-                    width: isElevated ? 1.5 : 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.onSurface.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+            child: Semantics(
+              label:
+                  'Spatial compass HUD. Tap to return to cockpit. Double tap to toggle floor.',
+              button: true,
+              child: GestureDetector(
+                onTap: isAtCenter ? null : onCenterTap,
+                onDoubleTap: onFloorToggle,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: colors.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isElevated ? colors.primary : colors.outline,
+                      width: isElevated ? 1.5 : 1.2,
                     ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildMiniCompassCross(context, direction, isElevated),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        _getDirectionLabel(context, direction, currentFloor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isElevated ? colors.primary : colors.onSurface,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.onSurface.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildMiniCompassCross(context, direction, isElevated),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _getDynamicLabel(context, topology),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isElevated ? colors.primary : colors.onSurface,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.1,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -223,16 +231,19 @@ class SpatialCompassHud extends StatelessWidget {
     );
   }
 
-  String _getDirectionLabel(
-    BuildContext context,
-    SpatialDirection dir,
-    int floor,
-  ) {
-    final topology = context.read<SpatialTopology>();
-    final module = topology.moduleAt(floor, dir);
-    if (module == null) return dir.name.toUpperCase();
+  String _getDynamicLabel(BuildContext context, SpatialTopology topology) {
+    final coord = currentCoordinate;
+    final module = coord != null
+        ? topology.moduleAtCoordinate(coord)
+        : topology.moduleAt(currentFloor, direction);
 
-    final prefix = floor != 0 ? 'FL $floor • ' : '';
-    return '$prefix${module.getFloorTitle(floor)}';
+    final prefix = currentFloor != 0 ? 'FL $currentFloor • ' : '';
+    if (module != null) {
+      return '$prefix${module.getFloorTitle(currentFloor)}';
+    }
+    if (coord != null) {
+      return '${prefix}ROOM (${coord.x}, ${coord.y})';
+    }
+    return '$prefix${direction.name.toUpperCase()}';
   }
 }

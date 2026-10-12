@@ -6,7 +6,7 @@ enum SoundCue {
   navMove('audio/nav_move.mp3', volume: 0.35, allowFloorPitchShift: true),
   navReturn('audio/nav_return.mp3', volume: 0.30, allowFloorPitchShift: true),
 
-  // نغمات ثابتة إضافية (للتوافق القديم)
+  // نغمات ثابتة إضافية (للتوافق المعماري القديم)
   navNorth('audio/nav_move.mp3', volume: 0.35, allowFloorPitchShift: true),
   navSouth('audio/nav_move.mp3', volume: 0.35, allowFloorPitchShift: true),
   navEast('audio/nav_move.mp3', volume: 0.35, allowFloorPitchShift: true),
@@ -16,6 +16,17 @@ enum SoundCue {
   // --- المصعد الرأسي بين الطوابق (Vertical Z-Axis) ---
   elevatorUp('audio/elevator_up.mp3', volume: 0.38),
   elevatorDown('audio/elevator_down.mp3', volume: 0.35),
+  elevatorLoop('audio/elevator_up.mp3', volume: 0.28, isLooping: true),
+
+  // --- الرادار الصوتي المستمر والمؤثرات المكانية (Continuous Spatial Sonification) ---
+  /// خامة صوتية دورية للرادار تعزف بنعومة أثناء استمرار لمس وسحب الإصبع
+  radarDrone('audio/nav_move.mp3', volume: 0.22, isLooping: true),
+
+  /// نغمة الجاذبية المطمئنة لمركز قمرة القيادة (0, 0)
+  coreChime('audio/wake.mp3', volume: 0.28),
+
+  /// صوت الصدمة الجدارية الناعمة عند الارتطام بحدود الغرف أو الطوابق
+  boundaryThud('audio/error.mp3', volume: 0.35),
 
   // --- الواجهة الصفرية وحالات الاستماع (Zero-UI Cues) ---
   wake('audio/wake.mp3', volume: 0.6),

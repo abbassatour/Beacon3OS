@@ -1,4 +1,6 @@
 // packages/voice_ai_api/lib/src/tts_engine.dart
+import 'dart:developer';
+import 'dart:io';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TtsEngine {
@@ -6,41 +8,60 @@ class TtsEngine {
   double _currentRate = 0.5;
 
   double get currentRate => _currentRate;
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
   Future<void> initialize() async {
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setSpeechRate(_currentRate);
-    await _flutterTts.setPitch(1.0);
-    // انتظار انتهاء الصوت قبل تنفيذ الكود التالي لمنع التداخل
-    await _flutterTts.awaitSpeakCompletion(true);
+    if (!_isMobile) {
+      log('TtsEngine: Desktop environment detected. Bypassing mobile flutter_tts engine.');
+      return;
+    }
+
+    try {
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.setSpeechRate(_currentRate);
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.awaitSpeakCompletion(true);
+    } catch (e) {
+      log('TtsEngine: Init error: $e');
+    }
   }
 
-  /// ⚡️ ضبط سرعة النطق الحقيقية فورياً
+  /// ⚡️ ضبط سرعة النطق
   Future<void> setSpeechRate(double rate) async {
     _currentRate = rate.clamp(0.2, 1.0);
-    await _flutterTts.setSpeechRate(_currentRate);
+    if (!_isMobile) return;
+    try {
+      await _flutterTts.setSpeechRate(_currentRate);
+    } catch (_) {}
   }
 
   Future<void> speak(String text) async {
     if (text.isEmpty) return;
-    await stop();
+    if (!_isMobile) {
+      log('TtsEngine (Desktop Voice): "$text"');
+      return;
+    }
 
-    // تنظيف النص من علامات Markdown ليكون النطق طبيعياً
-    final cleanText = _sanitizeForSpeech(text);
-    await _flutterTts.speak(cleanText);
+    try {
+      await stop();
+      final cleanText = _sanitizeForSpeech(text);
+      await _flutterTts.speak(cleanText);
+    } catch (e) {
+      log('TtsEngine: Speak error: $e');
+    }
   }
 
   Future<void> stop() async {
-    await _flutterTts.stop();
+    if (!_isMobile) return;
+    try {
+      await _flutterTts.stop();
+    } catch (_) {}
   }
 
   String _sanitizeForSpeech(String raw) {
     return raw
-        .replaceAll(RegExp(r'\*\*|\*|__|_|`|#+'), '') // إزالة النجمات والشرطات
-        .replaceAll(
-          RegExp(r'https?:\/\/\S+'),
-          'link',
-        ) // استبدال الروابط بكلمة link
+        .replaceAll(RegExp(r'\*\*|\*|__|_|`|#+'), '')
+        .replaceAll(RegExp(r'https?:\/\/\S+'), 'link')
         .trim();
   }
 }

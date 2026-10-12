@@ -1,11 +1,55 @@
 // packages/launcher_repository/lib/src/domains/comms_repository.dart
 import 'dart:async';
 import 'dart:developer';
+
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:uuid/uuid.dart';
+
+/// أنواع الأوامر السحابية الواردة عن بُعد من Alexa+
+enum RemoteActionType {
+  locateDevice,
+  triggerSos,
+  unknown,
+}
+
+/// كائن يمثل الأمر السحابي الوارد لحظياً
+class RemoteActionEvent {
+  const RemoteActionEvent({
+    required this.id,
+    required this.actionType,
+    this.payload = const {},
+  });
+
+  final String id;
+  final RemoteActionType actionType;
+  final Map<String, dynamic> payload;
+
+  factory RemoteActionEvent.fromMap(Map<String, dynamic> map) {
+    final rawType = (map['action_type'] as String? ?? '').toUpperCase();
+    RemoteActionType type;
+    switch (rawType) {
+      case 'LOCATE_DEVICE':
+        type = RemoteActionType.locateDevice;
+        break;
+      case 'TRIGGER_SOS':
+        type = RemoteActionType.triggerSos;
+        break;
+      default:
+        type = RemoteActionType.unknown;
+    }
+
+    return RemoteActionEvent(
+      id: map['id'] as String? ?? '',
+      actionType: type,
+      payload: map['payload'] is Map<String, dynamic>
+          ? map['payload'] as Map<String, dynamic>
+          : const {},
+    );
+  }
+}
 
 abstract class CommsRepository {
   Stream<List<Contact>> watchContacts();
@@ -40,6 +84,12 @@ abstract class CommsRepository {
     int? batteryLevel,
   });
 
+  /// 🛰️ تدفق الأحداث السحابية الواردة عن بُعد من أليكسا (Locate, SOS)
+  Stream<RemoteActionEvent> get remoteActionEvents;
+
+  /// 🚨 تنفيذ بروتوكول تحديد موقع الهاتف (وميض الكشاف السريع Strobe Flashlight)
+  Future<void> executeLocateDevice({int pulseCycles = 8});
+
   Future<void> restoreCommsFromCloud();
   Future<void> syncPendingComms();
 
@@ -66,6 +116,14 @@ class CommsRepositoryImpl implements CommsRepository {
 
   StreamSubscription<dynamic>? _authSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _realtimeContactsSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _remoteActionsSubscription;
+
+  final StreamController<RemoteActionEvent> _remoteActionController =
+      StreamController<RemoteActionEvent>.broadcast();
+
+  @override
+  Stream<RemoteActionEvent> get remoteActionEvents =>
+      _remoteActionController.stream;
 
   // ===========================================================================
   // 🛰️ إدارة الاستماع اللحظي السحابي (Supabase Realtime Sync)
@@ -77,11 +135,17 @@ class CommsRepositoryImpl implements CommsRepository {
     _authSubscription = _cloud.authStateChanges?.listen((authState) {
       if (_cloud.isAuthenticated) {
         _subscribeToRealtimeContacts();
+        _subscribeToRemoteActions();
       } else {
         _realtimeContactsSubscription?.cancel();
         _realtimeContactsSubscription = null;
+        _remoteActionsSubscription?.cancel();
+        _remoteActionsSubscription = null;
       }
     });
+
+    // الاشتراك في الأوامر السحابية فوراً (يعمل أيضاً مع الضيف المحلي)
+    _subscribeToRemoteActions();
 
     if (_cloud.isAuthenticated) {
       _subscribeToRealtimeContacts();
@@ -102,6 +166,65 @@ class CommsRepositoryImpl implements CommsRepository {
     }
   }
 
+  void _subscribeToRemoteActions() {
+    _remoteActionsSubscription?.cancel();
+    final stream = _cloud.streamRemoteActions();
+    if (stream != null) {
+      _remoteActionsSubscription = stream.listen(
+        _handleIncomingRemoteActions,
+        onError: (Object error) {
+          log('CommsRepository: Remote actions stream error: $error');
+        },
+      );
+      log('CommsRepository: 🛰️ Subscribed to Alexa+ remote_actions stream.');
+    }
+  }
+
+  /// معالجة الأوامر الفورية الواردة من خادم Alexa+ MCP
+  Future<void> _handleIncomingRemoteActions(
+    List<Map<String, dynamic>> rawActions,
+  ) async {
+    for (final raw in rawActions) {
+      final event = RemoteActionEvent.fromMap(raw);
+      if (event.id.isEmpty || event.actionType == RemoteActionType.unknown) {
+        continue;
+      }
+
+      log('CommsRepository: ⚡ Alexa+ Action Received -> [${event.actionType}] (ID: ${event.id})');
+
+      // 1. تأكيد استلام الأمر للسحابة
+      await _cloud.acknowledgeRemoteAction(event.id, status: 'acknowledged');
+
+      // 2. ضخ الحدث في التدفق للاستجابة الصوتية والحسية
+      _remoteActionController.add(event);
+
+      // 3. التنفيذ العتادي المباشر
+      if (event.actionType == RemoteActionType.locateDevice) {
+        await executeLocateDevice();
+      } else if (event.actionType == RemoteActionType.triggerSos) {
+        await triggerEmergencySos();
+      }
+
+      // 4. تأكيد اكتمال التنفيذ
+      await _cloud.acknowledgeRemoteAction(event.id, status: 'completed');
+    }
+  }
+
+  @override
+  Future<void> executeLocateDevice({int pulseCycles = 8}) async {
+    log('CommsRepository: 📢 Locating Device: Flashing torch & hardware strobe...');
+    try {
+      for (var i = 0; i < pulseCycles; i++) {
+        await _hardware.toggleFlashlight(enable: true);
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+        await _hardware.toggleFlashlight(enable: false);
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+      }
+    } catch (e) {
+      log('CommsRepository: Hardware locator strobe error: $e');
+    }
+  }
+
   Future<void> _handleCloudRealtimeContacts(
     List<Map<String, dynamic>> cloudContacts,
   ) async {
@@ -119,18 +242,13 @@ class CommsRepositoryImpl implements CommsRepository {
           if (id == null || id.isEmpty) continue;
 
           final local = localMap[id];
-
-          // 🛡️ فض النزاعات: حماية التعديلات المحلية غير المزامنة (Offline First)
-          if (local != null && !local.isSynced) {
-            continue;
-          }
+          if (local != null && !local.isSynced) continue;
 
           final deletedAtStr = cloudItem['deleted_at'] as String?;
           final DateTime? deletedAt =
               deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
 
           if (deletedAt != null) {
-            // حذف وارد من السحابة: إزالته فوراً من قاعدة البيانات المحلية
             if (local != null) {
               batch.delete(
                 _db.contacts,
@@ -138,7 +256,6 @@ class CommsRepositoryImpl implements CommsRepository {
               );
             }
           } else {
-            // إضافة أو تحديث وارد من السحابة
             final name = (cloudItem['name'] as String? ?? '').trim();
             final phone = (cloudItem['phone_number'] as String? ?? '').trim();
             if (name.isEmpty || phone.isEmpty) continue;
@@ -172,6 +289,8 @@ class CommsRepositoryImpl implements CommsRepository {
   void dispose() {
     _authSubscription?.cancel();
     _realtimeContactsSubscription?.cancel();
+    _remoteActionsSubscription?.cancel();
+    _remoteActionController.close();
   }
 
   // ===========================================================================
@@ -202,7 +321,6 @@ class CommsRepositoryImpl implements CommsRepository {
       isEmergency: isEmergency,
     );
 
-    // المزامنة الثنائية: كتابة جهة الاتصال في سجل هاتف أندرويد
     _hardware.saveDeviceContact(
       name: name,
       phoneNumber: phoneNumber,
@@ -347,8 +465,6 @@ class CommsRepositoryImpl implements CommsRepository {
         }
       });
 
-      log('CommsRepository: Reconciliation Diff Complete -> Added: $addedCount, Updated: $updatedCount, Deleted: $deletedCount');
-
       syncPendingComms().catchError((Object err) {
         log('CommsRepository: Cloud sync deferred after diffing: $err');
       });
@@ -423,7 +539,8 @@ class CommsRepositoryImpl implements CommsRepository {
   }) async {
     final settings = await _db.getSettings();
     final shareGps = settings.shareGpsOnSos;
-    final actualBattery = batteryLevel ?? await _hardware.getBatteryPercentage();
+    final actualBattery =
+        batteryLevel ?? await _hardware.getBatteryPercentage();
 
     double actualLat = latitude ?? 0.0;
     double actualLng = longitude ?? 0.0;
@@ -439,9 +556,12 @@ class CommsRepositoryImpl implements CommsRepository {
     final effectiveLat = shareGps ? actualLat : 0.0;
     final effectiveLng = shareGps ? actualLng : 0.0;
 
-    final googleMapsUrl = (shareGps && effectiveLat != 0.0 && effectiveLng != 0.0)
-        ? 'https://maps.google.com/?q=$effectiveLat,$effectiveLng'
-        : (shareGps ? 'GPS Unavailable (Searching satellites...)' : 'GPS Sharing Disabled');
+    final googleMapsUrl =
+        (shareGps && effectiveLat != 0.0 && effectiveLng != 0.0)
+            ? 'https://maps.google.com/?q=$effectiveLat,$effectiveLng'
+            : (shareGps
+                ? 'GPS Unavailable (Searching satellites...)'
+                : 'GPS Sharing Disabled');
 
     log('CommsRepository: SOS Triggered! Lat: $effectiveLat, Lng: $effectiveLng, Battery: $actualBattery%');
 
@@ -516,23 +636,25 @@ class CommsRepositoryImpl implements CommsRepository {
       if (toDelete.isNotEmpty) {
         final deleteIds = toDelete.map((c) => c.id).toList();
         await _cloud.softDeleteContactsBatchInCloud(deleteIds);
-        await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds))).go();
+        await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds)))
+            .go();
         log('CommsRepository: ⚡ Synced and purged ${deleteIds.length} deleted contacts in cloud.');
       }
 
       if (toUpsert.isNotEmpty) {
         final upsertPayload = toUpsert.map((c) => {
-          'id': c.id,
-          'name': c.name,
-          'phone_number': c.phoneNumber,
-          'relationship': c.relationship,
-          'is_emergency': c.isEmergency,
-        }).toList();
+              'id': c.id,
+              'name': c.name,
+              'phone_number': c.phoneNumber,
+              'relationship': c.relationship,
+              'is_emergency': c.isEmergency,
+            }).toList();
 
         await _cloud.syncContactsBatch(upsertPayload);
 
         final upsertIds = toUpsert.map((c) => c.id).toList();
-        await (_db.update(_db.contacts)..where((tbl) => tbl.id.isIn(upsertIds)))
+        await (_db.update(_db.contacts)
+              ..where((tbl) => tbl.id.isIn(upsertIds)))
             .write(const ContactsCompanion(isSynced: Value(true)));
         log('CommsRepository: ⚡ Batch synced ${upsertIds.length} active contacts to Supabase.');
       }

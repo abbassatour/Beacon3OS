@@ -1,4 +1,5 @@
 // lib/core/topology/spatial_coordinate.dart
+import 'dart:math' as math;
 import 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
@@ -11,10 +12,10 @@ class SpatialCoordinate extends Equatable {
     this.floor = 0,
   });
 
-  /// الإحداثي الأفقي (0 المركز، 1 اليمين، -1 اليسار)
+  /// الإحداثي الأفقي (0 المركز، موجب لليمين، سالب لليسار)
   final int x;
 
-  /// الإحداثي الرأسي الديكارتي (0 المركز، 1 الشمال/الأعلى، -1 الجنوب/الأسفل)
+  /// الإحداثي الرأسي الديكارتي (0 المركز، موجب للشمال/الأعلى، سالب للجنوب/الأسفل)
   final int y;
 
   /// رقم الطابق (المحور الرأسي في العمق Z)
@@ -22,6 +23,21 @@ class SpatialCoordinate extends Equatable {
 
   /// نقطة الأصل الافتراضية
   static const origin = SpatialCoordinate(x: 0, y: 0, floor: 0);
+
+  /// هل تقع هذه النقطة في مركز الطابق؟
+  bool get isOrigin => x == 0 && y == 0;
+
+  /// المسافة الإقليدية (Euclidean Distance) عن إحداثي آخر
+  double distanceTo(SpatialCoordinate other) {
+    final dx = x - other.x;
+    final dy = y - other.y;
+    return math.sqrt(dx * dx + dy * dy);
+  }
+
+  /// مسافة مانهاتن (عدد الخطوات الشبكية)
+  int manhattanDistanceTo(SpatialCoordinate other) {
+    return (x - other.x).abs() + (y - other.y).abs();
+  }
 
   /// تحويل اتجاه البوصلة الكلاسيكي إلى إحداثي رياضي مباشر
   factory SpatialCoordinate.fromDirection(SpatialDirection direction, {int floor = 0}) {

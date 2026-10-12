@@ -1,4 +1,5 @@
 // lib/core/topology/spatial_topology.dart
+import 'dart:math' as math;
 import 'package:beacon_os/agenda/agenda.dart';
 import 'package:beacon_os/cockpit/cockpit.dart';
 import 'package:beacon_os/comms/comms.dart';
@@ -74,7 +75,7 @@ class SpatialTopology {
     _coordinateGrid[coordinate] = module;
   }
 
-  /// 🛡️ جسر التوافق القديم: تسجيل عبر SpatialDirection
+  /// جسر التوافق القديم: تسجيل عبر SpatialDirection
   void register({
     required int floor,
     required SpatialDirection direction,
@@ -89,13 +90,13 @@ class SpatialTopology {
     return _coordinateGrid[coordinate];
   }
 
-  /// 🛡️ جسر التوافق القديم: الحصول على الموديول عبر الاتجاه ورقم الطابق
+  /// جسر التوافق القديم: الحصول على الموديول عبر الاتجاه ورقم الطابق
   SpatialModule? moduleAt(int floor, SpatialDirection direction) {
     final coord = SpatialCoordinate.fromDirection(direction, floor: floor);
     return moduleAtCoordinate(coord);
   }
 
-  /// ⚡️ جلب كافة الموديولات المسجلة في طابق معين مصنفة بإحداثياتها (X, Y) لمحرك الاستبعاد الفضائي
+  /// ⚡️ جلب كافة الموديولات المسجلة في طابق معين مصنفة بإحداثياتها (X, Y)
   Map<SpatialCoordinate, SpatialModule> nodesOnFloor(int floor) {
     final result = <SpatialCoordinate, SpatialModule>{};
     for (final entry in _coordinateGrid.entries) {
@@ -106,7 +107,7 @@ class SpatialTopology {
     return result;
   }
 
-  /// جلب كافة الغرف الموجودة في طابق معين كخريطة اتجاهات (للحفاظ على توافق الشل والـ HUD)
+  /// جلب كافة الغرف الموجودة في طابق معين كخريطة اتجاهات
   Map<SpatialDirection, SpatialModule> roomsOnFloor(int floor) {
     final result = <SpatialDirection, SpatialModule>{};
     for (final entry in _coordinateGrid.entries) {
@@ -120,11 +121,19 @@ class SpatialTopology {
     return result;
   }
 
-  /// تحديث خريطة الطوبولوجيا الحية بناءً على سجلات قاعدة البيانات
+  /// 🎯 تحديث خريطة الطوبولوجيا الحية مع تفريغ كامل لمنع الغرف الشبحية (Ghost Nodes)
   void updateFromNodes(List<dynamic> nodes) {
     final moduleRegistry = {
       for (final m in allModules) m.id: m,
+      'cockpit': CockpitModule.instance,
+      'focus': FocusModule.instance,
+      'comms': CommsModule.instance,
+      'vision': VisionModule.instance,
+      'agenda': AgendaModule.instance,
     };
+
+    // ⚡ تفريغ الشبكة تماماً قبل إعادة التسجيل لضمان مسح أي إحداثي قديم
+    _coordinateGrid.clear();
 
     for (final node in nodes) {
       final moduleId = (node.moduleId as String?) ?? '';
@@ -140,6 +149,82 @@ class SpatialTopology {
         );
       }
     }
+  }
+
+  /// 🧭 خوارزمية استكشاف الغرفة المأهولة التالية (Raycasting Occupied Node Gravity)
+  SpatialCoordinate? findNextOccupiedInDirection({
+    required SpatialCoordinate origin,
+    required SpatialDirection direction,
+  }) {
+    final floor = origin.floor;
+    final candidates = _coordinateGrid.keys
+        .where((c) => c.floor == floor && (c.x != origin.x || c.y != origin.y))
+        .toList();
+
+    switch (direction) {
+      case SpatialDirection.east: // حركة نحو الشرق (+X)
+        // 1. البحث عن أقرب غرفة على نفس المحور الأفقي Y
+        final colinear = candidates
+            .where((c) => c.y == origin.y && c.x > origin.x)
+            .toList()
+          ..sort((a, b) => a.x.compareTo(b.x));
+        if (colinear.isNotEmpty) return colinear.first;
+
+        // 2. البحث المرن: أقرب غرفة في النصف الشرقي عموماً
+        final inQuadrant = candidates.where((c) => c.x > origin.x).toList()
+          ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
+        return inQuadrant.firstOrNull;
+
+      case SpatialDirection.west: // حركة نحو الغرب (-X)
+        final colinear = candidates
+            .where((c) => c.y == origin.y && c.x < origin.x)
+            .toList()
+          ..sort((a, b) => b.x.compareTo(a.x)); // تنازلي لأخذ الأقرب لـ origin
+        if (colinear.isNotEmpty) return colinear.first;
+
+        final inQuadrant = candidates.where((c) => c.x < origin.x).toList()
+          ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
+        return inQuadrant.firstOrNull;
+
+      case SpatialDirection.north: // حركة نحو الشمال (+Y)
+        final colinear = candidates
+            .where((c) => c.x == origin.x && c.y > origin.y)
+            .toList()
+          ..sort((a, b) => a.y.compareTo(b.y));
+        if (colinear.isNotEmpty) return colinear.first;
+
+        final inQuadrant = candidates.where((c) => c.y > origin.y).toList()
+          ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
+        return inQuadrant.firstOrNull;
+
+      case SpatialDirection.south: // حركة نحو الجنوب (-Y)
+        final colinear = candidates
+            .where((c) => c.x == origin.x && c.y < origin.y)
+            .toList()
+          ..sort((a, b) => b.y.compareTo(a.y));
+        if (colinear.isNotEmpty) return colinear.first;
+
+        final inQuadrant = candidates.where((c) => c.y < origin.y).toList()
+          ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
+        return inQuadrant.firstOrNull;
+
+      case SpatialDirection.center:
+        // العودة لنقطة الأصل إذا كانت مأهولة، أو أقرب غرفة للمركز
+        final originNode = SpatialCoordinate(x: 0, y: 0, floor: floor);
+        if (_coordinateGrid.containsKey(originNode)) return originNode;
+        candidates.sort((a, b) => a.distanceTo(originNode).compareTo(b.distanceTo(originNode)));
+        return candidates.firstOrNull ?? originNode;
+    }
+  }
+
+  /// جلب الإحداثي الدقيق لموديول معين على طابق ما
+  SpatialCoordinate? coordinateOf(int floor, String moduleId) {
+    for (final entry in _coordinateGrid.entries) {
+      if (entry.key.floor == floor && entry.value.id == moduleId) {
+        return entry.key;
+      }
+    }
+    return null;
   }
 
   /// قائمة الطوابق المتوفرة مرتبة تصاعدياً

@@ -1,8 +1,11 @@
+// lib/spatial_shell/view/spatial_shell_page.dart
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:beacon_os/agenda/agenda.dart';
 import 'package:beacon_os/cockpit/cockpit.dart';
 import 'package:beacon_os/comms/comms.dart';
+import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
@@ -126,13 +129,25 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   double _accumulatedDeltaY = 0.0;
 
   bool _hapticDetentFired = false;
+  bool _boundaryBumpFired = false;
+
+  bool _isInnerListScrolling = false;
+  bool _isEdgeSwipe = false;
+
+  final Map<int, double> _threeFingerStartPointers = {};
+  bool _threeFingerActionFired = false;
+
+  Timer? _scrubbingDebounceTimer;
+  SpatialDirection? _lastScrubbedDirection;
 
   int _activePointers = 0;
-  DateTime? _multiTouchStartTime;
+  DateTime? _twoFingerTapStartTime;
+  int _twoFingerTapCount = 0;
+  DateTime? _lastTwoFingerTapTime;
   bool _hasTwoFingerMoved = false;
 
-  int _tapCount = 0;
-  DateTime? _lastTapTime;
+  int _singleTapCount = 0;
+  DateTime? _lastSingleTapTime;
 
   Timer? _holdToSpeakTimer;
   bool _isHoldingToSpeak = false;
@@ -149,6 +164,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   @override
   void dispose() {
     _holdToSpeakTimer?.cancel();
+    _scrubbingDebounceTimer?.cancel();
     _panX.dispose();
     _panY.dispose();
     _floorZ.dispose();
@@ -159,30 +175,41 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     _activePointers++;
     _pointerDownPos = event.position;
 
-    if (_activePointers == 2) {
+    if (_activePointers <= 3) {
+      _threeFingerStartPointers[event.pointer] = event.position.dy;
+    }
+
+    if (_activePointers == 3) {
       _holdToSpeakTimer?.cancel();
+      _scrubbingDebounceTimer?.cancel();
+      SoundController.instance.stopSpatialRadar();
+      _threeFingerActionFired = false;
+    } else if (_activePointers == 2) {
+      _holdToSpeakTimer?.cancel();
+      _scrubbingDebounceTimer?.cancel();
       if (_isHoldingToSpeak) {
         _isHoldingToSpeak = false;
         voiceCubit.closeSession();
       }
-      _multiTouchStartTime = DateTime.now();
+      _twoFingerTapStartTime = DateTime.now();
       _hasTwoFingerMoved = false;
-      _tapCount = 0;
     } else if (_activePointers == 1) {
       final now = DateTime.now();
-      if (_lastTapTime == null ||
-          now.difference(_lastTapTime!).inMilliseconds > 450) {
-        _tapCount = 1;
+      if (_lastSingleTapTime == null ||
+          now.difference(_lastSingleTapTime!).inMilliseconds > 450) {
+        _singleTapCount = 1;
       } else {
-        _tapCount++;
+        _singleTapCount++;
       }
-      _lastTapTime = now;
+      _lastSingleTapTime = now;
 
-      if (_tapCount == 3) {
+      if (_singleTapCount == 3) {
         _holdToSpeakTimer?.cancel();
+        _scrubbingDebounceTimer?.cancel();
         _isHoldingToSpeak = false;
+        SoundController.instance.stopSpatialRadar();
         _triggerTripleTapSos();
-        _tapCount = 0;
+        _singleTapCount = 0;
         return;
       }
 
@@ -192,6 +219,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
             !_isTwoFingerElevator &&
             !voiceCubit.state.isOpen) {
           _isHoldingToSpeak = true;
+          _scrubbingDebounceTimer?.cancel();
+          SoundController.instance.stopSpatialRadar();
           voiceCubit.startSession();
         }
       });
@@ -201,7 +230,23 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     }
   }
 
-  void _onPointerMove(PointerMoveEvent event) {
+  void _onPointerMove(PointerMoveEvent event, SpatialShellCubit shellCubit) {
+    if (_activePointers == 3 && !_threeFingerActionFired) {
+      final startY = _threeFingerStartPointers[event.pointer];
+      if (startY != null) {
+        final deltaY = event.position.dy - startY;
+        if (deltaY < -75.0) {
+          _threeFingerActionFired = true;
+          shellCubit.ascend();
+          return;
+        } else if (deltaY > 75.0) {
+          _threeFingerActionFired = true;
+          shellCubit.descend();
+          return;
+        }
+      }
+    }
+
     if (_activePointers >= 2 && event.delta.distance > 2.5) {
       _hasTwoFingerMoved = true;
     }
@@ -219,16 +264,28 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     SpatialShellCubit cubit,
     AmbientVoiceCubit voiceCubit,
   ) {
+    _threeFingerStartPointers.remove(event.pointer);
     _holdToSpeakTimer?.cancel();
 
     if (_isHoldingToSpeak) {
       _isHoldingToSpeak = false;
       voiceCubit.stopAndExecute();
-    } else if (_activePointers == 2 && _multiTouchStartTime != null) {
-      final tapDuration = DateTime.now().difference(_multiTouchStartTime!);
-      if (!_hasTwoFingerMoved && tapDuration.inMilliseconds < 300) {
-        _multiTouchStartTime = null;
-        cubit.announceCurrentLocation();
+    } else if (_activePointers == 2 && _twoFingerTapStartTime != null) {
+      final tapDuration = DateTime.now().difference(_twoFingerTapStartTime!);
+      if (!_hasTwoFingerMoved && tapDuration.inMilliseconds < 350) {
+        final now = DateTime.now();
+        if (_lastTwoFingerTapTime == null ||
+            now.difference(_lastTwoFingerTapTime!).inMilliseconds > 450) {
+          _twoFingerTapCount = 1;
+        } else {
+          _twoFingerTapCount++;
+        }
+        _lastTwoFingerTapTime = now;
+
+        if (_twoFingerTapCount == 2) {
+          _twoFingerTapCount = 0;
+          cubit.announceCurrentLocation();
+        }
       }
     }
 
@@ -236,6 +293,11 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     if (_activePointers == 0) {
       _hasTwoFingerMoved = false;
       _pointerDownPos = null;
+      _threeFingerActionFired = false;
+      _threeFingerStartPointers.clear();
+      _scrubbingDebounceTimer?.cancel();
+      _lastScrubbedDirection = null;
+      SoundController.instance.stopSpatialRadar();
     }
   }
 
@@ -244,12 +306,17 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     AmbientVoiceCubit voiceCubit,
   ) {
     _holdToSpeakTimer?.cancel();
+    _scrubbingDebounceTimer?.cancel();
     if (_isHoldingToSpeak) {
       _isHoldingToSpeak = false;
       voiceCubit.closeSession();
     }
     _activePointers = (_activePointers - 1).clamp(0, 10);
     _pointerDownPos = null;
+    _threeFingerActionFired = false;
+    _threeFingerStartPointers.clear();
+    _lastScrubbedDirection = null;
+    SoundController.instance.stopSpatialRadar();
   }
 
   Future<void> _triggerTripleTapSos() async {
@@ -264,6 +331,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount >= 2) {
       _holdToSpeakTimer?.cancel();
+      _scrubbingDebounceTimer?.cancel();
       if (_isHoldingToSpeak) {
         _isHoldingToSpeak = false;
         context.read<AmbientVoiceCubit>().closeSession();
@@ -284,17 +352,36 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     _accumulatedDeltaX = 0.0;
     _accumulatedDeltaY = 0.0;
     _hapticDetentFired = false;
+    _boundaryBumpFired = false;
+    _lastScrubbedDirection = null;
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    if (_pointerDownPos != null) {
+      _isEdgeSwipe = _pointerDownPos!.dy < 110.0 ||
+          _pointerDownPos!.dy > (screenHeight - 110.0);
+    } else {
+      _isEdgeSwipe = false;
+    }
+
+    if (!_isHoldingToSpeak && !_isTwoFingerElevator && _activePointers < 3) {
+      final currentFloor = context.read<SpatialShellCubit>().state.currentFloor;
+      SoundController.instance.startSpatialRadar(floorLevel: currentFloor);
+    }
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    if (_isHoldingToSpeak) return;
+    if (_isHoldingToSpeak || _activePointers >= 3) return;
 
-    final state = context.read<SpatialShellCubit>().state;
+    final shellCubit = context.read<SpatialShellCubit>();
+    final state = shellCubit.state;
+    final topology = context.read<SpatialTopology>();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
+    // 1. التحكم بمصعد الطوابق (Z-Axis)
     if (details.pointerCount >= 2) {
       _isTwoFingerElevator = true;
 
-      final topology = context.read<SpatialTopology>();
       final minFloor = topology.minFloor.toDouble();
       final maxFloor = topology.maxFloor.toDouble();
 
@@ -303,19 +390,32 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
       double computedZ;
       if (rawZ < minFloor) {
+        final excess = minFloor - rawZ;
         computedZ = minFloor -
             SpatialPhysics.applyRubberBanding(
-              delta: minFloor - rawZ,
+              delta: excess,
               limit: 0.20,
             );
+        if (excess > 0.05 && !_boundaryBumpFired) {
+          _boundaryBumpFired = true;
+          SoundController.instance.playBoundaryBump();
+          HapticManager.instance.selectionClick();
+        }
       } else if (rawZ > maxFloor) {
+        final excess = rawZ - maxFloor;
         computedZ = maxFloor +
             SpatialPhysics.applyRubberBanding(
-              delta: rawZ - maxFloor,
+              delta: excess,
               limit: 0.20,
             );
+        if (excess > 0.05 && !_boundaryBumpFired) {
+          _boundaryBumpFired = true;
+          SoundController.instance.playBoundaryBump();
+          HapticManager.instance.selectionClick();
+        }
       } else {
         computedZ = rawZ;
+        _boundaryBumpFired = false;
       }
 
       _floorZ.value = computedZ;
@@ -336,17 +436,16 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
       return;
     }
 
-    if (_isTwoFingerElevator && details.pointerCount < 2) {
-      return;
-    }
+    if (_isTwoFingerElevator && details.pointerCount < 2) return;
 
+    // 2. الملاحة الأفقية وفك تعارض القوائم
     final dx = details.focalPointDelta.dx;
     final dy = details.focalPointDelta.dy;
 
     _accumulatedDeltaX += dx;
     _accumulatedDeltaY += dy;
 
-    const touchSlopThreshold = 6.0;
+    const touchSlopThreshold = 8.0;
     if (_lockedAxis == null) {
       if (_accumulatedDeltaX.abs() > touchSlopThreshold ||
           _accumulatedDeltaY.abs() > touchSlopThreshold) {
@@ -358,41 +457,46 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
       }
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    if (state.currentCoordinate.isOrigin &&
+        _lockedAxis == Axis.vertical &&
+        _isInnerListScrolling &&
+        !_isEdgeSwipe) {
+      return;
+    }
 
+    // 📐 حساب الحدود الديناميكية للغرف المأهولة المسجلة في الطوبولوجيا
     if (_lockedAxis == Axis.horizontal) {
       final rawVal = _startXAtGesture + _accumulatedDeltaX;
+      final currentTargetX = -state.currentCoordinate.x * screenWidth;
+
+      final eastNeighbor = topology.findNextOccupiedInDirection(
+        origin: state.currentCoordinate,
+        direction: SpatialDirection.east,
+      );
+      final westNeighbor = topology.findNextOccupiedInDirection(
+        origin: state.currentCoordinate,
+        direction: SpatialDirection.west,
+      );
+
+      final minLimitX = eastNeighbor != null
+          ? -eastNeighbor.x * screenWidth
+          : currentTargetX;
+      final maxLimitX = westNeighbor != null
+          ? -westNeighbor.x * screenWidth
+          : currentTargetX;
+
+      final lowerBound = math.min(minLimitX, maxLimitX);
+      final upperBound = math.max(minLimitX, maxLimitX);
+
       var isWall = false;
       var wallLimit = 0.0;
 
-      if (state.currentDirection == SpatialDirection.center) {
-        if (rawVal > screenWidth) {
-          isWall = true;
-          wallLimit = screenWidth;
-        } else if (rawVal < -screenWidth) {
-          isWall = true;
-          wallLimit = -screenWidth;
-        }
-      } else if (state.currentDirection == SpatialDirection.east) {
-        if (rawVal < -screenWidth) {
-          isWall = true;
-          wallLimit = -screenWidth;
-        } else if (rawVal > 0) {
-          isWall = true;
-          wallLimit = 0;
-        }
-      } else if (state.currentDirection == SpatialDirection.west) {
-        if (rawVal > screenWidth) {
-          isWall = true;
-          wallLimit = screenWidth;
-        } else if (rawVal < 0) {
-          isWall = true;
-          wallLimit = 0;
-        }
-      } else {
+      if (rawVal < lowerBound) {
         isWall = true;
-        wallLimit = 0.0;
+        wallLimit = lowerBound;
+      } else if (rawVal > upperBound) {
+        isWall = true;
+        wallLimit = upperBound;
       }
 
       if (isWall) {
@@ -402,54 +506,60 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
               delta: excess,
               limit: screenWidth,
             );
+
+        if (excess.abs() > 14.0 && !_boundaryBumpFired) {
+          _boundaryBumpFired = true;
+          SoundController.instance.playBoundaryBump();
+          HapticManager.instance.selectionClick();
+        }
       } else {
         _panX.value = rawVal;
+        _boundaryBumpFired = false;
       }
 
-      if (!isWall) {
-        final dragDistance = (_panX.value - _startXAtGesture).abs();
-        final hapticThreshold = screenWidth * 0.18;
-        if (dragDistance > hapticThreshold) {
-          if (!_hapticDetentFired) {
-            HapticManager.instance.selectionClick();
-            _hapticDetentFired = true;
-          }
-        } else {
-          _hapticDetentFired = false;
+      // نبضة العتبة اللمسية عند 50%
+      final dragDistance = (_panX.value - _startXAtGesture).abs();
+      final hapticThreshold = screenWidth * 0.50;
+      if (dragDistance >= hapticThreshold) {
+        if (!_hapticDetentFired) {
+          HapticManager.instance.selectionClick();
+          _hapticDetentFired = true;
         }
+      } else if (dragDistance < hapticThreshold * 0.85) {
+        _hapticDetentFired = false;
       }
     } else if (_lockedAxis == Axis.vertical) {
       final rawVal = _startYAtGesture + _accumulatedDeltaY;
+      final currentTargetY = state.currentCoordinate.y * screenHeight;
+
+      final northNeighbor = topology.findNextOccupiedInDirection(
+        origin: state.currentCoordinate,
+        direction: SpatialDirection.north,
+      );
+      final southNeighbor = topology.findNextOccupiedInDirection(
+        origin: state.currentCoordinate,
+        direction: SpatialDirection.south,
+      );
+
+      final maxLimitY = northNeighbor != null
+          ? northNeighbor.y * screenHeight
+          : currentTargetY;
+      final minLimitY = southNeighbor != null
+          ? southNeighbor.y * screenHeight
+          : currentTargetY;
+
+      final lowerBound = math.min(minLimitY, maxLimitY);
+      final upperBound = math.max(minLimitY, maxLimitY);
+
       var isWall = false;
       var wallLimit = 0.0;
 
-      if (state.currentDirection == SpatialDirection.center) {
-        if (rawVal > screenHeight) {
-          isWall = true;
-          wallLimit = screenHeight;
-        } else if (rawVal < -screenHeight) {
-          isWall = true;
-          wallLimit = -screenHeight;
-        }
-      } else if (state.currentDirection == SpatialDirection.north) {
-        if (rawVal > screenHeight) {
-          isWall = true;
-          wallLimit = screenHeight;
-        } else if (rawVal < 0) {
-          isWall = true;
-          wallLimit = 0;
-        }
-      } else if (state.currentDirection == SpatialDirection.south) {
-        if (rawVal < -screenHeight) {
-          isWall = true;
-          wallLimit = -screenHeight;
-        } else if (rawVal > 0) {
-          isWall = true;
-          wallLimit = 0;
-        }
-      } else {
+      if (rawVal < lowerBound) {
         isWall = true;
-        wallLimit = 0.0;
+        wallLimit = lowerBound;
+      } else if (rawVal > upperBound) {
+        isWall = true;
+        wallLimit = upperBound;
       }
 
       if (isWall) {
@@ -459,37 +569,80 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
               delta: excess,
               limit: screenHeight,
             );
+
+        if (excess.abs() > 14.0 && !_boundaryBumpFired) {
+          _boundaryBumpFired = true;
+          SoundController.instance.playBoundaryBump();
+          HapticManager.instance.selectionClick();
+        }
       } else {
         _panY.value = rawVal;
+        _boundaryBumpFired = false;
       }
 
-      if (!isWall) {
-        final dragDistance = (_panY.value - _startYAtGesture).abs();
-        final hapticThreshold = screenHeight * 0.18;
-        if (dragDistance > hapticThreshold) {
-          if (!_hapticDetentFired) {
-            HapticManager.instance.selectionClick();
-            _hapticDetentFired = true;
-          }
-        } else {
-          _hapticDetentFired = false;
+      final dragDistance = (_panY.value - _startYAtGesture).abs();
+      final hapticThreshold = screenHeight * 0.50;
+      if (dragDistance >= hapticThreshold) {
+        if (!_hapticDetentFired) {
+          HapticManager.instance.selectionClick();
+          _hapticDetentFired = true;
         }
+      } else if (dragDistance < hapticThreshold * 0.85) {
+        _hapticDetentFired = false;
       }
+    }
+
+    // 3. تحديث الرادار الصوتي والهمس الاستكشافي
+    final currentTargetX = -state.currentCoordinate.x * screenWidth;
+    final currentTargetY = state.currentCoordinate.y * screenHeight;
+    final normalizedX = -((_panX.value - currentTargetX) / screenWidth);
+    final normalizedY = ((_panY.value - currentTargetY) / screenHeight);
+
+    SoundController.instance.updateSpatialRadar(
+      normalizedX: normalizedX,
+      normalizedY: normalizedY,
+      floorLevel: state.currentFloor,
+    );
+
+    SpatialDirection? targetDirection;
+    if (normalizedX > 0.35) {
+      targetDirection = SpatialDirection.east;
+    } else if (normalizedX < -0.35) {
+      targetDirection = SpatialDirection.west;
+    } else if (normalizedY > 0.35) {
+      targetDirection = SpatialDirection.north;
+    } else if (normalizedY < -0.35) {
+      targetDirection = SpatialDirection.south;
+    }
+
+    if (targetDirection != null && targetDirection != _lastScrubbedDirection) {
+      _lastScrubbedDirection = targetDirection;
+      _scrubbingDebounceTimer?.cancel();
+      _scrubbingDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+        shellCubit.whisperRoomScrubbing(targetDirection!);
+      });
+    } else if (targetDirection == null) {
+      _lastScrubbedDirection = null;
+      _scrubbingDebounceTimer?.cancel();
     }
   }
 
   void _onScaleEnd(ScaleEndDetails details, SpatialShellCubit cubit) {
-    if (_isHoldingToSpeak) return;
+    if (_isHoldingToSpeak || _activePointers >= 3) return;
+
+    SoundController.instance.stopSpatialRadar();
+    _scrubbingDebounceTimer?.cancel();
+    _lastScrubbedDirection = null;
 
     final screenW = MediaQuery.of(context).size.width;
     final screenH = MediaQuery.of(context).size.height;
     final state = cubit.state;
+    final topology = context.read<SpatialTopology>();
 
     if (_isTwoFingerElevator) {
       _isTwoFingerElevator = false;
       _isTransitioningViaGesture = true;
 
-      final topology = context.read<SpatialTopology>();
       final minFloor = topology.minFloor;
       final maxFloor = topology.maxFloor;
 
@@ -501,9 +654,9 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
       int targetFloor;
       final deltaFromInitial = _floorZ.value - _initialScale;
 
-      if (deltaFromInitial > 0.30 || vz > 0.5) {
+      if (deltaFromInitial > 0.40 || vz > 0.5) {
         targetFloor = (_initialScale + 1).round();
-      } else if (deltaFromInitial < -0.30 || vz < -0.5) {
+      } else if (deltaFromInitial < -0.40 || vz < -0.5) {
         targetFloor = (_initialScale - 1).round();
       } else {
         targetFloor = projectedZ.round();
@@ -534,119 +687,106 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
       return;
     }
 
-    const distanceThresholdPercent = 0.18;
-    const velocityThreshold = 180.0;
+    // 🎯 الجاذبية المكانية الذكية: القفز للغرفة المأهولة التالية في المسار
+    const distanceThresholdPercent = 0.50;
+    const velocityThreshold = 220.0;
 
     if (_lockedAxis == Axis.horizontal) {
       final vx = details.velocity.pixelsPerSecond.dx;
-      var targetX = _panX.value;
-      var targetDir = state.currentDirection;
+      final currentTargetX = -state.currentCoordinate.x * screenW;
+      final deltaFromTarget = _panX.value - currentTargetX;
 
-      if (state.currentDirection == SpatialDirection.center) {
-        if (_panX.value > screenW * distanceThresholdPercent ||
-            vx > velocityThreshold) {
-          targetX = screenW;
-          targetDir = SpatialDirection.west;
-        } else if (_panX.value < -screenW * distanceThresholdPercent ||
-            vx < -velocityThreshold) {
-          targetX = -screenW;
-          targetDir = SpatialDirection.east;
-        } else {
-          targetX = 0.0;
-        }
-      } else if (state.currentDirection == SpatialDirection.east) {
-        if (_panX.value > -screenW * (1.0 - distanceThresholdPercent) ||
-            vx > velocityThreshold) {
-          targetX = 0.0;
-          targetDir = SpatialDirection.center;
-        } else {
-          targetX = -screenW;
-          targetDir = SpatialDirection.east;
-        }
-      } else if (state.currentDirection == SpatialDirection.west) {
-        if (_panX.value < screenW * (1.0 - distanceThresholdPercent) ||
-            vx < -velocityThreshold) {
-          targetX = 0.0;
-          targetDir = SpatialDirection.center;
-        } else {
-          targetX = screenW;
-          targetDir = SpatialDirection.west;
-        }
-      } else {
-        _snapToCurrentState(state);
-        return;
+      SpatialCoordinate? targetCoord;
+
+      if (deltaFromTarget < -screenW * distanceThresholdPercent ||
+          vx < -velocityThreshold) {
+        // سحب لليسار -> التوجه للشرق (+X)
+        targetCoord = topology.findNextOccupiedInDirection(
+          origin: state.currentCoordinate,
+          direction: SpatialDirection.east,
+        );
+      } else if (deltaFromTarget > screenW * distanceThresholdPercent ||
+          vx > velocityThreshold) {
+        // سحب لليمين -> التوجه للغرب (-X)
+        targetCoord = topology.findNextOccupiedInDirection(
+          origin: state.currentCoordinate,
+          direction: SpatialDirection.west,
+        );
       }
+
+      final destination = targetCoord ?? state.currentCoordinate;
+      final finalX = -destination.x * screenW;
+      final finalY = destination.y * screenH;
 
       _panX.animateWith(
         SpatialPhysics.createPanSimulation(
           start: _panX.value,
-          end: targetX,
+          end: finalX,
           velocity: vx,
         ),
       );
       _panY.animateWith(
         SpatialPhysics.createPanSimulation(
           start: _panY.value,
-          end: 0,
+          end: finalY,
           velocity: 0,
         ),
       );
-      if (targetDir != state.currentDirection) cubit.moveTo(targetDir);
+
+      if (destination != state.currentCoordinate) {
+        cubit.moveToCoordinate(destination);
+      } else if (targetCoord == null &&
+          (deltaFromTarget.abs() > screenW * 0.25 || vx.abs() > 180)) {
+        SoundController.instance.playBoundaryBump();
+      }
     } else if (_lockedAxis == Axis.vertical) {
       final vy = details.velocity.pixelsPerSecond.dy;
-      var targetY = _panY.value;
-      var targetDir = state.currentDirection;
+      final currentTargetY = state.currentCoordinate.y * screenH;
+      final deltaFromTarget = _panY.value - currentTargetY;
 
-      if (state.currentDirection == SpatialDirection.center) {
-        if (_panY.value > screenH * distanceThresholdPercent ||
-            vy > velocityThreshold) {
-          targetY = screenH;
-          targetDir = SpatialDirection.north;
-        } else if (_panY.value < -screenH * distanceThresholdPercent ||
-            vy < -velocityThreshold) {
-          targetY = -screenH;
-          targetDir = SpatialDirection.south;
-        } else {
-          targetY = 0.0;
-        }
-      } else if (state.currentDirection == SpatialDirection.north) {
-        if (_panY.value < screenH * (1.0 - distanceThresholdPercent) ||
-            vy < -velocityThreshold) {
-          targetY = 0.0;
-          targetDir = SpatialDirection.center;
-        } else {
-          targetY = screenH;
-          targetDir = SpatialDirection.north;
-        }
-      } else if (state.currentDirection == SpatialDirection.south) {
-        if (_panY.value > -screenH * (1.0 - distanceThresholdPercent) ||
-            vy > velocityThreshold) {
-          targetY = 0.0;
-          targetDir = SpatialDirection.center;
-        } else {
-          targetY = -screenH;
-          targetDir = SpatialDirection.south;
-        }
-      } else {
-        _snapToCurrentState(state);
-        return;
+      SpatialCoordinate? targetCoord;
+
+      if (deltaFromTarget > screenH * distanceThresholdPercent ||
+          vy > velocityThreshold) {
+        // سحب للأسفل -> التوجه للشمال (+Y)
+        targetCoord = topology.findNextOccupiedInDirection(
+          origin: state.currentCoordinate,
+          direction: SpatialDirection.north,
+        );
+      } else if (deltaFromTarget < -screenH * distanceThresholdPercent ||
+          vy < -velocityThreshold) {
+        // سحب للأعلى -> التوجه للجنوب (-Y)
+        targetCoord = topology.findNextOccupiedInDirection(
+          origin: state.currentCoordinate,
+          direction: SpatialDirection.south,
+        );
       }
+
+      final destination = targetCoord ?? state.currentCoordinate;
+      final finalX = -destination.x * screenW;
+      final finalY = destination.y * screenH;
 
       _panY.animateWith(
         SpatialPhysics.createPanSimulation(
           start: _panY.value,
-          end: targetY,
+          end: finalY,
           velocity: vy,
         ),
       );
       _panX.animateWith(
         SpatialPhysics.createPanSimulation(
           start: _panX.value,
-          end: 0,
+          end: finalX,
           velocity: 0,
         ),
       );
-      if (targetDir != state.currentDirection) cubit.moveTo(targetDir);
+
+      if (destination != state.currentCoordinate) {
+        cubit.moveToCoordinate(destination);
+      } else if (targetCoord == null &&
+          (deltaFromTarget.abs() > screenH * 0.25 || vy.abs() > 180)) {
+        SoundController.instance.playBoundaryBump();
+      }
     } else {
       _snapToCurrentState(state);
     }
@@ -654,29 +794,14 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     _lockedAxis = null;
   }
 
+  /// 📐 معادلة الكانفاس اللانهائية الشاملة: تموضع الكاميرا الديكارتي بدقة
   void _snapToCurrentState(SpatialShellState state) {
     if (!mounted) return;
     final w = MediaQuery.of(context).size.width;
     final h = MediaQuery.of(context).size.height;
-    var tx = 0.0;
-    var ty = 0.0;
 
-    switch (state.currentDirection) {
-      case SpatialDirection.center:
-        break;
-      case SpatialDirection.east:
-        tx = -w;
-        break;
-      case SpatialDirection.west:
-        tx = w;
-        break;
-      case SpatialDirection.north:
-        ty = h;
-        break;
-      case SpatialDirection.south:
-        ty = -h;
-        break;
-    }
+    final tx = -state.currentCoordinate.x * w;
+    final ty = state.currentCoordinate.y * h;
 
     _panX.animateWith(
       SpatialPhysics.createPanSimulation(
@@ -702,8 +827,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
     return BlocListener<SpatialShellCubit, SpatialShellState>(
       listenWhen: (previous, current) =>
-          previous.currentDirection != current.currentDirection ||
-          previous.currentFloor != current.currentFloor,
+          previous.currentCoordinate != current.currentCoordinate,
       listener: (context, state) {
         if (_lockedAxis == null && !_isTwoFingerElevator) {
           _snapToCurrentState(state);
@@ -728,59 +852,70 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
             onCornerSwipe: () => ambientVoiceCubit.startSession(),
             child: Listener(
               onPointerDown: (e) => _onPointerDown(e, ambientVoiceCubit),
-              onPointerMove: _onPointerMove,
+              onPointerMove: (e) => _onPointerMove(e, shellCubit),
               onPointerUp: (e) =>
                   _onPointerUp(e, shellCubit, ambientVoiceCubit),
               onPointerCancel: (e) => _onPointerCancel(e, ambientVoiceCubit),
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onScaleStart: _onScaleStart,
-                onScaleUpdate: _onScaleUpdate,
-                onScaleEnd: (d) => _onScaleEnd(d, shellCubit),
-                child: BlocBuilder<SpatialShellCubit, SpatialShellState>(
-                  builder: (context, state) {
-                    return AnimatedBuilder(
-                      animation: Listenable.merge([_panX, _panY, _floorZ]),
-                      builder: (context, child) {
-                        final minF = topology.minFloor;
-                        final maxF = topology.maxFloor;
-                        final currentZ = _floorZ.value;
-                        final panOffset = Offset(_panX.value, _panY.value);
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollStartNotification) {
+                    _isInnerListScrolling = true;
+                  } else if (notification is ScrollEndNotification) {
+                    _isInnerListScrolling = false;
+                  }
+                  return false;
+                },
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onScaleStart: _onScaleStart,
+                  onScaleUpdate: _onScaleUpdate,
+                  onScaleEnd: (d) => _onScaleEnd(d, shellCubit),
+                  child: BlocBuilder<SpatialShellCubit, SpatialShellState>(
+                    builder: (context, state) {
+                      return AnimatedBuilder(
+                        animation: Listenable.merge([_panX, _panY, _floorZ]),
+                        builder: (context, child) {
+                          final minF = topology.minFloor;
+                          final maxF = topology.maxFloor;
+                          final currentZ = _floorZ.value;
+                          final panOffset = Offset(_panX.value, _panY.value);
 
-                        final lowerFloor = currentZ.floor().clamp(minF, maxF);
-                        final upperFloor = currentZ.ceil().clamp(minF, maxF);
+                          final lowerFloor = currentZ.floor().clamp(minF, maxF);
+                          final upperFloor = currentZ.ceil().clamp(minF, maxF);
 
-                        final visibleFloors = <int>{lowerFloor, upperFloor}
-                            .where((f) => topology.hasFloor(f))
-                            .toList()
-                          ..sort((a, b) => b.compareTo(a));
+                          final visibleFloors = <int>{lowerFloor, upperFloor}
+                              .where((f) => topology.hasFloor(f))
+                              .toList()
+                            ..sort((a, b) => b.compareTo(a));
 
-                        final activeFloor = currentZ.round().clamp(minF, maxF);
+                          final activeFloor = currentZ.round().clamp(minF, maxF);
 
-                        return Stack(
-                          children: [
-                            for (final floor in visibleFloors)
-                              _buildFloorTransform(
-                                floor: floor,
-                                currentZ: currentZ,
-                                panOffset: panOffset,
+                          return Stack(
+                            children: [
+                              for (final floor in visibleFloors)
+                                _buildFloorTransform(
+                                  floor: floor,
+                                  currentZ: currentZ,
+                                  panOffset: panOffset,
+                                  coordinate: state.currentCoordinate,
+                                  isActive: floor == activeFloor,
+                                ),
+                              SpatialCompassHud(
                                 direction: state.currentDirection,
-                                isActive: floor == activeFloor,
+                                currentFloor: activeFloor,
+                                currentCoordinate: state.currentCoordinate,
+                                onCenterTap: shellCubit.returnToCenter,
+                                onFloorToggle: shellCubit.toggleFloor,
+                                onAscend: shellCubit.ascend,
+                                onDescend: shellCubit.descend,
                               ),
-                            SpatialCompassHud(
-                              direction: state.currentDirection,
-                              currentFloor: activeFloor,
-                              onCenterTap: shellCubit.returnToCenter,
-                              onFloorToggle: shellCubit.toggleFloor,
-                              onAscend: shellCubit.ascend,
-                              onDescend: shellCubit.descend,
-                            ),
-                            const AmbientVoiceOverlay(),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                              const AmbientVoiceOverlay(),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -794,7 +929,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     required int floor,
     required double currentZ,
     required Offset panOffset,
-    required SpatialDirection direction,
+    required SpatialCoordinate coordinate,
     required bool isActive,
   }) {
     final relativeDistance = floor - currentZ;
@@ -832,7 +967,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           ignoring: !isActive,
           child: SpatialFloorLayout(
             key: ValueKey('spatial_floor_layout_$floor'),
-            direction: direction,
+            currentCoordinate: coordinate,
             floorLevel: floor,
             panOffset: panOffset,
           ),

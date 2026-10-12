@@ -1,48 +1,81 @@
 // lib/spatial_shell/cubit/spatial_shell_state.dart
+import 'package:beacon_os/core/topology/spatial_coordinate.dart';
 import 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
 import 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
 import 'package:equatable/equatable.dart';
 
+export 'package:beacon_os/core/topology/spatial_coordinate.dart';
 export 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
 export 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
 
 class SpatialShellState extends Equatable {
   const SpatialShellState({
-    this.currentDirection = SpatialDirection.center,
-    this.previousDirection = SpatialDirection.center,
+    this.currentCoordinate = SpatialCoordinate.origin,
+    this.previousCoordinate = SpatialCoordinate.origin,
     this.isTransitioning = false,
-    this.currentFloor = 0,
   });
 
-  final SpatialDirection currentDirection;
-  final SpatialDirection previousDirection;
-  final bool isTransitioning;
-  final int currentFloor;
+  /// الإحداثي الديكارتي ثلاثي الأبعاد الحالي للمستخدم في الفضاء
+  final SpatialCoordinate currentCoordinate;
 
-  bool get isAtCenter => currentDirection == SpatialDirection.center;
-  bool get isGroundFloor => currentFloor == 0;
-  bool get isSettingsFloor => currentFloor == 1;
+  /// الإحداثي الديكارتي السابق
+  final SpatialCoordinate previousCoordinate;
+
+  final bool isTransitioning;
+
+  /// رقم الطابق مشتق مباشرة من المحور Z للإحداثي
+  int get currentFloor => currentCoordinate.floor;
+
+  /// هل المستخدم في مركز الطابق (0, 0)
+  bool get isAtCenter => currentCoordinate.isOrigin;
+  bool get isGroundFloor => currentCoordinate.floor == 0;
+  bool get isSettingsFloor => currentCoordinate.floor == 1;
+
+  /// 🛡️ توافق عكسي مع واجهات البوصلة والـ HUD القديمة
+  SpatialDirection get currentDirection =>
+      currentCoordinate.toCompassDirection() ?? SpatialDirection.center;
+
+  SpatialDirection get previousDirection =>
+      previousCoordinate.toCompassDirection() ?? SpatialDirection.center;
 
   SpatialShellState copyWith({
-    SpatialDirection? currentDirection,
-    SpatialDirection? previousDirection,
+    SpatialCoordinate? currentCoordinate,
+    SpatialCoordinate? previousCoordinate,
     bool? isTransitioning,
     int? currentFloor,
+    SpatialDirection? currentDirection,
+    SpatialDirection? previousDirection,
   }) {
+    final nextCoord = currentCoordinate ??
+        (currentDirection != null
+            ? SpatialCoordinate.fromDirection(
+                currentDirection,
+                floor: currentFloor ?? this.currentFloor,
+              )
+            : (currentFloor != null
+                ? this.currentCoordinate.copyWith(floor: currentFloor)
+                : this.currentCoordinate));
+
+    final prevCoord = previousCoordinate ??
+        (previousDirection != null
+            ? SpatialCoordinate.fromDirection(
+                previousDirection,
+                floor: this.previousCoordinate.floor,
+              )
+            : this.previousCoordinate);
+
     return SpatialShellState(
-      currentDirection: currentDirection ?? this.currentDirection,
-      previousDirection: previousDirection ?? this.previousDirection,
+      currentCoordinate: nextCoord,
+      previousCoordinate: prevCoord,
       isTransitioning: isTransitioning ?? this.isTransitioning,
-      currentFloor: currentFloor ?? this.currentFloor,
     );
   }
 
   @override
   List<Object?> get props => [
-        currentDirection,
-        previousDirection,
+        currentCoordinate,
+        previousCoordinate,
         isTransitioning,
-        currentFloor,
       ];
 }
 

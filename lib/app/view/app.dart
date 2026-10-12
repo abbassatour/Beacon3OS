@@ -1,5 +1,6 @@
 // lib/app/view/app.dart
 import 'dart:async';
+import 'dart:io';
 
 import 'package:beacon_os/auth/cubit/auth_cubit.dart';
 import 'package:beacon_os/core/services/permission_service.dart';
@@ -7,6 +8,7 @@ import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/desktop/view/desktop_shell_page.dart';
 import 'package:beacon_os/onboarding/onboarding.dart';
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
@@ -36,13 +38,16 @@ class _AppState extends State<App> {
   late final VoiceCommandDispatcher _voiceDispatcher;
   StreamSubscription<List<SpatialNode>>? _nodesSubscription;
 
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
   @override
   void initState() {
     super.initState();
 
     _topology = SpatialTopology.defaultTopology();
 
-    // ⚡️ الاستماع الحي لتحديثات مواقع الغرف من قاعدة البيانات والسحابة
+    // ⚡️ الاستماع الحي لتحديثات مواقع الغرف من قاعدة البيانات
     _nodesSubscription = widget._launcherRepository.topology
         .watchNodes()
         .listen((nodes) {
@@ -66,9 +71,11 @@ class _AppState extends State<App> {
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      PermissionService.instance.requestAllPermissions();
-    });
+    if (!_isDesktop) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PermissionService.instance.requestAllPermissions();
+      });
+    }
   }
 
   @override
@@ -129,12 +136,18 @@ class _AppState extends State<App> {
             return MaterialApp(
               navigatorKey: appNavigatorKey,
               debugShowCheckedModeBanner: false,
+              title: _isDesktop ? 'BeaconOS Command Center' : 'BeaconOS',
               theme: themeMode == AppThemeMode.highContrastOled
                   ? AppTheme.highContrastOledTheme
                   : AppTheme.warmPaperTheme,
-              home: hasCompletedOnboarding
-                  ? const SpatialShellPage()
-                  : const GatewayPage(),
+              // 🌟 التوجيه التلقائي للمنصة:
+              // لويندوز: يفتح لوحة التحكم المكتبية والشريط الجانبي فوراً
+              // للهاتف: يفتح البوصلة الفضائية أو صفحة التهيئة
+              home: _isDesktop
+                  ? const DesktopShellPage()
+                  : (hasCompletedOnboarding
+                      ? const SpatialShellPage()
+                      : const GatewayPage()),
             );
           },
         ),

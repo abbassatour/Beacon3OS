@@ -669,4 +669,42 @@ class CloudSyncClient {
         .eq('user_id', userId)
         .order('floor_level', ascending: true);
   }
+
+  // ===========================================================================
+  // 🛰️ 11. الأوامر السحابية الواردة عن بُعد من أليكسا (Remote Actions Listener)
+  // ===========================================================================
+
+  /// تدفق لحظي للأوامر المعلقة (pending) الصادرة من خادم MCP
+  Stream<List<Map<String, dynamic>>>? streamRemoteActions() {
+    final client = _client;
+    if (client == null) return null;
+
+    final userId = currentUser?.id;
+    var query = client
+        .from('remote_actions')
+        .stream(primaryKey: ['id'])
+        .eq('status', 'pending');
+
+    if (userId != null) {
+      query = query.eq('user_id', userId);
+    }
+
+    return query;
+  }
+
+  /// تأكيد استلام وتنفيذ الأمر لتجنب تكرار تنفيذه
+  Future<void> acknowledgeRemoteAction(String actionId, {String status = 'completed'}) async {
+    final client = _client;
+    if (client == null) return;
+
+    try {
+      await client.from('remote_actions').update({
+        'status': status,
+        'acknowledged_at': DateTime.now().toIso8601String(),
+      }).eq('id', actionId);
+      log('CloudSyncClient: Remote action [$actionId] marked as $status.');
+    } catch (e) {
+      log('CloudSyncClient: Error acknowledging action: $e');
+    }
+  }
 }

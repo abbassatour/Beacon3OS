@@ -1,30 +1,41 @@
 // lib/core/physics/spatial_physics.dart
+import 'dart:math' as math;
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
 /// محرك الفيزياء الحركية الفضائية (Spatial Motion Physics Engine)
-/// يعتمد على نوابض Runge-Kutta، المنحنيات التوافقية المتصلة، وحسابات المنظور ثلاثي الأبعاد.
+/// يعتمد على نوابض Runge-Kutta بالتخميد الحرج ζ = 1.0 لمنع الاهتزاز للكفيف.
 class SpatialPhysics {
   SpatialPhysics._();
 
   // ===========================================================================
-  // 📐 1. تكوينات النوابض (Spring Descriptions)
+  // 📐 1. تكوينات النوابض اللارنينية الحرجة (Critically Damped Springs ζ = 1.0)
   // ===========================================================================
 
-  /// نابض الانتقال الأفقي والرأسي (XY-Axis Pan) للغرف
+  /// 🎯 نابض الانتقال الأفقي والرأسي (XY-Axis Pan) للغرف
+  /// مضبوط بنسبة تخميد حرج دقيقة (Critical Damping ζ = 1.0)
+  /// k = 324.0, m = 1.0 => c = 2 * sqrt(1.0 * 324.0) = 36.0
+  /// يمنع أي ارتداد زائد (Zero Overshoot / No Jitter) لتوفير ثبات كامل لقارئات الشاشة.
   static const SpringDescription panSpring = SpringDescription(
     mass: 1.0,
-    stiffness: 300.0,
-    damping: 26.8,
+    stiffness: 324.0,
+    damping: 36.0,
   );
 
-  /// 🌟 نابض الانتقال الرأسي في العمق (Z-Axis Spread/Pinch) للطوابق
-  /// تم تحسينه بنسبة تخميد ζ ≈ 0.80 ليمنح انتقالاً زبدياً سلساً بلا قساوة أو بطء
+  /// 🏢 نابض الانتقال الرأسي في العمق (Z-Axis Multi-Floor Elevator)
+  /// مضبوط بنسبة تخميد حرج دقيقة (Critical Damping ζ = 1.0)
+  /// k = 256.0, m = 1.0 => c = 2 * sqrt(1.0 * 256.0) = 32.0
   static const SpringDescription zAxisSpring = SpringDescription(
     mass: 1.0,
-    stiffness: 260.0,
-    damping: 26.0,
+    stiffness: 256.0,
+    damping: 32.0,
   );
+
+  /// دالة تحقق رياضية من نسبة التخميد (Damping Ratio Verification):
+  /// ζ = c / (2 * sqrt(m * k))
+  static double calculateDampingRatio(SpringDescription spring) {
+    return spring.damping / (2.0 * math.sqrt(spring.mass * spring.stiffness));
+  }
 
   // ===========================================================================
   // 🎥 2. ثوابت المنظور ثلاثي الأبعاد (Spatial Portal Constants)
@@ -40,7 +51,7 @@ class SpatialPhysics {
   // 🚀 3. مولدات المحاكاة (Simulation Generators)
   // ===========================================================================
 
-  /// يولد محاكاة حركية بانسيابية للانتقال بين الغرف بناءً على سرعة الإفلات
+  /// يولد محاكاة حركية ناعمة وخالية من الاهتزاز للانتقال بين الغرف
   static SpringSimulation createPanSimulation({
     required double start,
     required double end,
@@ -54,7 +65,7 @@ class SpatialPhysics {
     );
   }
 
-  /// يولد محاكاة حركية لانتقالات الغوص في الطوابق (Z-Axis)
+  /// يولد محاكاة حركية لمصعد الطوابق في المحور Z
   static SpringSimulation createZAxisSimulation({
     required double start,
     required double end,
@@ -96,8 +107,7 @@ class SpatialPhysics {
   }
 
   /// دالة التنعيم المتصل خماسية الحدود (Ken Perlin's Smootherstep): 6t⁵ - 15t⁴ + 10t³
-  /// تتميز بمشتقين صفريين عند البداية والنهاية (C² Continuous)، مما يمنع الفجوات الميتة
-  /// والارتجاج البصري أثناء التلاشي التراكمي للطبقات.
+  /// C² Continuous لمنع أي رمشة بصرية أثناء انتقال الإضاءة والطبقات
   static double smootherStep(double t) {
     final clamped = t.clamp(0.0, 1.0);
     return clamped *
@@ -121,7 +131,6 @@ class SpatialPhysics {
     final roomTop = roomOffset.dy;
     final roomBottom = roomOffset.dy + screenSize.height;
 
-    // إذا كانت الغرفة خارج الشاشة تماماً لليمين أو اليسار أو الأعلى أو الأسفل
     if (roomRight < -cullBuffer) return false;
     if (roomLeft > screenSize.width + cullBuffer) return false;
     if (roomBottom < -cullBuffer) return false;

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alexa+ Echo Show Simulator | BeaconOS Living Room Bridge</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Background Ambient Glow -->
+  <div class="ambient-glow"></div>
+
+  <div class="simulator-layout">
+    
+    <!-- LEFT: Simulated Echo Show 15 Device -->
+    <main class="echo-show-chassis">
+      
+      <!-- Top Echo Bezel Status Bar -->
+      <header class="echo-status-bar">
+        <div class="status-left">
+          <span class="echo-brand">amazon <strong>alexa+</strong></span>
+          <span class="device-tag">Echo Show Simulation</span>
+        </div>
+        <div class="status-center" id="echoClock">12:00 PM</div>
+        <div class="status-right">
+          <span class="pill-indicator" id="serverStatusBadge">
+            <span class="dot-pulse"></span> MCP Online
+          </span>
+        </div>
+      </header>
+
+      <!-- Main Display Viewport (Echo Show Screen) -->
+      <section class="echo-display" id="echoDisplay">
+        
+        <!-- Idle Living Room Canvas -->
+        <div class="echo-idle-view" id="idleView">
+          <div class="idle-time" id="bigTime">12:00</div>
+          <div class="idle-date" id="bigDate">Monday, October 12</div>
+          <div class="idle-prompt">
+            <span class="mic-hint-icon">🎙️</span>
+            <p>Say <strong>"Alexa, find my Beacon phone"</strong> or choose a test prompt below</p>
+          </div>
+        </div>
+
+        <!-- Dynamic MCP Apps Multimodal Canvas -->
+        <div class="echo-card-viewport" id="cardViewport" style="display: none;">
+          <!-- Dynamically injected MCP Apps widgets appear here -->
+        </div>
+
+        <!-- Alexa Assistant Speech Bubble Overlay -->
+        <div class="alexa-speech-overlay" id="speechOverlay" style="display: none;">
+          <div class="speech-avatar">
+            <div class="alexa-orb"></div>
+          </div>
+          <div class="speech-content">
+            <div class="speech-label">ALEXA+ RESPONSE</div>
+            <div class="speech-text" id="alexaSpeechText">Listening...</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Interactive Living Room Prompt Pills -->
+      <footer class="echo-controls">
+        <div class="prompt-pills">
+          <button class="pill" onclick="sendPreset('Alexa, find my Beacon phone!')">
+            📍 "Find my phone"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, trigger emergency SOS')">
+            🚨 "Trigger Emergency SOS"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, check phone telemetry and battery')">
+            🔋 "Check phone battery"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, what is my daily briefing?')">
+            📋 "Daily briefing"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, add task: Review Hackathon Submission')">
+            ✍️ "Add agenda task"
+          </button>
+        </div>
+
+        <!-- Custom Input & Voice Bar -->
+        <form class="interaction-bar" id="promptForm" onsubmit="handleFormSubmit(event)">
+          <button type="button" class="mic-button" id="micBtn" title="Hold or Click to Speak">
+            <svg viewBox="0 0 24 24" class="mic-svg">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+          <input type="text" id="userInput" placeholder="Ask Alexa+ in the living room..." autocomplete="off">
+          <button type="submit" class="send-button" id="sendBtn">Send</button>
+        </form>
+      </footer>
+
+      <!-- Alexa Cyan Light Bar (Physical Echo Simulation) -->
+      <div class="alexa-light-bar" id="lightBar"></div>
+    </main>
+
+    <!-- RIGHT: Live MCP Protocol & JSON-RPC Inspector (Judges' Window) -->
+    <aside class="protocol-inspector">
+      <div class="inspector-header">
+        <div>
+          <h3>MCP Protocol Inspector</h3>
+          <span class="spec-badge">Spec: 2025-11-25 (Streamable HTTP)</span>
+        </div>
+        <button class="clear-btn" onclick="clearLogs()">Clear</button>
+      </div>
+
+      <div class="inspector-config">
+        <label>MCP Endpoint:</label>
+        <input type="text" id="mcpEndpointInput" value="http://127.0.0.1:8000/mcp">
+      </div>
+
+      <div class="logs-container" id="logsContainer">
+        <div class="log-entry system">
+          <span class="log-tag">READY</span>
+          <span class="log-desc">Streamable HTTP Inspector initialized. Ready to capture JSON-RPC calls.</span>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
