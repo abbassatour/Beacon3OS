@@ -1,4 +1,5 @@
 // lib/spatial_shell/spatial_shell.dart
+export 'controllers/spatial_camera_controller.dart';
 export 'cubit/spatial_shell_cubit.dart';
 export 'cubit/spatial_shell_state.dart';
 export 'models/spatial_direction.dart';
@@ -8,3 +9,5 @@ export 'widgets/ambient_voice_overlay.dart';
 export 'widgets/corner_swipe_detector.dart';
 export 'widgets/spatial_compass_hud.dart';
 export 'widgets/spatial_floor_layout.dart';
+export 'widgets/spatial_portal_transform.dart';
+export 'widgets/tactile_multi_touch_detector.dart';
