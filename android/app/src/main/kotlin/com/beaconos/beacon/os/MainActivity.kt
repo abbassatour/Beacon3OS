@@ -1,7 +1,10 @@
 package com.beaconos.beacon_os
 
+import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
@@ -20,6 +23,15 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                // 🌟 فحص تلقائي: هل هذا الجهاز تلفزيون (Android TV / Fire TV)؟
+                "isTv" -> {
+                    val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+                    val isTv = (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) ||
+                            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+                            packageManager.hasSystemFeature("android.hardware.type.television")
+                    result.success(isTv)
+                }
+
                 // 1. ضبط منبه حقيقي في نظام أندرويد دون فتح شاشة الساعة
                 "setAlarm" -> {
                     val hour = call.argument<Int>("hour") ?: 8
@@ -77,7 +89,7 @@ class MainActivity : FlutterActivity() {
                 putExtra(AlarmClock.EXTRA_HOUR, hour)
                 putExtra(AlarmClock.EXTRA_MINUTES, minute)
                 putExtra(AlarmClock.EXTRA_MESSAGE, label)
-                putExtra(AlarmClock.EXTRA_SKIP_UI, true) // الصمت التام وعدم فتح شاشات تشتت
+                putExtra(AlarmClock.EXTRA_SKIP_UI, true)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(intent)
@@ -93,9 +105,8 @@ class MainActivity : FlutterActivity() {
             val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
             try {
                 val cameraIds = cameraManager.cameraIdList
-                if (cameraIds.isEmpty()) return false // حماية من انهيار المحاكي
+                if (cameraIds.isEmpty()) return false
 
-                // البحث عن الكاميرا التي تحتوي على فلاش فعلي
                 val cameraIdWithFlash = cameraIds.firstOrNull { id ->
                     val chars = cameraManager.getCameraCharacteristics(id)
                     chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true

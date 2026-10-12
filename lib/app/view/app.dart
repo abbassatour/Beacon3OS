@@ -9,6 +9,7 @@ import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/desktop/view/desktop_shell_page.dart';
+import 'package:beacon_os/fire_tv/view/tv_shell_page.dart'; // 👈 استيراد واجهة التلفزيون
 import 'package:beacon_os/onboarding/onboarding.dart';
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
@@ -22,12 +23,14 @@ class App extends StatefulWidget {
   const App({
     required LauncherRepository launcherRepository,
     required AppSetting initialSettings,
+    this.isTv = false, // 👈 استقبال علامة التلفزيون
     super.key,
   })  : _launcherRepository = launcherRepository,
         _initialSettings = initialSettings;
 
   final LauncherRepository _launcherRepository;
   final AppSetting _initialSettings;
+  final bool isTv;
 
   @override
   State<App> createState() => _AppState();
@@ -41,13 +44,14 @@ class _AppState extends State<App> {
   bool get _isDesktop =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
+  bool get _isTv => widget.isTv;
+
   @override
   void initState() {
     super.initState();
 
     _topology = SpatialTopology.defaultTopology();
 
-    // ⚡️ الاستماع الحي لتحديثات مواقع الغرف من قاعدة البيانات
     _nodesSubscription = widget._launcherRepository.topology
         .watchNodes()
         .listen((nodes) {
@@ -71,7 +75,7 @@ class _AppState extends State<App> {
       ),
     );
 
-    if (!_isDesktop) {
+    if (!_isDesktop && !_isTv) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         PermissionService.instance.requestAllPermissions();
       });
@@ -82,6 +86,19 @@ class _AppState extends State<App> {
   void dispose() {
     _nodesSubscription?.cancel();
     super.dispose();
+  }
+
+  /// 🌟 الدالة الذكية لاختيار الشاشة المناسبة للمنصة
+  Widget _resolveHomeScreen(bool hasCompletedOnboarding) {
+    if (_isDesktop) {
+      return const DesktopShellPage();
+    }
+    if (_isTv) {
+      return const TvShellPage(); // 📺 شاشة التلفزيون في غرفة المعيشة
+    }
+    return hasCompletedOnboarding
+        ? const SpatialShellPage() // 📱 شاشة الهاتف الأساسية
+        : const GatewayPage();
   }
 
   @override
@@ -122,7 +139,7 @@ class _AppState extends State<App> {
         providers: [
           BlocProvider(
             create: (_) => ThemeCubit(
-              isHighContrast: widget._initialSettings.isHighContrast,
+              isHighContrast: widget._initialSettings.isHighContrast || _isTv,
             ),
           ),
           BlocProvider(
@@ -136,18 +153,13 @@ class _AppState extends State<App> {
             return MaterialApp(
               navigatorKey: appNavigatorKey,
               debugShowCheckedModeBanner: false,
-              title: _isDesktop ? 'BeaconOS Command Center' : 'BeaconOS',
-              theme: themeMode == AppThemeMode.highContrastOled
+              title: _isDesktop
+                  ? 'BeaconOS Command Center'
+                  : (_isTv ? 'BeaconOS Fire TV' : 'BeaconOS'),
+              theme: (_isTv || themeMode == AppThemeMode.highContrastOled)
                   ? AppTheme.highContrastOledTheme
                   : AppTheme.warmPaperTheme,
-              // 🌟 التوجيه التلقائي للمنصة:
-              // لويندوز: يفتح لوحة التحكم المكتبية والشريط الجانبي فوراً
-              // للهاتف: يفتح البوصلة الفضائية أو صفحة التهيئة
-              home: _isDesktop
-                  ? const DesktopShellPage()
-                  : (hasCompletedOnboarding
-                      ? const SpatialShellPage()
-                      : const GatewayPage()),
+              home: _resolveHomeScreen(hasCompletedOnboarding),
             );
           },
         ),
