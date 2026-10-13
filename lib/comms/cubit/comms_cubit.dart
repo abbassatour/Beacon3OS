@@ -4,6 +4,7 @@ import 'package:beacon_os/comms/cubit/comms_state.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
+import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استيراد خدمة البلوكشين
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
@@ -129,18 +130,34 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  /// إطلاق رادار الاستغاثة وبث الموقع الحقيقي عبر الأقمار الصناعية
+  /// إطلاق رادار الاستغاثة وبث الموقع الحقيقي مع توثيق EVM On-Chain على Arbitrum
   Future<void> triggerEmergencySos() async {
     emit(state.copyWith(isSosBroadcasting: true));
 
+    // 1. تشغيل صفارة الإنذار والنبضات اللمسية فوراً دون أي انتظار (Zero Latency)
     await _sound.play(SoundCue.sosAlarm);
     await _haptics.emergencyAlarmPulse();
 
     await _assistant.speak(
-      'Emergency SOS broadcast initiated! Broadcasting real GPS coordinates to family radar.',
+      'Emergency SOS broadcast initiated! Broadcasting real GPS coordinates and attesting to Arbitrum ledger.',
     );
 
+    // 2. إطلاق الاستغاثة محلياً وعبر السحابة والاتصال التلقائي بجهة الطوارئ
     await _commsRepo.triggerEmergencySos();
+
+    // 3. توثيق الاستغاثة اللامركزية على السلسلة بشكل غير معطل (Non-blocking Web3 Attestation)
+    unawaited(
+      _hardwareRepo.getCurrentLocation().then((coords) {
+        if (coords != null) {
+          return Web3Service.instance.attestEmergencySosOnChain(
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          );
+        }
+      }).catchError((Object error) {
+        // حماية: لا نسمح لأي استثناء في البلوكشين بالتأثير على رنين الهاتف
+      }),
+    );
 
     await Future<void>.delayed(const Duration(seconds: 4));
     emit(state.copyWith(isSosBroadcasting: false));
