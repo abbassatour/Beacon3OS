@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'dart:math' as math;
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:http/http.dart' as http;
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart'; // 👈 هذا الاستيراد يحتوي بمفرده على كافة أصناف EthereumAddress و EthPrivateKey
 
 /// خدمة الـ Web3 السيادية لإدارة الهوية وتوثيق الطوارئ على شبكة Arbitrum Sepolia
 class Web3Service {
@@ -12,14 +12,14 @@ class Web3Service {
 
   Web3Client? _client;
   EthPrivateKey? _credentials;
-  EthereumAddress? _walletAddress;
   DeployedContract? _impactContract;
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
   String get walletAddressHex =>
-      _walletAddress?.hex ?? '0x0000000000000000000000000000000000000000';
+      _credentials?.address.hex ??
+      '0x0000000000000000000000000000000000000000';
 
   String get shortAddress {
     final addr = walletAddressHex;
@@ -47,7 +47,6 @@ class Web3Service {
       // توليد مفتاح تشفير ذاتي للمحفظة السيادية (Sovereign Burner Wallet)
       final rng = math.Random.secure();
       _credentials = EthPrivateKey.createRandom(rng);
-      _walletAddress = _credentials!.address;
 
       if (ApiConstants.impactContractAddress.isNotEmpty &&
           ApiConstants.impactContractAddress !=
@@ -67,10 +66,11 @@ class Web3Service {
 
   /// جلب رصيد المحفظة بالـ ETH على شبكة الاختبار
   Future<double> getBalanceEth() async {
-    if (!_isInitialized || _client == null || _walletAddress == null) return 0.0;
+    if (!_isInitialized || _client == null || _credentials == null) return 0.0;
     try {
-      final amount = await _client!.getBalance(_walletAddress!);
-      return amount.getValueInUnit(EtherUnit.ether);
+      final amount = await _client!.getBalance(_credentials!.address);
+      // التحويل الرياضي المباشر: 1 ETH = 10^18 Wei
+      return amount.getInWei.toDouble() / 1e18;
     } catch (e) {
       log('Web3Service: Error fetching balance: $e');
       return 0.0;
@@ -103,7 +103,6 @@ class Web3Service {
         log('Web3Service: ✅ SOS Attested On-Chain. Tx: $txHash');
         return txHash;
       } else {
-        // تجزئة محاكاة فورية صالحة للعرض التوضيحي حتى قبل نشر العقد
         final simulatedTxHash =
             '0x${math.Random().nextInt(1000000).toRadixString(16).padLeft(64, 'e')}';
         log('Web3Service: Simulated On-chain Attestation: $simulatedTxHash');
@@ -112,6 +111,27 @@ class Web3Service {
     } catch (e) {
       log('Web3Service: On-chain attestation warning (Non-blocking): $e');
       return null;
+    }
+  }
+
+  /// توثيق استهلاك فحص الرؤية كـ Proof of Impact على شبكة Arbitrum Sepolia
+  Future<void> logAiImpactOnChain(String featureType) async {
+    log('Web3Service: 🛰️ Logging AI impact on-chain: $featureType');
+    try {
+      if (_client != null && _credentials != null && _impactContract != null) {
+        final function = _impactContract!.function('logAiInferenceImpact');
+        await _client!.sendTransaction(
+          _credentials!,
+          Transaction.callContract(
+            contract: _impactContract!,
+            function: function,
+            parameters: [featureType],
+          ),
+          chainId: 421614,
+        );
+      }
+    } catch (e) {
+      log('Web3Service: logAiImpactOnChain warning (Non-blocking): $e');
     }
   }
 }
