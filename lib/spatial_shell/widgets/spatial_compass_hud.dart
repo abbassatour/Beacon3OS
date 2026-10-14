@@ -29,7 +29,8 @@ class SpatialCompassHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAtCenter = currentCoordinate?.isOrigin ?? (direction == SpatialDirection.center);
+    final activeCoord = currentCoordinate ?? SpatialCoordinate.origin;
+    final isAtCenter = activeCoord.isOrigin;
     final isElevated = currentFloor != 0;
     final colors = context.colors;
     final topology = context.read<SpatialTopology>();
@@ -73,11 +74,18 @@ class SpatialCompassHud extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildMiniCompassCross(context, direction, isElevated),
-                      const SizedBox(width: 8),
+                      // ⚡️ رادار ديناميكي يعكس التوزيع الفعلي للغرف في الطابق
+                      _buildAdaptiveRadarPips(
+                        context: context,
+                        topology: topology,
+                        currentFloor: currentFloor,
+                        activeCoord: activeCoord,
+                        isElevated: isElevated,
+                      ),
+                      const SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          _getDynamicLabel(context, topology),
+                          _getDynamicLabel(context, topology, activeCoord),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -153,97 +161,75 @@ class SpatialCompassHud extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniCompassCross(
-    BuildContext context,
-    SpatialDirection activeDir,
-    bool isElevated,
-  ) {
+  /// 🛰️ رادار مصغر يعرض مواقع الغرف الحقيقية في مصفوفة الطابق لحظياً
+  Widget _buildAdaptiveRadarPips({
+    required BuildContext context,
+    required SpatialTopology topology,
+    required int currentFloor,
+    required SpatialCoordinate activeCoord,
+    required bool isElevated,
+  }) {
     final colors = context.colors;
     final activeColor = isElevated ? colors.primary : colors.onSurface;
-    final inactiveColor = colors.outline;
+    final inactiveColor = colors.outline.withValues(alpha: 0.5);
+
+    final occupiedNodes = topology.nodesOnFloor(currentFloor).keys.toSet();
+    // التأكد من احتساب موقع المستخدم الحالي دائماً
+    occupiedNodes.add(activeCoord);
 
     return SizedBox(
-      width: 18,
-      height: 18,
+      width: 22,
+      height: 22,
       child: Stack(
         alignment: Alignment.center,
-        children: [
-          Positioned(
-            top: 0,
-            child: _dot(
-              activeDir == SpatialDirection.north,
-              activeColor,
-              inactiveColor,
+        children: occupiedNodes.map((coord) {
+          final isCurrent =
+              coord.x == activeCoord.x && coord.y == activeCoord.y;
+
+          // تحويل الإحداثيات الديكارتية (-2..+2) إلى بكسلات داخل صندوق 22x22
+          // المركز عند (11, 11)، وكل وحدة إحداثية تقابل 4.5 بكسل
+          final dotSize = isCurrent ? 5.0 : 3.0;
+          final left = 11.0 + (coord.x * 4.5) - (dotSize / 2);
+          final top = 11.0 - (coord.y * 4.5) - (dotSize / 2);
+
+          return Positioned(
+            left: left.clamp(0.0, 18.0),
+            top: top.clamp(0.0, 18.0),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutBack,
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isCurrent ? activeColor : inactiveColor,
+                boxShadow: [
+                  if (isCurrent)
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 0,
-            child: _dot(
-              activeDir == SpatialDirection.south,
-              activeColor,
-              inactiveColor,
-            ),
-          ),
-          Positioned(
-            right: 0,
-            child: _dot(
-              activeDir == SpatialDirection.east,
-              activeColor,
-              inactiveColor,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            child: _dot(
-              activeDir == SpatialDirection.west,
-              activeColor,
-              inactiveColor,
-            ),
-          ),
-          Positioned(
-            child: _dot(
-              activeDir == SpatialDirection.center,
-              activeColor,
-              inactiveColor,
-              isCenter: true,
-            ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _dot(
-    bool isActive,
-    Color activeColor,
-    Color inactiveColor, {
-    bool isCenter = false,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutBack,
-      width: isActive ? (isCenter ? 5 : 4) : 3,
-      height: isActive ? (isCenter ? 5 : 4) : 3,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isActive ? activeColor : inactiveColor,
-      ),
-    );
-  }
-
-  String _getDynamicLabel(BuildContext context, SpatialTopology topology) {
-    final coord = currentCoordinate;
-    final module = coord != null
-        ? topology.moduleAtCoordinate(coord)
-        : topology.moduleAt(currentFloor, direction);
-
+  String _getDynamicLabel(
+    BuildContext context,
+    SpatialTopology topology,
+    SpatialCoordinate coord,
+  ) {
+    final module = topology.moduleAtCoordinate(coord);
     final prefix = currentFloor != 0 ? 'FL $currentFloor • ' : '';
-    if (module != null) {
-      return '$prefix${module.getFloorTitle(currentFloor)}';
-    }
-    if (coord != null) {
-      return '${prefix}ROOM (${coord.x}, ${coord.y})';
-    }
-    return '$prefix${direction.name.toUpperCase()}';
+    final roomName = module != null
+        ? module.getFloorTitle(currentFloor)
+        : 'ROOM ${coord.formattedCoordinate}';
+
+    final coordSuffix = !coord.isOrigin ? ' ${coord.formattedCoordinate}' : '';
+    return '$prefix$roomName$coordSuffix';
   }
 }

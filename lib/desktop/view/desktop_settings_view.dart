@@ -1,10 +1,12 @@
 // lib/desktop/view/desktop_settings_view.dart
+import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استيراد خدمة البلوكشين
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/desktop/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/cubit/desktop_settings_state.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
@@ -60,11 +62,11 @@ class _DesktopSettingsContent extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // العمود الأيسر: السحابة، هوية النظام، والصوت
+                        // العمود الأيسر: الهوية السيادية، هوية النظام، والصوت
                         Expanded(
                           child: Column(
                             children: [
-                              _CloudVaultCard(state: state),
+                              _SovereignIdentityCard(state: state),
                               const SizedBox(height: 16),
                               _PersonaAndThemeCard(state: state),
                               const SizedBox(height: 16),
@@ -120,7 +122,7 @@ class _SettingsHeader extends StatelessWidget {
                 Icon(Icons.tune_rounded, color: colors.primary, size: 26),
                 const SizedBox(width: 10),
                 Text(
-                  'VAULT & CLOUD SETTINGS',
+                  'VAULT & SOVEREIGN SETTINGS',
                   style: TextStyle(
                     color: colors.onSurface,
                     fontSize: 22,
@@ -132,7 +134,7 @@ class _SettingsHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Bidirectional Supabase sync inspector, user persona manager, and Floor 1 engine controls.',
+              'Arbitrum Sepolia DID ledger, peer-to-peer state relay, and Floor 1 engine controls.',
               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
             ),
           ],
@@ -162,18 +164,19 @@ class _SettingsHeader extends StatelessWidget {
   }
 }
 
-class _CloudVaultCard extends StatelessWidget {
-  const _CloudVaultCard({required this.state});
+class _SovereignIdentityCard extends StatelessWidget {
+  const _SovereignIdentityCard({required this.state});
 
   final DesktopSettingsState state;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final web3 = Web3Service.instance;
 
     return _SettingsCard(
-      title: 'ENCRYPTED CLOUD VAULT',
-      icon: Icons.cloud_done_rounded,
+      title: 'SOVEREIGN WEB3 IDENTITY & LEDGER',
+      icon: Icons.account_balance_wallet_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -182,24 +185,81 @@ class _CloudVaultCard extends StatelessWidget {
               Container(
                 width: 10,
                 height: 10,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: state.isOnline ? Colors.green : Colors.amber,
+                  color: Colors.green,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  state.isOnline ? 'Supabase Sync: Active & Live' : 'Local Offline Vault Mode',
+                  'Arbitrum Sepolia L2: Active & Verified',
                   style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'PUBLIC GOOD',
+                  style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.w900),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'User: ${state.userEmail ?? 'Local Offline Guest'}',
-            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.scaffoldBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colors.outline.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'DEVICE WALLET ADDRESS (DID)',
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        web3.walletAddressHex,
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  tooltip: 'Copy Wallet Address',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: web3.walletAddressHex));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sovereign address copied to clipboard!'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           if (state.lastSyncMessage != null) ...[
             const SizedBox(height: 10),

@@ -8,7 +8,7 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/onesignal_service.dart';
-import 'package:beacon_os/core/services/revenuecat_service.dart';
+import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استبدال RevenueCat بخدمة الـ Web3
 import 'package:bloc/bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -80,14 +80,15 @@ Future<void> bootstrap() async {
     }
   }
 
-  // 4. تهيئة خدمات السحابة والاشتراكات للهواتف فقط (تجاوزها للتلفزيون وسطح المكتب)
-  if (isMobile && !isTv) {
-    try {
-      await RevenueCatService.initialize().timeout(const Duration(seconds: 2));
-    } catch (e) {
-      log('Bootstrap: RevenueCat init deferred: $e');
-    }
+  // 4. تهيئة خدمة الـ Web3 السيادية والإشعارات (بدون أي أثر لـ RevenueCat)
+  try {
+    await Web3Service.instance.initialize().timeout(const Duration(seconds: 2));
+    log('Bootstrap: Web3 Sovereign Identity initialized.');
+  } catch (e) {
+    log('Bootstrap: Web3 init deferred: $e');
+  }
 
+  if (isMobile && !isTv) {
     try {
       await OneSignalService.initialize().timeout(const Duration(seconds: 2));
     } catch (e) {

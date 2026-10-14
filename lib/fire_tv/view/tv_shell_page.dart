@@ -121,8 +121,9 @@ class _TvShellPageState extends State<TvShellPage> {
                 ),
                 Row(
                   children: [
+                    // شارة Alexa MCP
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -131,11 +132,35 @@ class _TvShellPageState extends State<TvShellPage> {
                       child: Row(
                         children: const [
                           Icon(Icons.wifi_tethering_rounded, color: Colors.green, size: 16),
-                          SizedBox(width: 8),
+                          SizedBox(width: 6),
                           Text(
-                            'ALEXA+ MCP ONLINE',
+                            'ALEXA+ MCP',
                             style: TextStyle(
                               color: Colors.green,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // 🌟 شارة Arbitrum L2
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: colors.primary),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.verified_rounded, color: colors.primary, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            'ARBITRUM L2',
+                            style: TextStyle(
+                              color: colors.primary,
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
                             ),
@@ -232,8 +257,8 @@ class _TvShellPageState extends State<TvShellPage> {
                           flex: 4,
                           child: _TvCard(
                             focusNode: _sosCardFocus,
-                            title: 'FAMILY SAFETY RADAR (SOS)',
-                            subtitle: 'Press Select to broadcast test rescue radar',
+                            title: 'FAMILY SAFETY RADAR (ARBITRUM SOS)',
+                            subtitle: 'Press Select to broadcast test rescue radar & attestation',
                             icon: Icons.emergency_rounded,
                             accentColor: colors.error,
                             onSelect: () {
@@ -245,7 +270,7 @@ class _TvShellPageState extends State<TvShellPage> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Text(
-                                    'Triple-tap on Beacon Phone sends coordinates to this screen instantly.',
+                                    'Triple-tap on Beacon Phone sends coordinates to this screen and anchors an on-chain record on Arbitrum Sepolia.',
                                     style: TextStyle(color: colors.onSurface, fontSize: 13, height: 1.4),
                                   ),
                                 ),
@@ -329,7 +354,9 @@ class _TvShellPageState extends State<TvShellPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isSos ? '🚨 EMERGENCY SOS ALERT ACTIVE' : '📍 ACOUSTIC PING DISPATCHED',
+                  isSos
+                      ? '🚨 EMERGENCY SOS ALERT • ON-CHAIN ATTESTED'
+                      : '📍 ACOUSTIC PING DISPATCHED',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -339,7 +366,7 @@ class _TvShellPageState extends State<TvShellPage> {
                 ),
                 Text(
                   isSos
-                      ? 'Live GPS broadcast received from user phone. Family radar alerted.'
+                      ? 'Live GPS broadcast received and verified on Arbitrum Sepolia ledger.'
                       : 'Living room query actuated phone siren and strobe flashlight.',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),

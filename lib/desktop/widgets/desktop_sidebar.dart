@@ -1,9 +1,9 @@
 // lib/desktop/widgets/desktop_sidebar.dart
+import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استيراد خدمة البلوكشين
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum DesktopDestination {
   topology(
@@ -27,8 +27,8 @@ enum DesktopDestination {
     icon: Icons.shield_rounded,
   ),
   settings(
-    title: 'Vault & Cloud',
-    subtitle: 'Sync Configuration',
+    title: 'Sovereign & Vault',
+    subtitle: 'DID & Preferences',
     icon: Icons.tune_rounded,
   );
 
@@ -228,7 +228,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
 
           const Divider(height: 1),
 
-          // شريط الحالة السفلي (Status Footer)
+          // شريط الحالة السفلي (Web3 DID & Arbitrum Status Footer)
           _buildStatusFooter(context, isOled, colors),
         ],
       ),
@@ -240,8 +240,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
     bool isOled,
     ColorScheme colors,
   ) {
-    final client = Supabase.instance.client;
-    final isOnline = client.auth.currentUser != null;
+    final web3 = Web3Service.instance;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -259,19 +258,33 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isOnline ? Colors.green : Colors.amber,
+                    color: Colors.green,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  isOnline ? 'Supabase Sync: Live' : 'Local Vault Mode',
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Arbitrum L2: Connected',
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      web3.shortAddress,
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 9,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

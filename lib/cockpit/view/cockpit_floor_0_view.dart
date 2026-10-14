@@ -3,14 +3,15 @@ import 'dart:async';
 import 'package:beacon_os/cockpit/cubit/cockpit_cubit.dart';
 import 'package:beacon_os/cockpit/cubit/cockpit_state.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/core/topology/topology.dart'; // 👈 تم التصحيح
+import 'package:beacon_os/core/topology/topology.dart';
+import 'package:beacon_os/impact_pool/view/impact_pool_page.dart'; // 👈 استبدال الـ Paywall بصفحة الأثر اللامركزي
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
-import 'package:beacon_os/subscription/view/paywall_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
+
 /// واجهة الطابق الأرضي لقمرة القيادة (Floor 0: Today Cockpit Canvas)
 class CockpitFloor0View extends StatefulWidget {
   const CockpitFloor0View({super.key});
@@ -78,6 +79,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                             ),
                             Row(
                               children: [
+                                // 🌟 زر الأثر المجتمعي اللامركزي (Web3 Social Impact Pool)
                                 TextButton.icon(
                                   style: TextButton.styleFrom(
                                     backgroundColor: colors.surface,
@@ -93,19 +95,20 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                                     ),
                                   ),
                                   icon: Icon(
-                                    Icons.workspace_premium_rounded,
+                                    Icons.volunteer_activism_rounded,
                                     size: 16,
                                     color: colors.primary,
                                   ),
                                   label: const Text(
-                                    'PRO',
+                                    'IMPACT',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 12,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
                                   onPressed: () => Navigator.of(context).push(
-                                    PaywallPage.route(),
+                                    ImpactPoolPage.route(),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -731,6 +734,5 @@ class CockpitFloor0StandaloneView extends StatelessWidget {
   }
 }
 
-// 🛡️ توافق عكسي مع الكود القديم
 typedef CockpitDashboardView = CockpitFloor0StandaloneView;
 typedef CockpitDashboardContentView = CockpitFloor0View;

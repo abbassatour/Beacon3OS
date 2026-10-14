@@ -4,7 +4,6 @@ import 'package:beacon_os/desktop/cubit/desktop_comms_cubit.dart';
 import 'package:beacon_os/desktop/cubit/desktop_comms_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -54,7 +53,7 @@ class _DesktopCommsContent extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // اللوحة 1: جهات اتصال الطوارئ والرادار
+                      // اللوحة 1: جهات اتصال الطوارئ والرادار اللامركزي
                       Expanded(
                         flex: 5,
                         child: _EmergencyRadarPanel(state: state),
@@ -106,7 +105,7 @@ class _CommsHeader extends StatelessWidget {
                 Icon(Icons.shield_rounded, color: colors.error, size: 26),
                 const SizedBox(width: 10),
                 Text(
-                  'SAFETY RADAR & COMMUNICATIONS',
+                  'SAFETY RADAR & ON-CHAIN DISPATCH',
                   style: TextStyle(
                     color: colors.onSurface,
                     fontSize: 22,
@@ -118,7 +117,7 @@ class _CommsHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Emergency SOS contacts priority, phonebook synchronization, and encrypted message vault.',
+              'Arbitrum Sepolia immutable SOS attestations, phonebook sync, and encrypted message vault.',
               style: TextStyle(
                 color: colors.onSurfaceVariant,
                 fontSize: 12,
@@ -157,7 +156,7 @@ class _CommsHeader extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // زر المزامنة التفاضلية لجهات الاتصال
+            // زر المزامنة لجهات الاتصال
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.surface,
@@ -275,7 +274,7 @@ class _EmergencyRadarPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // شريط تنبيه الرادار
+          // شريط تنبيه الرادار مع شارة Arbitrum
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -283,49 +282,83 @@ class _EmergencyRadarPanel extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: colors.error.withValues(alpha: 0.4)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: colors.error,
-                  child: Icon(
-                    state.isBroadcastingSos ? Icons.wifi_tethering_rounded : Icons.warning_amber_rounded,
-                    color: colors.surface,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        state.isBroadcastingSos ? 'BROADCASTING TEST RADAR...' : 'EMERGENCY RADAR ACTIVE',
-                        style: TextStyle(
-                          color: colors.error,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: colors.error,
+                      child: Icon(
+                        state.isBroadcastingSos ? Icons.wifi_tethering_rounded : Icons.warning_amber_rounded,
+                        color: colors.surface,
+                        size: 22,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Triple-tap on phone sounds alarm & streams GPS to contacts.',
-                        style: TextStyle(color: colors.onSurface, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            state.isBroadcastingSos ? 'BROADCASTING TEST RADAR...' : 'EMERGENCY RADAR ACTIVE',
+                            style: TextStyle(
+                              color: colors.error,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Triple-tap on phone sounds alarm & anchors GPS to Arbitrum ledger.',
+                            style: TextStyle(color: colors.onSurface, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.error,
+                        foregroundColor: colors.surface,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.satellite_alt_rounded, size: 16),
+                      label: const Text('Test SOS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                      onPressed: state.isBroadcastingSos ? null : cubit.triggerTestSosBroadcast,
+                    ),
+                  ],
                 ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.error,
-                    foregroundColor: colors.surface,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  icon: const Icon(Icons.satellite_alt_rounded, size: 16),
-                  label: const Text('Test SOS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  onPressed: state.isBroadcastingSos ? null : cubit.triggerTestSosBroadcast,
+                const SizedBox(height: 10),
+                // 🌟 شارة التوثيق اللامركزي
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.verified_rounded, size: 12, color: Colors.green),
+                          SizedBox(width: 4),
+                          Text(
+                            'Arbitrum Sepolia Attested (L2)',
+                            style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tamper-proof GPS beacon',
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -165,7 +165,7 @@ class VisionFloor0View extends StatelessWidget {
                 if (state.lastSpokenResult.isNotEmpty)
                   Semantics(
                     label:
-                        'Last scan result: ${state.lastSpokenResult}. Replay or save to notes.',
+                        'Last scan result: ${state.lastSpokenResult}. Subsidized on Arbitrum ledger. Replay or save to notes.',
                     child: Container(
                       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       padding: const EdgeInsets.all(18),
@@ -232,7 +232,31 @@ class VisionFloor0View extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          // 🌟 شارة التوثيق اللامركزي للرعاية على السلسلة
+                          Container(
+                            margin: const EdgeInsets.only(top: 4, bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.verified_rounded, size: 12, color: Colors.green),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Subsidized on Arbitrum Sepolia',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           Text(
                             state.lastSpokenResult,
                             style: TextStyle(
@@ -360,6 +384,6 @@ class VisionFloor0StandaloneView extends StatelessWidget {
   }
 }
 
-// 🛡️ أسماء توافقية لمنع انكسار الكود القديم
+// 🛡️ أسماء توافقية لمنع انكسار الكود
 typedef SpatialVisionView = VisionFloor0StandaloneView;
 typedef SpatialVisionContentView = VisionFloor0View;
