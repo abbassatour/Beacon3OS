@@ -13,6 +13,7 @@ class SpatialShellState extends Equatable {
     this.currentCoordinate = SpatialCoordinate.origin,
     this.previousCoordinate = SpatialCoordinate.origin,
     this.isTransitioning = false,
+    this.activeModuleId = 'cockpit', // 👈 معرّف الغرفة التي ينظر إليها المستخدم
   });
 
   /// الإحداثي الديكارتي ثلاثي الأبعاد الحالي للمستخدم في الفضاء
@@ -22,6 +23,9 @@ class SpatialShellState extends Equatable {
   final SpatialCoordinate previousCoordinate;
 
   final bool isTransitioning;
+
+  /// معرّف الموديول النشط حالياً على الشاشة
+  final String activeModuleId;
 
   /// رقم الطابق مشتق مباشرة من المحور Z للإحداثي
   int get currentFloor => currentCoordinate.floor;
@@ -33,10 +37,10 @@ class SpatialShellState extends Equatable {
 
   /// 🛡️ توافق عكسي مع واجهات البوصلة والـ HUD القديمة
   SpatialDirection get currentDirection =>
-      currentCoordinate.toCompassDirection() ?? SpatialDirection.center;
+      currentCoordinate.toCompassDirection();
 
   SpatialDirection get previousDirection =>
-      previousCoordinate.toCompassDirection() ?? SpatialDirection.center;
+      previousCoordinate.toCompassDirection();
 
   SpatialShellState copyWith({
     SpatialCoordinate? currentCoordinate,
@@ -45,6 +49,7 @@ class SpatialShellState extends Equatable {
     int? currentFloor,
     SpatialDirection? currentDirection,
     SpatialDirection? previousDirection,
+    String? activeModuleId,
   }) {
     final nextCoord = currentCoordinate ??
         (currentDirection != null
@@ -68,6 +73,7 @@ class SpatialShellState extends Equatable {
       currentCoordinate: nextCoord,
       previousCoordinate: prevCoord,
       isTransitioning: isTransitioning ?? this.isTransitioning,
+      activeModuleId: activeModuleId ?? this.activeModuleId,
     );
   }
 
@@ -76,6 +82,7 @@ class SpatialShellState extends Equatable {
         currentCoordinate,
         previousCoordinate,
         isTransitioning,
+        activeModuleId,
       ];
 }
 

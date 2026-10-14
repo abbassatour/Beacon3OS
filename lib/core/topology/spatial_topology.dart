@@ -1,4 +1,5 @@
 // lib/core/topology/spatial_topology.dart
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:beacon_os/agenda/agenda.dart';
 import 'package:beacon_os/cockpit/cockpit.dart';
@@ -9,14 +10,21 @@ import 'package:beacon_os/focus/focus.dart';
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:beacon_os/vision/vision.dart';
 
-/// خريطة الطوبولوجيا المكانية الديناميكية لنظام التشغيل (Spatial OS Coordinate Grid)
+/// خريطة الطوبولوجيا المكانية الديناميكية والتفاعلية لنظام التشغيل
 class SpatialTopology {
   SpatialTopology();
 
   /// شبكة الإحداثيات ثلاثية الأبعاد: SpatialCoordinate -> SpatialModule
   final Map<SpatialCoordinate, SpatialModule> _coordinateGrid = {};
 
-  /// الباني الافتراضي الموحد الذي يسجل موديولات النظام الخمسة عبر الطوابق بإحداثياتها
+  /// ⚡️ قناة البث اللحظي لإشعار الكيوبيت والشاشات عند أي تعديل في مواقع الغرف
+  final StreamController<void> _changesController =
+      StreamController<void>.broadcast();
+
+  /// تدفق الاستماع لتغييرات مواقع الغرف
+  Stream<void> get changes => _changesController.stream;
+
+  /// الباني الافتراضي الموحد الذي يسجل موديولات النظام الخمسة عبر الطوابق
   factory SpatialTopology.defaultTopology() {
     final topology = SpatialTopology();
 
@@ -24,44 +32,54 @@ class SpatialTopology {
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 0),
       module: CockpitModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: 1, floor: 0), // North
       module: FocusModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: -1, floor: 0), // South
       module: CommsModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 1, y: 0, floor: 0), // East
       module: VisionModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: -1, y: 0, floor: 0), // West
       module: AgendaModule.instance,
+      notify: false,
     );
 
     // ⚙️ الطابق الأول (Floor 1): إعدادات ومحركات الغرف
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 1),
       module: CockpitModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: 1, floor: 1),
       module: FocusModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 0, y: -1, floor: 1),
       module: CommsModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: 1, y: 0, floor: 1),
       module: VisionModule.instance,
+      notify: false,
     );
     topology.registerCoordinate(
       coordinate: const SpatialCoordinate(x: -1, y: 0, floor: 1),
       module: AgendaModule.instance,
+      notify: false,
     );
 
     return topology;
@@ -71,8 +89,12 @@ class SpatialTopology {
   void registerCoordinate({
     required SpatialCoordinate coordinate,
     required SpatialModule module,
+    bool notify = true,
   }) {
     _coordinateGrid[coordinate] = module;
+    if (notify && !_changesController.isClosed) {
+      _changesController.add(null);
+    }
   }
 
   /// جسر التوافق القديم: تسجيل عبر SpatialDirection
@@ -96,7 +118,7 @@ class SpatialTopology {
     return moduleAtCoordinate(coord);
   }
 
-  /// ⚡️ جلب كافة الموديولات المسجلة في طابق معين مصنفة بإحداثياتها (X, Y)
+  /// جلب كافة الموديولات المسجلة في طابق معين مصنفة بإحداثياتها (X, Y)
   Map<SpatialCoordinate, SpatialModule> nodesOnFloor(int floor) {
     final result = <SpatialCoordinate, SpatialModule>{};
     for (final entry in _coordinateGrid.entries) {
@@ -113,15 +135,13 @@ class SpatialTopology {
     for (final entry in _coordinateGrid.entries) {
       if (entry.key.floor == floor) {
         final dir = entry.key.toCompassDirection();
-        if (dir != null) {
-          result[dir] = entry.value;
-        }
+        result[dir] = entry.value;
       }
     }
     return result;
   }
 
-  /// 🎯 تحديث خريطة الطوبولوجيا الحية مع تفريغ كامل لمنع الغرف الشبحية (Ghost Nodes)
+  /// 🎯 تحديث خريطة الطوبولوجيا الحية وبث إشعار التحديث فوراً
   void updateFromNodes(List<dynamic> nodes) {
     final moduleRegistry = {
       for (final m in allModules) m.id: m,
@@ -132,7 +152,7 @@ class SpatialTopology {
       'agenda': AgendaModule.instance,
     };
 
-    // ⚡ تفريغ الشبكة تماماً قبل إعادة التسجيل لضمان مسح أي إحداثي قديم
+    // تفريغ الشبكة تماماً قبل إعادة التسجيل لضمان مسح أي إحداثي قديم
     _coordinateGrid.clear();
 
     for (final node in nodes) {
@@ -146,8 +166,14 @@ class SpatialTopology {
         registerCoordinate(
           coordinate: SpatialCoordinate(x: x, y: y, floor: floor),
           module: module,
+          notify: false,
         );
       }
+    }
+
+    // ⚡️ بث إشعار التغيير لكافة المستمعين والكاميرا
+    if (!_changesController.isClosed) {
+      _changesController.add(null);
     }
   }
 
@@ -162,31 +188,29 @@ class SpatialTopology {
         .toList();
 
     switch (direction) {
-      case SpatialDirection.east: // حركة نحو الشرق (+X)
-        // 1. البحث عن أقرب غرفة على نفس المحور الأفقي Y
+      case SpatialDirection.east:
         final colinear = candidates
             .where((c) => c.y == origin.y && c.x > origin.x)
             .toList()
           ..sort((a, b) => a.x.compareTo(b.x));
         if (colinear.isNotEmpty) return colinear.first;
 
-        // 2. البحث المرن: أقرب غرفة في النصف الشرقي عموماً
         final inQuadrant = candidates.where((c) => c.x > origin.x).toList()
           ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
         return inQuadrant.firstOrNull;
 
-      case SpatialDirection.west: // حركة نحو الغرب (-X)
+      case SpatialDirection.west:
         final colinear = candidates
             .where((c) => c.y == origin.y && c.x < origin.x)
             .toList()
-          ..sort((a, b) => b.x.compareTo(a.x)); // تنازلي لأخذ الأقرب لـ origin
+          ..sort((a, b) => b.x.compareTo(a.x));
         if (colinear.isNotEmpty) return colinear.first;
 
         final inQuadrant = candidates.where((c) => c.x < origin.x).toList()
           ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
         return inQuadrant.firstOrNull;
 
-      case SpatialDirection.north: // حركة نحو الشمال (+Y)
+      case SpatialDirection.north:
         final colinear = candidates
             .where((c) => c.x == origin.x && c.y > origin.y)
             .toList()
@@ -197,7 +221,7 @@ class SpatialTopology {
           ..sort((a, b) => a.distanceTo(origin).compareTo(b.distanceTo(origin)));
         return inQuadrant.firstOrNull;
 
-      case SpatialDirection.south: // حركة نحو الجنوب (-Y)
+      case SpatialDirection.south:
         final colinear = candidates
             .where((c) => c.x == origin.x && c.y < origin.y)
             .toList()
@@ -209,10 +233,11 @@ class SpatialTopology {
         return inQuadrant.firstOrNull;
 
       case SpatialDirection.center:
-        // العودة لنقطة الأصل إذا كانت مأهولة، أو أقرب غرفة للمركز
         final originNode = SpatialCoordinate(x: 0, y: 0, floor: floor);
         if (_coordinateGrid.containsKey(originNode)) return originNode;
-        candidates.sort((a, b) => a.distanceTo(originNode).compareTo(b.distanceTo(originNode)));
+        candidates.sort(
+          (a, b) => a.distanceTo(originNode).compareTo(b.distanceTo(originNode)),
+        );
         return candidates.firstOrNull ?? originNode;
     }
   }
@@ -227,9 +252,9 @@ class SpatialTopology {
     return null;
   }
 
-  /// قائمة الطوابق المتوفرة مرتبة تصاعدياً
   List<int> get availableFloors {
-    final floors = _coordinateGrid.keys.map((c) => c.floor).toSet().toList()..sort();
+    final floors = _coordinateGrid.keys.map((c) => c.floor).toSet().toList()
+      ..sort();
     return floors;
   }
 
@@ -255,5 +280,9 @@ class SpatialTopology {
       modules[module.id] = module;
     }
     return modules.values.toList();
+  }
+
+  void dispose() {
+    _changesController.close();
   }
 }

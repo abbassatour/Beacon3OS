@@ -55,18 +55,24 @@ class SpatialCoordinate extends Equatable {
     }
   }
 
-  /// محاذاة الإحداثي مع اتجاه بوصلة كلاسيكي إن وجد (للتوافق مع الـ HUD والنطق الصوتي)
-  SpatialDirection? toCompassDirection() {
+  /// 🧭 حساب الاتجاه الكاردينالي الحقيقي والنسبي لأي نقطة في المصفوفة الديكارتية (5x5)
+  /// يضمن عدم إرجاع null إطلاقاً لأي غرفة منقولة
+  SpatialDirection toCompassDirection() {
     if (x == 0 && y == 0) return SpatialDirection.center;
-    if (x == 0 && y == 1) return SpatialDirection.north;
-    if (x == 0 && y == -1) return SpatialDirection.south;
-    if (x == 1 && y == 0) return SpatialDirection.east;
-    if (x == -1 && y == 0) return SpatialDirection.west;
-    return null;
+
+    // حساب المحور المهيمن وفق الزاوية النسبية
+    if (x.abs() > y.abs()) {
+      return x > 0 ? SpatialDirection.east : SpatialDirection.west;
+    } else {
+      return y > 0 ? SpatialDirection.north : SpatialDirection.south;
+    }
   }
 
   /// إزاحة الشاشة البصرية بالبكسل بالنسبة للشاشة (مع مراعاة أن Y على الشاشة ينعكس لأسفل)
   Offset get screenTranslation => Offset(x.toDouble(), -y.toDouble());
+
+  /// نص الإحداثي بصيغة (X, Y)
+  String get formattedCoordinate => '($x, $y)';
 
   SpatialCoordinate copyWith({int? x, int? y, int? floor}) {
     return SpatialCoordinate(

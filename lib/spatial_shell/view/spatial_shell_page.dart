@@ -1,4 +1,6 @@
 // lib/spatial_shell/view/spatial_shell_page.dart
+import 'dart:async';
+
 import 'package:beacon_os/agenda/agenda.dart';
 import 'package:beacon_os/cockpit/cockpit.dart';
 import 'package:beacon_os/comms/comms.dart';
@@ -41,6 +43,7 @@ class SpatialShellPage extends StatelessWidget {
           create: (context) => SpatialShellCubit(
             assistantRepository: context.read<AssistantRepository>(),
             topology: topology,
+            topologyRepository: context.read<TopologyRepository>(), // ⚡️ حقن مستودع الطوبولوجيا للمزامنة اللحظية
           ),
         ),
         BlocProvider(
@@ -112,16 +115,39 @@ class _SpatialShellBody extends StatefulWidget {
 class _SpatialShellBodyState extends State<_SpatialShellBody>
     with TickerProviderStateMixin {
   late final SpatialCameraController _cameraController;
+  StreamSubscription<void>? _topologySubscription;
   bool _isInnerListScrolling = false;
 
   @override
   void initState() {
     super.initState();
     _cameraController = SpatialCameraController(vsync: this);
+
+    // 🎯 محاذاة الكاميرا فورياً مع الإحداثي المحفوظ عند تشغيل الشاشة لمنع أي وميض أو قفزة غير مرغوبة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<SpatialShellCubit>().state;
+      final screenSize = MediaQuery.sizeOf(context);
+      _cameraController.snapToCoordinate(state.currentCoordinate, screenSize);
+      _cameraController.animateToFloor(state.currentFloor);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ⚡️ الاستماع لتحديثات شبكة الغرف لإعادة رسم الكانفاس فورياً عند تحريك أي غرفة في الخلفية
+    _topologySubscription ??=
+        context.read<SpatialTopology>().changes.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
+    _topologySubscription?.cancel();
     _cameraController.dispose();
     super.dispose();
   }
@@ -144,7 +170,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
     return BlocListener<SpatialShellCubit, SpatialShellState>(
       listenWhen: (previous, current) =>
-          previous.currentCoordinate != current.currentCoordinate,
+          previous.currentCoordinate != current.currentCoordinate ||
+          previous.currentFloor != current.currentFloor,
       listener: (context, state) {
         if (!_cameraController.isGestureActive) {
           _cameraController.snapToCoordinate(state.currentCoordinate, screenSize);

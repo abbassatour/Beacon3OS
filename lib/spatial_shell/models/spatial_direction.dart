@@ -46,19 +46,16 @@ extension SpatialDirectionX on SpatialDirection {
     }
   }
 
-  /// التلميح الحركي لكيفية العودة للمركز بحسب موقع المستخدم الحالي
+  /// 🎯 التلميح الحركي المستقر للعودة للمركز دون إملاء اتجاه سحب متضارب
   String get returnGestureHint {
     switch (this) {
       case SpatialDirection.center:
         return 'At Center';
       case SpatialDirection.north:
-        return 'Swipe DOWN ⬇️';
       case SpatialDirection.south:
-        return 'Swipe UP ⬆️';
       case SpatialDirection.east:
-        return 'Swipe LEFT ⬅️';
       case SpatialDirection.west:
-        return 'Swipe RIGHT ➡️';
+        return 'Use HUD';
     }
   }
 }

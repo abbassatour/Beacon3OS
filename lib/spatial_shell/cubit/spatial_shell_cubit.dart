@@ -8,23 +8,108 @@ import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
+import 'package:local_vault_api/local_vault_api.dart'; // 👈 لضمان حل نوع SpatialNode
 
 class SpatialShellCubit extends Cubit<SpatialShellState> {
   SpatialShellCubit({
     required AssistantRepository assistantRepository,
     required SpatialTopology topology,
+    TopologyRepository? topologyRepository,
     HapticManager? hapticManager,
     SoundController? soundController,
   })  : _assistant = assistantRepository,
         _topology = topology,
+        _topologyRepo = topologyRepository,
         _haptics = hapticManager ?? HapticManager.instance,
         _sound = soundController ?? SoundController.instance,
-        super(const SpatialShellState());
+        super(const SpatialShellState()) {
+    _initTopologyListener();
+  }
 
   final AssistantRepository _assistant;
   final SpatialTopology _topology;
+  final TopologyRepository? _topologyRepo;
   final HapticManager _haptics;
   final SoundController _sound;
+
+  StreamSubscription<void>? _topologySub;
+  StreamSubscription<List<SpatialNode>>? _nodesRepoSub;
+
+  void _initTopologyListener() {
+    // ⚡️ 1. الاستماع المباشر لبث كائن الطوبولوجيا الحي
+    _topologySub = _topology.changes.listen((_) {
+      _reconcileActivePosition();
+    });
+
+    // ⚡️ 2. استماع تكميلي من مستودع الخزنة المحلية
+    if (_topologyRepo != null) {
+      _nodesRepoSub = _topologyRepo.watchNodes().listen((nodes) {
+        if (nodes.isNotEmpty) {
+          _topology.updateFromNodes(nodes);
+          _reconcileActivePosition();
+        }
+      });
+    }
+  }
+
+  /// 🧠 محرك المحاذاة الذكي: يمنع الشاشة السوداء ويلاحق الغرفة في إحداثياتها الجديدة
+  void _reconcileActivePosition() {
+    final currentFloor = state.currentFloor;
+    final activeId = state.activeModuleId;
+
+    // 1. أين موقع الغرفة النشطة الآن على نفس الطابق؟
+    final updatedCoord = _topology.coordinateOf(currentFloor, activeId);
+    if (updatedCoord != null) {
+      if (updatedCoord != state.currentCoordinate) {
+        log('SpatialShellCubit: 🎯 Tracking moved room [$activeId] from ${state.currentCoordinate} -> $updatedCoord');
+        emit(
+          state.copyWith(
+            previousCoordinate: state.currentCoordinate,
+            currentCoordinate: updatedCoord,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 2. إذا لم تعد الغرفة موجودة بالاسم، هل الإحداثي الحالي مأهول بغرفة جديدة بعد التبادل؟
+    final moduleAtCurrent = _topology.moduleAtCoordinate(state.currentCoordinate);
+    if (moduleAtCurrent != null) {
+      log('SpatialShellCubit: 🔄 Room swap detected at ${state.currentCoordinate} -> New module: [${moduleAtCurrent.id}]');
+      emit(state.copyWith(activeModuleId: moduleAtCurrent.id));
+      return;
+    }
+
+    // 3. حماية حاسمة من الشاشة السوداء: الانجذاب لمركز الطابق
+    final originCoord = SpatialCoordinate(x: 0, y: 0, floor: currentFloor);
+    final originModule = _topology.moduleAtCoordinate(originCoord);
+    if (originModule != null) {
+      log('SpatialShellCubit: ⚠️ Current spot empty. Gravitating to origin (0, 0) [${originModule.id}]');
+      emit(
+        state.copyWith(
+          previousCoordinate: state.currentCoordinate,
+          currentCoordinate: originCoord,
+          activeModuleId: originModule.id,
+        ),
+      );
+      return;
+    }
+
+    // 4. الانجذاب لأول غرفة مأهولة متوفرة في الطابق
+    final floorNodes = _topology.nodesOnFloor(currentFloor);
+    if (floorNodes.isNotEmpty) {
+      final fallbackCoord = floorNodes.keys.first;
+      final fallbackModule = floorNodes[fallbackCoord]!;
+      log('SpatialShellCubit: ⚠️ Origin empty. Gravitating to first occupied room: $fallbackCoord [${fallbackModule.id}]');
+      emit(
+        state.copyWith(
+          previousCoordinate: state.currentCoordinate,
+          currentCoordinate: fallbackCoord,
+          activeModuleId: fallbackModule.id,
+        ),
+      );
+    }
+  }
 
   // ===========================================================================
   // 🏢 1. التحكم الرأسي متعدد الطوابق (Z-Axis Multi-Floor Elevator)
@@ -60,8 +145,9 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     unawaited(_haptics.successNotification());
     unawaited(_sound.play(cue, floorLevel: targetFloor));
 
-    // الانتقال لنفس الإحداثي على الطابق الجديد، أو لأقرب غرفة مأهولة إن كان الإحداثي فارغاً
-    var nextCoord = state.currentCoordinate.copyWith(floor: targetFloor);
+    var nextCoord = _topology.coordinateOf(targetFloor, state.activeModuleId) ??
+        state.currentCoordinate.copyWith(floor: targetFloor);
+
     if (_topology.moduleAtCoordinate(nextCoord) == null) {
       final originCoord = SpatialCoordinate(x: 0, y: 0, floor: targetFloor);
       if (_topology.moduleAtCoordinate(originCoord) != null) {
@@ -74,10 +160,13 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
       }
     }
 
+    final targetModule = _topology.moduleAtCoordinate(nextCoord);
+
     emit(
       state.copyWith(
         previousCoordinate: state.currentCoordinate,
         currentCoordinate: nextCoord,
+        activeModuleId: targetModule?.id ?? state.activeModuleId,
       ),
     );
   }
@@ -94,10 +183,9 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   }
 
   // ===========================================================================
-  // 🧭 2. التنقل الديكارتي والجاذبية المكانية (Smart Spatial Navigation)
+  // 🧭 2. التنقل الديكارتي والجاذبية المكانية
   // ===========================================================================
 
-  /// الانتقال مباشرة إلى إحداثي ديكارتي معين مع حساب التجسيم الصوتي النسبي
   Future<void> moveToCoordinate(SpatialCoordinate destination) async {
     if (state.currentCoordinate == destination) return;
 
@@ -118,16 +206,18 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
       floorLevel: destination.floor,
     );
 
+    final module = _topology.moduleAtCoordinate(destination);
+
     emit(
       state.copyWith(
         previousCoordinate: state.currentCoordinate,
         currentCoordinate: destination,
+        activeModuleId: module?.id ?? state.activeModuleId,
         isTransitioning: false,
       ),
     );
   }
 
-  /// التنقل الذكي في اتجاه معين نحو الغرفة المأهولة التالية في المسار
   Future<bool> navigateToward(SpatialDirection direction) async {
     if (direction == SpatialDirection.center) {
       await returnToCenter();
@@ -149,7 +239,6 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     }
   }
 
-  /// توافق كامل مع الكود القديم
   Future<void> moveTo(SpatialDirection destination) async {
     await navigateToward(destination);
   }
@@ -164,10 +253,9 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   }
 
   // ===========================================================================
-  // 🔊 3. النظام الصوتي الموجه للمكفوفين (Contextual TTS Engine)
+  // 🔊 3. النظام الصوتي الموجه للمكفوفين
   // ===========================================================================
 
-  /// إعلان الموقع الصريح الحقيقي من قاعدة البيانات
   Future<void> announceCurrentLocation() async {
     final module = _topology.moduleAtCoordinate(state.currentCoordinate);
     final roomTitle = module?.getFloorTitle(state.currentFloor) ??
@@ -184,7 +272,6 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     log('SpatialShell: Orientation Ping -> "$announcement"');
   }
 
-  /// همس استكشاف الغرفة المأهولة الحقيقية في المسار قبل الانتقال
   Future<void> whisperRoomScrubbing(SpatialDirection direction) async {
     final nextNode = _topology.findNextOccupiedInDirection(
       origin: state.currentCoordinate,
@@ -198,9 +285,14 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     final hint = module.shortTitle;
     await _assistant.stopSpeaking();
     await _assistant.speak(hint);
-    log('SpatialShell: Finger Scrubbing Whisper -> "$hint"');
+  }
+
+  @override
+  Future<void> close() {
+    _topologySub?.cancel();
+    _nodesRepoSub?.cancel();
+    return super.close();
   }
 }
 
-// 🛡️ توافق كامل مع الكود السابق
 typedef SpatialCompassCubit = SpatialShellCubit;
