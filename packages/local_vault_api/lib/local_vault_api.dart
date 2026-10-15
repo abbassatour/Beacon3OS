@@ -1,5 +1,12 @@
 // packages/local_vault_api/lib/local_vault_api.dart
 export 'src/app_database.dart';
+export 'src/daos/app_settings_dao.dart';
+export 'src/daos/contacts_dao.dart';
+export 'src/daos/focus_dao.dart';
+export 'src/daos/safety_dao.dart';
+export 'src/daos/spatial_nodes_dao.dart';
+export 'src/daos/tasks_dao.dart';
+export 'src/migrations/database_migrations.dart';
 export 'src/tables/alarms_table.dart';
 export 'src/tables/app_settings_table.dart';
 export 'src/tables/contacts_table.dart';
@@ -7,7 +14,7 @@ export 'src/tables/focus_sessions_table.dart';
 export 'src/tables/messages_vault_table.dart';
 export 'src/tables/notifications_table.dart';
 export 'src/tables/sos_alerts_table.dart';
+export 'src/tables/spatial_nodes_table.dart';
 export 'src/tables/tasks_table.dart';
 export 'src/tables/vision_scans_table.dart';
 export 'src/tables/voice_memos_table.dart';
-export 'src/tables/spatial_nodes_table.dart';
