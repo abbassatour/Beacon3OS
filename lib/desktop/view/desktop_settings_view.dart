@@ -55,18 +55,14 @@ class _DesktopSettingsContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. رأس الصفحة: العنوان ومؤشر المزامنة
                 _SettingsHeader(state: state),
                 const SizedBox(height: 20),
-
-                // 2. شبكة البطاقات المنقسمة لعمودين
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // العمود الأيسر: الهوية السيادية، اقتران الأجهزة، هوية النظام، والصوت
                         Expanded(
                           child: Column(
                             children: [
@@ -81,8 +77,6 @@ class _DesktopSettingsContent extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 20),
-
-                        // العمود الأيمن: تفضيلات الأجندة، التركيز، والرؤية
                         Expanded(
                           child: Column(
                             children: [
@@ -288,7 +282,7 @@ class _SovereignIdentityCard extends StatelessWidget {
 }
 
 // =============================================================================
-// 🔗 بطاقة الاقتران السيادي لسطح المكتب (Desktop Zero-Login Pairing Card)
+// 🔗 بطاقة الاقتران السيادي لسطح المكتب مع الشارة الحية
 // =============================================================================
 class _DevicePairingCard extends StatefulWidget {
   const _DevicePairingCard();
@@ -304,15 +298,24 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
   String? _generatedPairingCode;
   bool _isBusy = false;
   StreamSubscription<String?>? _authSubscription;
+  StreamSubscription<SyncTransportMode>? _transportSub;
+  SyncTransportMode _transportMode = SyncTransportMode.discovering;
 
   @override
   void initState() {
     super.initState();
-    _checkStatus();
+    _initDesktopHybrid();
   }
 
-  Future<void> _checkStatus() async {
+  Future<void> _initDesktopHybrid() async {
     final commsRepo = context.read<CommsRepository>();
+    await commsRepo.initializeHybridTransport(deviceType: 'desktop');
+
+    _transportMode = commsRepo.currentTransportMode;
+    _transportSub = commsRepo.transportModeStream.listen((mode) {
+      if (mounted) setState(() => _transportMode = mode);
+    });
+
     final isLinked = await commsRepo.isDeviceLinked();
     final vaultId = await commsRepo.getLinkedVaultId();
 
@@ -392,7 +395,7 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
           backgroundColor: Colors.green,
         ),
       );
-      _checkStatus();
+      _initDesktopHybrid();
     } else {
       SoundController.instance.play(SoundCue.error);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -422,6 +425,7 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _transportSub?.cancel();
     _codeInputController.dispose();
     super.dispose();
   }
@@ -436,6 +440,21 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Relay Mode Status:',
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              _buildTransportIndicator(colors),
+            ],
+          ),
+          const SizedBox(height: 12),
           if (_isLinked) ...[
             Container(
               padding: const EdgeInsets.all(14),
@@ -499,7 +518,6 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
               ),
             ),
             const SizedBox(height: 14),
-
             if (_generatedPairingCode != null) ...[
               Container(
                 padding: const EdgeInsets.all(14),
@@ -584,18 +602,19 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
               ),
               const SizedBox(height: 12),
             ],
-
             const Divider(),
             const SizedBox(height: 6),
-
-            // إدخال كود جهاز آخر يدوياً من الكمبيوتر
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _codeInputController,
                     keyboardType: TextInputType.number,
-                    style: TextStyle(color: colors.onSurface, fontSize: 13, fontFamily: 'monospace'),
+                    style: TextStyle(
+                      color: colors.onSurface,
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Enter 6-digit code from TV (e.g. 849201)',
                       filled: true,
@@ -623,6 +642,60 @@ class _DevicePairingCardState extends State<_DevicePairingCard> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransportIndicator(ColorScheme colors) {
+    String label;
+    Color color;
+    IconData icon;
+
+    switch (_transportMode) {
+      case SyncTransportMode.lanDirect:
+        label = 'LAN DIRECT (< 2ms)';
+        color = Colors.green;
+        icon = Icons.bolt_rounded;
+        break;
+      case SyncTransportMode.cloudRelay:
+        label = 'CLOUD RELAY';
+        color = colors.primary;
+        icon = Icons.cloud_done_rounded;
+        break;
+      case SyncTransportMode.discovering:
+        label = 'SCANNING LAN...';
+        color = colors.secondary;
+        icon = Icons.wifi_find_rounded;
+        break;
+      case SyncTransportMode.standalone:
+        label = 'STANDALONE';
+        color = colors.onSurfaceVariant;
+        icon = Icons.wifi_off_rounded;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color, width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
         ],
       ),
     );

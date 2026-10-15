@@ -9,14 +9,17 @@ import 'package:local_vault_api/local_vault_api.dart';
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:uuid/uuid.dart';
 
-/// أنواع الأوامر السحابية الواردة عن بُعد من Alexa+
+export 'package:cloud_sync_api/cloud_sync_api.dart' show SyncTransportMode;
+
+/// أنواع الأوامر الواردة عن بُعد (سواء عبر الواي فاي المحلي أو السحابة)
 enum RemoteActionType {
   locateDevice,
   triggerSos,
+  vaultMutation,
   unknown,
 }
 
-/// كائن يمثل الأمر السحابي الوارد لحظياً
+/// كائن يمثل الأمر الوارد لحظياً
 class RemoteActionEvent {
   const RemoteActionEvent({
     required this.id,
@@ -38,6 +41,9 @@ class RemoteActionEvent {
       case 'TRIGGER_SOS':
         type = RemoteActionType.triggerSos;
         break;
+      case 'VAULT_MUTATION':
+        type = RemoteActionType.vaultMutation;
+        break;
       default:
         type = RemoteActionType.unknown;
     }
@@ -48,6 +54,29 @@ class RemoteActionEvent {
       payload: map['payload'] is Map<String, dynamic>
           ? map['payload'] as Map<String, dynamic>
           : const {},
+    );
+  }
+
+  factory RemoteActionEvent.fromP2pMessage(P2pMessage message) {
+    RemoteActionType type;
+    switch (message.type) {
+      case P2pMessageType.locateDevice:
+        type = RemoteActionType.locateDevice;
+        break;
+      case P2pMessageType.triggerSos:
+        type = RemoteActionType.triggerSos;
+        break;
+      case P2pMessageType.vaultMutation:
+        type = RemoteActionType.vaultMutation;
+        break;
+      default:
+        type = RemoteActionType.unknown;
+    }
+
+    return RemoteActionEvent(
+      id: message.id,
+      actionType: type,
+      payload: message.payload,
     );
   }
 }
@@ -85,11 +114,24 @@ abstract class CommsRepository {
     int? batteryLevel,
   });
 
-  /// 🛰️ تدفق الأحداث السحابية الواردة عن بُعد من أليكسا (Locate, SOS)
+  /// 🛰️ تدفق الأحداث السحابية والمحلية الموحدة (Locate, SOS, Mutations)
   Stream<RemoteActionEvent> get remoteActionEvents;
 
-  /// 🚨 تنفيذ بروتوكول تحديد موقع الهاتف (وميض الكشاف السريع Strobe Flashlight)
+  /// 🚨 تنفيذ بروتوكول وميض الكشاف والاهتزاز لتحديد موقع الهاتف
   Future<void> executeLocateDevice({int pulseCycles = 8});
+
+  /// 🔍 إرسال طلب تحديد موقع الهاتف من شاشة التلفزيون أو الكمبيوتر (Local-First)
+  Future<bool> requestLocatePhone({String reason = 'Living room request'});
+
+  /// 🧭 تدفق نمط الاتصال النشط (LAN Direct vs Cloud Relay vs Standalone)
+  Stream<SyncTransportMode> get transportModeStream;
+  SyncTransportMode get currentTransportMode;
+
+  /// تهيئة المحرك الهجين للجهاز النشط
+  Future<void> initializeHybridTransport({
+    required String deviceType,
+    String? nodeId,
+  });
 
   Future<void> restoreCommsFromCloud();
   Future<void> syncPendingComms();
@@ -128,29 +170,79 @@ class CommsRepositoryImpl implements CommsRepository {
     required AppDatabase database,
     required CloudSyncClient cloudSync,
     required HardwareClient hardware,
+    HybridSyncClient? hybridSync,
   })  : _db = database,
         _cloud = cloudSync,
-        _hardware = hardware;
+        _hardware = hardware,
+        _hybridSync = hybridSync ??
+            HybridSyncClient(
+              cloudSyncClient: cloudSync,
+            );
 
   final AppDatabase _db;
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
+  final HybridSyncClient _hybridSync;
   final _uuid = const Uuid();
 
   StreamSubscription<dynamic>? _authSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _realtimeContactsSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _remoteActionsSubscription;
+  StreamSubscription<P2pMessage>? _hybridEventsSubscription;
 
   final StreamController<RemoteActionEvent> _remoteActionController =
       StreamController<RemoteActionEvent>.broadcast();
+
+  bool _isLocating = false;
 
   @override
   Stream<RemoteActionEvent> get remoteActionEvents =>
       _remoteActionController.stream;
 
+  @override
+  Stream<SyncTransportMode> get transportModeStream =>
+      _hybridSync.transportModeStream;
+
+  @override
+  SyncTransportMode get currentTransportMode => _hybridSync.currentMode;
+
   // ===========================================================================
-  // 🛰️ إدارة الاستماع اللحظي السحابي (Supabase Realtime Sync)
+  // 🛰️ إدارة الاستماع اللحظي السحابي والهجين (Hybrid Sync Management)
   // ===========================================================================
+
+  @override
+  Future<void> initializeHybridTransport({
+    required String deviceType,
+    String? nodeId,
+  }) async {
+    final vaultId = await getLinkedVaultId();
+    await _hybridSync.initialize(
+      deviceType: deviceType,
+      nodeId: nodeId ?? 'beacon_${deviceType}_${_uuid.v4().substring(0, 6)}',
+      linkedVaultId: vaultId,
+    );
+
+    // ربط تدفق الرسائل الموحدة من المقبس المحلي والسحابة بقناة الـ Repository
+    _hybridEventsSubscription?.cancel();
+    _hybridEventsSubscription = _hybridSync.unifiedEvents.listen(
+      _handleUnifiedIncomingMessage,
+      onError: (Object err) =>
+          log('CommsRepository: Unified events error: $err'),
+    );
+  }
+
+  void _handleUnifiedIncomingMessage(P2pMessage message) {
+    final event = RemoteActionEvent.fromP2pMessage(message);
+    if (event.actionType == RemoteActionType.unknown) return;
+
+    log('CommsRepository: ⚡ Action Received via [${message.senderType ?? "Hybrid"}] -> ${event.actionType}');
+    _remoteActionController.add(event);
+
+    // التنفيذ العتادي المباشر إن كان هذا الجهاز هاتفاً مطلوب رنينه
+    if (event.actionType == RemoteActionType.locateDevice) {
+      executeLocateDevice();
+    }
+  }
 
   @override
   void initializeRealtimeSync() {
@@ -167,7 +259,6 @@ class CommsRepositoryImpl implements CommsRepository {
       }
     });
 
-    // الاشتراك في الأوامر السحابية فوراً (يعمل أيضاً مع الضيف المحلي)
     _subscribeToRemoteActions();
 
     if (_cloud.isAuthenticated) {
@@ -199,11 +290,9 @@ class CommsRepositoryImpl implements CommsRepository {
           log('CommsRepository: Remote actions stream error: $error');
         },
       );
-      log('CommsRepository: 🛰️ Subscribed to Alexa+ remote_actions stream.');
     }
   }
 
-  /// معالجة الأوامر الفورية الواردة من خادم Alexa+ MCP
   Future<void> _handleIncomingRemoteActions(
     List<Map<String, dynamic>> rawActions,
   ) async {
@@ -213,28 +302,24 @@ class CommsRepositoryImpl implements CommsRepository {
         continue;
       }
 
-      log('CommsRepository: ⚡ Alexa+ Action Received -> [${event.actionType}] (ID: ${event.id})');
-
-      // 1. تأكيد استلام الأمر للسحابة
       await _cloud.acknowledgeRemoteAction(event.id, status: 'acknowledged');
-
-      // 2. ضخ الحدث في التدفق للاستجابة الصوتية والحسية
       _remoteActionController.add(event);
 
-      // 3. التنفيذ العتادي المباشر
       if (event.actionType == RemoteActionType.locateDevice) {
         await executeLocateDevice();
       } else if (event.actionType == RemoteActionType.triggerSos) {
         await triggerEmergencySos();
       }
 
-      // 4. تأكيد اكتمال التنفيذ
       await _cloud.acknowledgeRemoteAction(event.id, status: 'completed');
     }
   }
 
   @override
   Future<void> executeLocateDevice({int pulseCycles = 8}) async {
+    if (_isLocating) return;
+    _isLocating = true;
+
     log('CommsRepository: 📢 Locating Device: Flashing torch & hardware strobe...');
     try {
       for (var i = 0; i < pulseCycles; i++) {
@@ -245,7 +330,16 @@ class CommsRepositoryImpl implements CommsRepository {
       }
     } catch (e) {
       log('CommsRepository: Hardware locator strobe error: $e');
+    } finally {
+      _isLocating = false;
     }
+  }
+
+  @override
+  Future<bool> requestLocatePhone({
+    String reason = 'Living room request',
+  }) async {
+    return _hybridSync.dispatchLocatePhone(reason: reason);
   }
 
   Future<void> _handleCloudRealtimeContacts(
@@ -313,6 +407,8 @@ class CommsRepositoryImpl implements CommsRepository {
     _authSubscription?.cancel();
     _realtimeContactsSubscription?.cancel();
     _remoteActionsSubscription?.cancel();
+    _hybridEventsSubscription?.cancel();
+    _hybridSync.dispose();
     _remoteActionController.close();
   }
 
@@ -362,6 +458,19 @@ class CommsRepositoryImpl implements CommsRepository {
       log('CommsRepository: Cloud contact sync deferred: $error');
     });
 
+    // بث التعديل محلياً للأجهزة المقترنة فوراً
+    _hybridSync.broadcastVaultMutation(
+      table: 'contacts',
+      action: 'INSERT',
+      data: {
+        'id': id,
+        'name': name,
+        'phone_number': phoneNumber,
+        'relationship': relationship,
+        'is_emergency': isEmergency,
+      },
+    );
+
     return id;
   }
 
@@ -370,9 +479,16 @@ class CommsRepositoryImpl implements CommsRepository {
     final String id =
         contactOrId is Contact ? contactOrId.id : contactOrId.toString();
     await _db.softDeleteContact(id);
+
     _cloud.softDeleteContactInCloud(id).catchError((Object error) {
       log('CommsRepository: Cloud contact delete deferred: $error');
     });
+
+    _hybridSync.broadcastVaultMutation(
+      table: 'contacts',
+      action: 'DELETE',
+      data: {'id': id},
+    );
   }
 
   @override
@@ -469,10 +585,7 @@ class CommsRepositoryImpl implements CommsRepository {
 
         for (final existing in existingContacts) {
           if (!matchedExistingIds.contains(existing.id)) {
-            if (existing.isEmergency) {
-              log('CommsRepository: Retaining emergency contact missing from device: ${existing.name}');
-              continue;
-            }
+            if (existing.isEmergency) continue;
 
             batch.update(
               _db.contacts,
@@ -595,14 +708,12 @@ class CommsRepositoryImpl implements CommsRepository {
       googleMapsUrl: googleMapsUrl,
     );
 
-    _cloud.broadcastEmergencySos(
-      id: alertId,
+    // 1. الإرسال عبر المنسق الهجين (المقبس المحلي للشاشات + السحابة للإنقاذ)
+    await _hybridSync.dispatchEmergencySos(
       latitude: effectiveLat,
       longitude: effectiveLng,
       batteryLevel: actualBattery,
-    ).catchError((Object error) {
-      log('CommsRepository: Cloud SOS broadcast deferred: $error');
-    });
+    );
 
     if (settings.autoDialEmergency) {
       final emergencyContacts = await _db.getEmergencyContacts();
@@ -661,7 +772,6 @@ class CommsRepositoryImpl implements CommsRepository {
         await _cloud.softDeleteContactsBatchInCloud(deleteIds);
         await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds)))
             .go();
-        log('CommsRepository: ⚡ Synced and purged ${deleteIds.length} deleted contacts in cloud.');
       }
 
       if (toUpsert.isNotEmpty) {
@@ -679,7 +789,6 @@ class CommsRepositoryImpl implements CommsRepository {
         await (_db.update(_db.contacts)
               ..where((tbl) => tbl.id.isIn(upsertIds)))
             .write(const ContactsCompanion(isSynced: Value(true)));
-        log('CommsRepository: ⚡ Batch synced ${upsertIds.length} active contacts to Supabase.');
       }
     } catch (e, st) {
       log('CommsRepository: Pending batch sync error: $e', stackTrace: st);
@@ -703,7 +812,6 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   Future<String?> initiateDevicePairing({required String deviceType}) async {
     final rng = math.Random();
-    // توليد كود مكوّن من 6 أرقام سهل النطق والفهم للكفيف (بين 100000 و 999999)
     final code = (rng.nextInt(900000) + 100000).toString();
 
     final success = await _cloud.createPairingSession(
@@ -728,6 +836,13 @@ class CommsRepositoryImpl implements CommsRepository {
             'INSERT OR REPLACE INTO device_pairing_meta (key, val) VALUES ("linked_vault_id", "$vaultId");',
           );
           await _cloud.burnPairingSession(pairingCode);
+
+          // تحديث المحرك الهجين بهوية الخزنة المقترنة
+          await initializeHybridTransport(
+            deviceType: 'fire_tv',
+            nodeId: 'node_$vaultId',
+          );
+
           return vaultId;
         }
       }
@@ -743,7 +858,6 @@ class CommsRepositoryImpl implements CommsRepository {
     final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
     if (cleanCode.length != 6) return false;
 
-    // استخدام المعرف المحدد أو المعرف النشط للهاتف
     final masterVaultId = customVaultId ?? _cloud.activeUserId;
 
     final success = await _cloud.claimPairingSession(

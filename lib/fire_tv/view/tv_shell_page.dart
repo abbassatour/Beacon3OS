@@ -28,7 +28,11 @@ class _TvShellPageState extends State<TvShellPage>
   String? _activePairingCode;
   StreamSubscription<String?>? _pairingSubscription;
 
-  // الاستماع للأوامر السحابية الواردة عن بعد (أليكسا / الهاتف)
+  // نمط النقل الهجين اللحظي (LAN vs Cloud)
+  SyncTransportMode _transportMode = SyncTransportMode.discovering;
+  StreamSubscription<SyncTransportMode>? _transportSubscription;
+
+  // الاستماع للأوامر الواردة عن بعد (أليكسا / الهاتف)
   StreamSubscription<RemoteActionEvent>? _remoteSub;
   RemoteActionEvent? _activeAlert;
   Timer? _alertDismissTimer;
@@ -53,18 +57,31 @@ class _TvShellPageState extends State<TvShellPage>
     });
 
     _resetScreensaverTimer();
-    _checkPairingStatus();
+    _initHybridEngineAndPairing();
     _listenToRemoteActions();
   }
 
   // ===========================================================================
-  // 🔗 دورة حياة الاقتران والمزامنة السحابية
+  // 🔗 دورة حياة الاقتران والمزامنة الهجينة
   // ===========================================================================
 
-  Future<void> _checkPairingStatus() async {
+  Future<void> _initHybridEngineAndPairing() async {
     final commsRepo = context.read<CommsRepository>();
-    final isLinked = await commsRepo.isDeviceLinked();
 
+    // 1. تشغيل المحرك الهجين كشاشة عرض منزلية (Host Display)
+    await commsRepo.initializeHybridTransport(deviceType: 'fire_tv');
+
+    // 2. الاستماع لتغيرات مسار النقل (LAN vs Cloud)
+    _transportMode = commsRepo.currentTransportMode;
+    _transportSubscription = commsRepo.transportModeStream.listen((mode) {
+      if (!mounted) return;
+      final prevMode = _transportMode;
+      setState(() => _transportMode = mode);
+      _announceTransportModeAloud(mode, prevMode);
+    });
+
+    // 3. فحص هل التلفزيون مقترن مسبقاً بهاتف رئيسي
+    final isLinked = await commsRepo.isDeviceLinked();
     if (!mounted) return;
 
     if (isLinked) {
@@ -79,12 +96,30 @@ class _TvShellPageState extends State<TvShellPage>
     }
   }
 
+  Future<void> _announceTransportModeAloud(
+    SyncTransportMode mode,
+    SyncTransportMode prevMode,
+  ) async {
+    if (mode == prevMode) return;
+    try {
+      final assistant = context.read<AssistantRepository>();
+      if (mode == SyncTransportMode.lanDirect) {
+        await SoundController.instance.play(SoundCue.success);
+        await assistant
+            .speak('Living room screen linked on high-speed home network.');
+      } else if (mode == SyncTransportMode.cloudRelay &&
+          prevMode == SyncTransportMode.lanDirect) {
+        await assistant
+            .speak('Local connection paused. Switched to cloud relay.');
+      }
+    } catch (_) {}
+  }
+
   Future<void> _startNewPairingSession() async {
     _pairingSubscription?.cancel();
     final commsRepo = context.read<CommsRepository>();
 
     final code = await commsRepo.initiateDevicePairing(deviceType: 'fire_tv');
-
     if (!mounted) return;
 
     if (code != null) {
@@ -216,6 +251,7 @@ class _TvShellPageState extends State<TvShellPage>
     _alertDismissTimer?.cancel();
     _remoteSub?.cancel();
     _pairingSubscription?.cancel();
+    _transportSubscription?.cancel();
     _locateCardFocus.dispose();
     _sosCardFocus.dispose();
     _agendaFocus.dispose();
@@ -282,7 +318,6 @@ class _TvShellPageState extends State<TvShellPage>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // الطرف الأيسر: الأرقام الكبيرة والتعليمات الصوتية
           Expanded(
             flex: 6,
             child: Column(
@@ -332,8 +367,6 @@ class _TvShellPageState extends State<TvShellPage>
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // بطاقات الأرقام الكبيرة للقراءة من مسافة 4 أمتار
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -353,8 +386,6 @@ class _TvShellPageState extends State<TvShellPage>
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // شارة الأمر الصوتي
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -366,7 +397,8 @@ class _TvShellPageState extends State<TvShellPage>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.mic_rounded, color: colors.secondary, size: 20),
+                      Icon(Icons.mic_rounded,
+                          color: colors.secondary, size: 20),
                       const SizedBox(width: 10),
                       Text(
                         'Voice Command: "Pair $part1 $part2"',
@@ -381,8 +413,6 @@ class _TvShellPageState extends State<TvShellPage>
                   ),
                 ),
                 const SizedBox(height: 28),
-
-                // أزرار التحكم بالريموت
                 Row(
                   children: [
                     _buildRemoteActionButton(
@@ -409,8 +439,6 @@ class _TvShellPageState extends State<TvShellPage>
             ),
           ),
           const SizedBox(width: 32),
-
-          // الطرف الأيمن: مصفوفة المزامنة الهندسية (Visual Sync Matrix)
           Expanded(
             flex: 4,
             child: Center(
@@ -486,7 +514,7 @@ class _TvShellPageState extends State<TvShellPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Arbitrum Sepolia L2 Attestation\n& Supabase Live Channel',
+                      'Arbitrum Sepolia L2 Attestation\n& Local LAN Direct (< 2ms)',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: colors.onSurfaceVariant,
@@ -543,7 +571,9 @@ class _TvShellPageState extends State<TvShellPage>
     return FocusableActionDetector(
       focusNode: focusNode,
       actions: {
-        ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => onPressed()),
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) => onPressed(),
+        ),
       },
       child: Builder(
         builder: (context) {
@@ -568,7 +598,8 @@ class _TvShellPageState extends State<TvShellPage>
               icon: Icon(icon, size: 18),
               label: Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
               onPressed: onPressed,
             ),
@@ -606,7 +637,8 @@ class _TvShellPageState extends State<TvShellPage>
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: colors.primary, width: 1.5),
                       ),
-                      child: Icon(Icons.tv_rounded, color: colors.primary, size: 26),
+                      child: Icon(Icons.tv_rounded,
+                          color: colors.primary, size: 26),
                     ),
                     const SizedBox(width: 12),
                     Flexible(
@@ -645,11 +677,8 @@ class _TvShellPageState extends State<TvShellPage>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildPillBadge(
-                    icon: Icons.link_rounded,
-                    label: 'VAULT LINKED',
-                    color: Colors.green,
-                  ),
+                  // 🟢 الشارة الحية لنمط النقل الهجين
+                  _buildTransportBadge(colors),
                   const SizedBox(width: 8),
                   _buildPillBadge(
                     icon: Icons.verified_rounded,
@@ -657,7 +686,6 @@ class _TvShellPageState extends State<TvShellPage>
                     color: colors.primary,
                   ),
                   const SizedBox(width: 10),
-                  // زر فك الاقتران
                   IconButton(
                     icon: Icon(Icons.link_off_rounded,
                         color: colors.onSurfaceVariant, size: 20),
@@ -716,9 +744,15 @@ class _TvShellPageState extends State<TvShellPage>
                           subtitle: 'Press [SELECT] to ping missing phone',
                           icon: Icons.radar_rounded,
                           accentColor: colors.primary,
-                          onSelect: () {
-                            context.read<CommsRepository>().executeLocateDevice();
-                            SoundController.instance.play(SoundCue.wake);
+                          onSelect: () async {
+                            // ⚡ توجيه الأمر محلياً فوراً للهاتف عبر المقبس السريع
+                            final comms = context.read<CommsRepository>();
+                            final ok = await comms.requestLocatePhone(
+                              reason: 'Fire TV living room request',
+                            );
+                            if (ok) {
+                              SoundController.instance.play(SoundCue.wake);
+                            }
                           },
                           child: Center(
                             child: SingleChildScrollView(
@@ -742,7 +776,7 @@ class _TvShellPageState extends State<TvShellPage>
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Triggers 100% siren, flashlight & haptics',
+                                    'Pings phone instantly via Local LAN (< 2ms)',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: colors.onSurfaceVariant,
@@ -766,7 +800,9 @@ class _TvShellPageState extends State<TvShellPage>
                           icon: Icons.emergency_rounded,
                           accentColor: colors.error,
                           onSelect: () {
-                            context.read<CommsRepository>().triggerEmergencySos();
+                            context
+                                .read<CommsRepository>()
+                                .triggerEmergencySos();
                             SoundController.instance.play(SoundCue.sosAlarm);
                           },
                           child: Row(
@@ -781,7 +817,7 @@ class _TvShellPageState extends State<TvShellPage>
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Triple-tapping Beacon phone broadcasts real-time GPS coordinates here and anchors an attestation on Arbitrum Sepolia.',
+                                  'Triple-tapping Beacon phone broadcasts real-time GPS coordinates here in < 2ms and anchors an attestation on Arbitrum Sepolia.',
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -986,6 +1022,35 @@ class _TvShellPageState extends State<TvShellPage>
         ],
       ),
     );
+  }
+
+  Widget _buildTransportBadge(ColorScheme colors) {
+    switch (_transportMode) {
+      case SyncTransportMode.lanDirect:
+        return _buildPillBadge(
+          icon: Icons.bolt_rounded,
+          label: 'LAN DIRECT (< 2ms)',
+          color: Colors.green,
+        );
+      case SyncTransportMode.cloudRelay:
+        return _buildPillBadge(
+          icon: Icons.cloud_done_rounded,
+          label: 'CLOUD RELAY',
+          color: colors.primary,
+        );
+      case SyncTransportMode.discovering:
+        return _buildPillBadge(
+          icon: Icons.wifi_find_rounded,
+          label: 'SCANNING LAN...',
+          color: colors.secondary,
+        );
+      case SyncTransportMode.standalone:
+        return _buildPillBadge(
+          icon: Icons.wifi_off_rounded,
+          label: 'STANDALONE',
+          color: colors.onSurfaceVariant,
+        );
+    }
   }
 
   Widget _buildPillBadge({
