@@ -20,6 +20,7 @@ export 'domains/settings_repository.dart';
 export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
 export 'domains/topology_repository.dart';
+export 'models/remote_action_event.dart'; // 👈 تصدير النموذج الجديد
 
 class LauncherCommandResult {
   const LauncherCommandResult({

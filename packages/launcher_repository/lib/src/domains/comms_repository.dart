@@ -5,81 +5,14 @@ import 'dart:math' as math;
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
+import 'package:launcher_repository/src/domains/services/contacts_reconciliation_service.dart';
+import 'package:launcher_repository/src/models/remote_action_event.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:uuid/uuid.dart';
 
 export 'package:cloud_sync_api/cloud_sync_api.dart' show SyncTransportMode;
-
-/// أنواع الأوامر الواردة عن بُعد (سواء عبر الواي فاي المحلي أو السحابة)
-enum RemoteActionType {
-  locateDevice,
-  triggerSos,
-  vaultMutation,
-  unknown,
-}
-
-/// كائن يمثل الأمر الوارد لحظياً
-class RemoteActionEvent {
-  const RemoteActionEvent({
-    required this.id,
-    required this.actionType,
-    this.payload = const {},
-  });
-
-  final String id;
-  final RemoteActionType actionType;
-  final Map<String, dynamic> payload;
-
-  factory RemoteActionEvent.fromMap(Map<String, dynamic> map) {
-    final rawType = (map['action_type'] as String? ?? '').toUpperCase();
-    RemoteActionType type;
-    switch (rawType) {
-      case 'LOCATE_DEVICE':
-        type = RemoteActionType.locateDevice;
-        break;
-      case 'TRIGGER_SOS':
-        type = RemoteActionType.triggerSos;
-        break;
-      case 'VAULT_MUTATION':
-        type = RemoteActionType.vaultMutation;
-        break;
-      default:
-        type = RemoteActionType.unknown;
-    }
-
-    return RemoteActionEvent(
-      id: map['id'] as String? ?? '',
-      actionType: type,
-      payload: map['payload'] is Map<String, dynamic>
-          ? map['payload'] as Map<String, dynamic>
-          : const {},
-    );
-  }
-
-  factory RemoteActionEvent.fromP2pMessage(P2pMessage message) {
-    RemoteActionType type;
-    switch (message.type) {
-      case P2pMessageType.locateDevice:
-        type = RemoteActionType.locateDevice;
-        break;
-      case P2pMessageType.triggerSos:
-        type = RemoteActionType.triggerSos;
-        break;
-      case P2pMessageType.vaultMutation:
-        type = RemoteActionType.vaultMutation;
-        break;
-      default:
-        type = RemoteActionType.unknown;
-    }
-
-    return RemoteActionEvent(
-      id: message.id,
-      actionType: type,
-      payload: message.payload,
-    );
-  }
-}
+export 'package:launcher_repository/src/models/remote_action_event.dart';
 
 abstract class CommsRepository {
   Stream<List<Contact>> watchContacts();
@@ -93,7 +26,7 @@ abstract class CommsRepository {
   });
   Future<void> deleteContact(dynamic contactOrId);
 
-  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية عبر خوارزمية تفاضلية (Diffing Engine)
+  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية عبر خوارزمية تفاضلية
   Future<({int addedCount, int updatedCount, int deletedCount})>
       syncDeviceContactsToVault();
 
@@ -146,22 +79,11 @@ abstract class CommsRepository {
   // 🔗 بروتوكول الاقتران السيادي بدون حسابات (Zero-Login Device Pairing)
   // ===========================================================================
 
-  /// توليد كود اقتران من 6 أرقام للتلفزيون والكمبيوتر وبدء الجلسة
   Future<String?> initiateDevicePairing({required String deviceType});
-
-  /// الاستماع اللحظي على شاشة العرض لانتظار مصادقة الهاتف
   Stream<String?> listenForDeviceAuthorization(String pairingCode);
-
-  /// مصادقة كود الاقتران عبر الهاتف الرئيسي (يدوياً أو بالأمر الصوتي)
   Future<bool> authorizePairingCode(String pairingCode, {String? customVaultId});
-
-  /// التحقق من حالة اقتران هذا الجهاز بخزنة رئيسية
   Future<bool> isDeviceLinked();
-
-  /// جلب معرف الخزنة المقترنة
   Future<String?> getLinkedVaultId();
-
-  /// فك الاقتران والعودة للوضع المستقل
   Future<void> unpairDevice();
 }
 
@@ -171,18 +93,19 @@ class CommsRepositoryImpl implements CommsRepository {
     required CloudSyncClient cloudSync,
     required HardwareClient hardware,
     HybridSyncClient? hybridSync,
+    ContactsReconciliationService? reconciliationService,
   })  : _db = database,
         _cloud = cloudSync,
         _hardware = hardware,
-        _hybridSync = hybridSync ??
-            HybridSyncClient(
-              cloudSyncClient: cloudSync,
-            );
+        _hybridSync = hybridSync ?? HybridSyncClient(cloudSyncClient: cloudSync),
+        _reconciliationService =
+            reconciliationService ?? ContactsReconciliationService();
 
   final AppDatabase _db;
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
   final HybridSyncClient _hybridSync;
+  final ContactsReconciliationService _reconciliationService;
   final _uuid = const Uuid();
 
   StreamSubscription<dynamic>? _authSubscription;
@@ -206,10 +129,6 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   SyncTransportMode get currentTransportMode => _hybridSync.currentMode;
 
-  // ===========================================================================
-  // 🛰️ إدارة الاستماع اللحظي السحابي والهجين (Hybrid Sync Management)
-  // ===========================================================================
-
   @override
   Future<void> initializeHybridTransport({
     required String deviceType,
@@ -222,7 +141,6 @@ class CommsRepositoryImpl implements CommsRepository {
       linkedVaultId: vaultId,
     );
 
-    // ربط تدفق الرسائل الموحدة من المقبس المحلي والسحابة بقناة الـ Repository
     _hybridEventsSubscription?.cancel();
     _hybridEventsSubscription = _hybridSync.unifiedEvents.listen(
       _handleUnifiedIncomingMessage,
@@ -238,7 +156,6 @@ class CommsRepositoryImpl implements CommsRepository {
     log('CommsRepository: ⚡ Action Received via [${message.senderType ?? "Hybrid"}] -> ${event.actionType}');
     _remoteActionController.add(event);
 
-    // التنفيذ العتادي المباشر إن كان هذا الجهاز هاتفاً مطلوب رنينه
     if (event.actionType == RemoteActionType.locateDevice) {
       executeLocateDevice();
     }
@@ -336,9 +253,7 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
-  Future<bool> requestLocatePhone({
-    String reason = 'Living room request',
-  }) async {
+  Future<bool> requestLocatePhone({String reason = 'Living room request'}) async {
     return _hybridSync.dispatchLocatePhone(reason: reason);
   }
 
@@ -367,10 +282,7 @@ class CommsRepositoryImpl implements CommsRepository {
 
           if (deletedAt != null) {
             if (local != null) {
-              batch.delete(
-                _db.contacts,
-                ContactsCompanion(id: Value(id)),
-              );
+              batch.delete(_db.contacts, ContactsCompanion(id: Value(id)));
             }
           } else {
             final name = (cloudItem['name'] as String? ?? '').trim();
@@ -413,7 +325,7 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 📇 العمليات الأساسية لجهات الاتصال
+  // 📇 جهات الاتصال
   // ===========================================================================
 
   @override
@@ -458,7 +370,6 @@ class CommsRepositoryImpl implements CommsRepository {
       log('CommsRepository: Cloud contact sync deferred: $error');
     });
 
-    // بث التعديل محلياً للأجهزة المقترنة فوراً
     _hybridSync.broadcastVaultMutation(
       table: 'contacts',
       action: 'INSERT',
@@ -494,132 +405,26 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   Future<({int addedCount, int updatedCount, int deletedCount})>
       syncDeviceContactsToVault() async {
-    try {
-      final deviceRecords = await _hardware.getDeviceContacts();
-      if (deviceRecords.isEmpty) {
-        log('CommsRepository: No contacts found on device or permission rejected.');
-        return (addedCount: 0, updatedCount: 0, deletedCount: 0);
-      }
+    final deviceRecords = await _hardware.getDeviceContacts();
+    final result = await _reconciliationService.reconcile(
+      deviceRecords: deviceRecords,
+      database: _db,
+    );
 
-      final existingContacts = await (_db.select(_db.contacts)
-            ..where((c) => c.deletedAt.isNull()))
-          .get();
+    syncPendingComms().catchError((Object err) {
+      log('CommsRepository: Cloud sync deferred after diffing: $err');
+    });
 
-      final Map<String, Contact> map9 = {};
-      final Map<String, Contact> map8 = {};
-
-      for (final c in existingContacts) {
-        final digits = c.phoneNumber.replaceAll(RegExp(r'\D'), '');
-        if (digits.isEmpty) continue;
-
-        if (digits.length >= 9) {
-          map9[digits.substring(digits.length - 9)] = c;
-        } else {
-          map9[digits] = c;
-        }
-
-        if (digits.length >= 8) {
-          map8[digits.substring(digits.length - 8)] = c;
-        }
-      }
-
-      var addedCount = 0;
-      var updatedCount = 0;
-      var deletedCount = 0;
-
-      final Set<String> matchedExistingIds = {};
-      final Set<String> processedDeviceKeys = {};
-
-      await _db.batch((batch) {
-        for (final record in deviceRecords) {
-          final cleanPhone = _sanitizeNumber(record.phoneNumber);
-          final digits = cleanPhone.replaceAll(RegExp(r'\D'), '');
-          if (digits.length < 3) continue;
-
-          final key9 = digits.length >= 9
-              ? digits.substring(digits.length - 9)
-              : digits;
-          final key8 = digits.length >= 8
-              ? digits.substring(digits.length - 8)
-              : null;
-
-          if (processedDeviceKeys.contains(key9)) continue;
-          processedDeviceKeys.add(key9);
-
-          final existing = map9[key9] ?? (key8 != null ? map8[key8] : null);
-
-          if (existing != null) {
-            matchedExistingIds.add(existing.id);
-
-            final nameChanged = existing.name != record.name;
-            final phoneChanged = existing.phoneNumber != cleanPhone;
-
-            if (nameChanged || phoneChanged) {
-              batch.update(
-                _db.contacts,
-                ContactsCompanion(
-                  name: Value(record.name),
-                  phoneNumber: Value(cleanPhone),
-                  updatedAt: Value(DateTime.now()),
-                  isSynced: const Value(false),
-                ),
-                where: (tbl) => tbl.id.equals(existing.id),
-              );
-              updatedCount++;
-            }
-          } else {
-            final newId = _uuid.v4();
-            batch.insert(
-              _db.contacts,
-              ContactsCompanion.insert(
-                id: newId,
-                name: record.name,
-                phoneNumber: cleanPhone,
-                isEmergency: const Value(false),
-                isSynced: const Value(false),
-              ),
-            );
-            addedCount++;
-          }
-        }
-
-        for (final existing in existingContacts) {
-          if (!matchedExistingIds.contains(existing.id)) {
-            if (existing.isEmergency) continue;
-
-            batch.update(
-              _db.contacts,
-              ContactsCompanion(
-                deletedAt: Value(DateTime.now()),
-                updatedAt: Value(DateTime.now()),
-                isSynced: const Value(false),
-              ),
-              where: (tbl) => tbl.id.equals(existing.id),
-            );
-            deletedCount++;
-          }
-        }
-      });
-
-      syncPendingComms().catchError((Object err) {
-        log('CommsRepository: Cloud sync deferred after diffing: $err');
-      });
-
-      return (
-        addedCount: addedCount,
-        updatedCount: updatedCount,
-        deletedCount: deletedCount,
-      );
-    } catch (e, st) {
-      log('CommsRepository: Error during contacts reconciliation diff: $e',
-          stackTrace: st);
-      return (addedCount: 0, updatedCount: 0, deletedCount: 0);
-    }
+    return (
+      addedCount: result.addedCount,
+      updatedCount: result.updatedCount,
+      deletedCount: result.deletedCount,
+    );
   }
 
-  String _sanitizeNumber(String phone) {
-    return phone.replaceAll(RegExp(r'[\s\(\)\-\.]'), '').trim();
-  }
+  // ===========================================================================
+  // 💬 الرسائل
+  // ===========================================================================
 
   @override
   Stream<List<MessagesVaultData>> watchMessages(String contactIdentifier) =>
@@ -667,6 +472,10 @@ class CommsRepositoryImpl implements CommsRepository {
     return id;
   }
 
+  // ===========================================================================
+  // 🚨 استغاثة الطوارئ SOS
+  // ===========================================================================
+
   @override
   Future<String> triggerEmergencySos({
     double? latitude,
@@ -708,7 +517,6 @@ class CommsRepositoryImpl implements CommsRepository {
       googleMapsUrl: googleMapsUrl,
     );
 
-    // 1. الإرسال عبر المنسق الهجين (المقبس المحلي للشاشات + السحابة للإنقاذ)
     await _hybridSync.dispatchEmergencySos(
       latitude: effectiveLat,
       longitude: effectiveLng,
@@ -770,8 +578,7 @@ class CommsRepositoryImpl implements CommsRepository {
       if (toDelete.isNotEmpty) {
         final deleteIds = toDelete.map((c) => c.id).toList();
         await _cloud.softDeleteContactsBatchInCloud(deleteIds);
-        await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds)))
-            .go();
+        await (_db.delete(_db.contacts)..where((tbl) => tbl.id.isIn(deleteIds))).go();
       }
 
       if (toUpsert.isNotEmpty) {
@@ -796,7 +603,7 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 🔗 إدارة الاقتران السيادي المحلي (Sovereign Device Pairing)
+  // 🔗 بروتوكول الاقتران السيادي
   // ===========================================================================
 
   Future<void> _ensurePairingTable() async {
@@ -837,7 +644,6 @@ class CommsRepositoryImpl implements CommsRepository {
           );
           await _cloud.burnPairingSession(pairingCode);
 
-          // تحديث المحرك الهجين بهوية الخزنة المقترنة
           await initializeHybridTransport(
             deviceType: 'fire_tv',
             nodeId: 'node_$vaultId',
