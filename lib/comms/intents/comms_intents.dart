@@ -416,14 +416,14 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
     );
 
     if (success) {
-      return const LauncherCommandResult(
+      return  LauncherCommandResult(
         intent: 'PAIR_DEVICE',
         spokenResponse:
             'Living room display successfully linked! Real-time telemetry and agenda are now live.',
         actionPayload: cleanCode,
       );
     } else {
-      return const LauncherCommandResult(
+      return  LauncherCommandResult(
         intent: 'PAIR_DEVICE_FAILED',
         spokenResponse:
             'Pairing failed. The code may be incorrect or has expired. Please check the screen.',
