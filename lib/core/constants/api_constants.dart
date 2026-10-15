@@ -5,11 +5,6 @@ class ApiConstants {
     defaultValue: '',
   );
 
-  static const String oneSignalAppId = String.fromEnvironment(
-    'ONESIGNAL_APP_ID',
-    defaultValue: '',
-  );
-
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: '',
@@ -28,6 +23,6 @@ class ApiConstants {
 
   static const String impactContractAddress = String.fromEnvironment(
     'IMPACT_CONTRACT_ADDRESS',
-    defaultValue: '0x0000000000000000000000000000000000000000', // سنحدثه فور نشر العقد
+    defaultValue: '0x0000000000000000000000000000000000000000',
   );
 }

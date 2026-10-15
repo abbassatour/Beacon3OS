@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'dart:math' as math;
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:http/http.dart' as http;
-import 'package:web3dart/web3dart.dart'; // 👈 هذا الاستيراد يحتوي بمفرده على كافة أصناف EthereumAddress و EthPrivateKey
+import 'package:web3dart/web3dart.dart';
 
 /// خدمة الـ Web3 السيادية لإدارة الهوية وتوثيق الطوارئ على شبكة Arbitrum Sepolia
 class Web3Service {
@@ -17,8 +17,9 @@ class Web3Service {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  /// العنوان الست عشري القياسي (EIP-55 Checksum Address)
   String get walletAddressHex =>
-      _credentials?.address.hex ??
+      _credentials?.address.hexEip55 ??
       '0x0000000000000000000000000000000000000000';
 
   String get shortAddress {

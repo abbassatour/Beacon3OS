@@ -24,14 +24,13 @@ dependencies:
     path: packages/launcher_repository
   local_vault_api:
     path: packages/local_vault_api
-  onesignal_flutter: ^5.6.11
   sqlite3_flutter_libs: 0.5.24
   supabase_flutter: ^2.17.2
   system_hardware_api:
     path: packages/system_hardware_api
   voice_ai_api:
     path: packages/voice_ai_api
-  web3dart: ^3.0.3 # 👈 إضافة محرك البلوكشين القياسي
+  web3dart: ^3.0.3
 
 dev_dependencies:
   bloc_lint: ^0.4.1

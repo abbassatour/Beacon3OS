@@ -174,7 +174,6 @@ class SpatialCompassHud extends StatelessWidget {
     final inactiveColor = colors.outline.withValues(alpha: 0.5);
 
     final occupiedNodes = topology.nodesOnFloor(currentFloor).keys.toSet();
-    // التأكد من احتساب موقع المستخدم الحالي دائماً
     occupiedNodes.add(activeCoord);
 
     return SizedBox(
@@ -186,8 +185,6 @@ class SpatialCompassHud extends StatelessWidget {
           final isCurrent =
               coord.x == activeCoord.x && coord.y == activeCoord.y;
 
-          // تحويل الإحداثيات الديكارتية (-2..+2) إلى بكسلات داخل صندوق 22x22
-          // المركز عند (11, 11)، وكل وحدة إحداثية تقابل 4.5 بكسل
           final dotSize = isCurrent ? 5.0 : 3.0;
           final left = 11.0 + (coord.x * 4.5) - (dotSize / 2);
           final top = 11.0 - (coord.y * 4.5) - (dotSize / 2);
@@ -197,18 +194,19 @@ class SpatialCompassHud extends StatelessWidget {
             top: top.clamp(0.0, 18.0),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutBack,
+              curve: Curves.easeOutCubic, // 👈 تم التصحيح لمنع الـ Negative Blur Radius
               width: dotSize,
               height: dotSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isCurrent ? activeColor : inactiveColor,
                 boxShadow: [
-                  if (isCurrent)
-                    BoxShadow(
-                      color: activeColor.withValues(alpha: 0.5),
-                      blurRadius: 4,
-                    ),
+                  BoxShadow(
+                    color: isCurrent
+                        ? activeColor.withValues(alpha: 0.5)
+                        : Colors.transparent,
+                    blurRadius: isCurrent ? 4.0 : 0.0,
+                  ),
                 ],
               ),
             ),

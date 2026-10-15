@@ -7,8 +7,7 @@ import 'package:beacon_os/app/app.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/core/services/onesignal_service.dart';
-import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استبدال RevenueCat بخدمة الـ Web3
+import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -80,31 +79,23 @@ Future<void> bootstrap() async {
     }
   }
 
-  // 4. تهيئة خدمة الـ Web3 السيادية والإشعارات (بدون أي أثر لـ RevenueCat)
+  // 4. تهيئة خدمة الـ Web3 السيادية
   try {
-    await Web3Service.instance.initialize().timeout(const Duration(seconds: 2));
+    await Web3Service.instance.initialize().timeout(const Duration(seconds: 6));
     log('Bootstrap: Web3 Sovereign Identity initialized.');
   } catch (e) {
     log('Bootstrap: Web3 init deferred: $e');
-  }
-
-  if (isMobile && !isTv) {
-    try {
-      await OneSignalService.initialize().timeout(const Duration(seconds: 2));
-    } catch (e) {
-      log('Bootstrap: OneSignal init deferred: $e');
-    }
   }
 
   // 5. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(llmAgent: llmAgent);
 
-  // 6. تهيئة محركات الصوت
+  // 6. تهيئة محركات الصوت بمهلة كافية للمحاكي
   try {
     await launcherRepository.assistant
         .initializeEngines()
-        .timeout(const Duration(seconds: 2));
+        .timeout(const Duration(seconds: 6));
     log('Bootstrap: Audio engines initialized.');
   } catch (e) {
     log('Bootstrap: Audio engines init bypassed: $e');
@@ -115,7 +106,7 @@ Future<void> bootstrap() async {
   try {
     initialSettings = await launcherRepository.settings
         .getSettings()
-        .timeout(const Duration(seconds: 2));
+        .timeout(const Duration(seconds: 6));
   } catch (e) {
     initialSettings = AppSetting(
       id: 'local_device_settings',
@@ -146,7 +137,7 @@ Future<void> bootstrap() async {
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));
 
-  // 8. إطلاق التطبيق مع تمرير علامة isTv
+  // 8. إطلاق التطبيق
   runApp(
     App(
       launcherRepository: launcherRepository,
