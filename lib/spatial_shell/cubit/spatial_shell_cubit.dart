@@ -253,14 +253,12 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   }
 
   // ===========================================================================
-  // 🔊 3. النظام الصوتي الموجه للمكفوفين
+  // 🔊 3. النظام الصوتي الموجه للمكفوفين (متطابق 100% مع قاعدة البيانات)
   // ===========================================================================
 
   Future<void> announceCurrentLocation() async {
-    final module = _topology.moduleAtCoordinate(state.currentCoordinate);
-    final roomTitle = module?.getFloorTitle(state.currentFloor) ??
-        module?.title ??
-        'Room (${state.currentCoordinate.x}, ${state.currentCoordinate.y})';
+    // قراءة العنوان الحقيقي المخزن في قاعدة البيانات
+    final roomTitle = _topology.titleAtCoordinate(state.currentCoordinate);
     final floorTitle = state.currentFloor == 0
         ? 'Ground Floor'
         : 'Floor ${state.currentFloor}';
@@ -279,10 +277,8 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     );
     if (nextNode == null) return;
 
-    final module = _topology.moduleAtCoordinate(nextNode);
-    if (module == null) return;
-
-    final hint = module.shortTitle;
+    // همس الاسم الحقيقي للغرفة القادمة أثناء السحب
+    final hint = _topology.titleAtCoordinate(nextNode);
     await _assistant.stopSpeaking();
     await _assistant.speak(hint);
   }

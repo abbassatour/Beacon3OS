@@ -40,9 +40,9 @@ class AppDatabase extends _$AppDatabase {
   static const String defaultSettingsId = 'local_device_settings';
   final _uuid = const Uuid();
 
-  // 1. ترقية رقم الإصدار إلى 7 لدعم الشبكة الإحداثية
+  // 1. ترقية رقم الإصدار إلى 8 لدعم استقرار العناوين
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   // 2. تحديث استراتيجية الترقية الآمنة
   @override
@@ -69,11 +69,17 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(appSettings, appSettings.userPersona);
           await m.addColumn(appSettings, appSettings.hasCompletedOnboarding);
         }
-        // 🌟 الترقية للإصدار 7: إنشاء جدول العقد الفضائية وبذر الغرف الافتراضية
         if (from < 7) {
           await m.createTable(spatialNodes);
           await _seedDefaultSpatialNodes();
         }
+        if (from < 8) {
+          await _backfillDefaultTitles();
+        }
+      },
+      beforeOpen: (details) async {
+        // حماية تضمن تعبئة أي حقول customTitle فارغة عند إقلاع التطبيق
+        await _backfillDefaultTitles();
       },
     );
   }
@@ -136,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  /// البذر التلقائي الذكي للغرف الخمس الأساسية على الطابقين 0 و 1
+  /// البذر التلقائي الذكي للغرف الخمس الأساسية على الطابقين 0 و 1 مع العناوين النظيفة
   Future<void> _seedDefaultSpatialNodes() async {
     final defaultNodes = <SpatialNodesCompanion>[
       // 🏠 الطابق الأرضي (Floor 0)
@@ -146,6 +152,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(0),
         x: Value(0),
         y: Value(0), // Center
+        customTitle: Value('Today Cockpit'),
       ),
       const SpatialNodesCompanion(
         id: Value('focus_f0'),
@@ -153,6 +160,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(0),
         x: Value(0),
         y: Value(1), // North
+        customTitle: Value('Focus & Alarms'),
       ),
       const SpatialNodesCompanion(
         id: Value('comms_f0'),
@@ -160,6 +168,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(0),
         x: Value(0),
         y: Value(-1), // South
+        customTitle: Value('Communications'),
       ),
       const SpatialNodesCompanion(
         id: Value('vision_f0'),
@@ -167,6 +176,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(0),
         x: Value(1),
         y: Value(0), // East
+        customTitle: Value('AI Vision Studio'),
       ),
       const SpatialNodesCompanion(
         id: Value('agenda_f0'),
@@ -174,6 +184,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(0),
         x: Value(-1),
         y: Value(0), // West
+        customTitle: Value('Agenda & Tasks'),
       ),
 
       // ⚙️ الطابق الأول (Floor 1 - Settings & Engines)
@@ -183,6 +194,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(1),
         x: Value(0),
         y: Value(0),
+        customTitle: Value('Core Engine & Preferences'),
       ),
       const SpatialNodesCompanion(
         id: Value('focus_f1'),
@@ -190,6 +202,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(1),
         x: Value(0),
         y: Value(1),
+        customTitle: Value('Focus & Alarm Tuning'),
       ),
       const SpatialNodesCompanion(
         id: Value('comms_f1'),
@@ -197,6 +210,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(1),
         x: Value(0),
         y: Value(-1),
+        customTitle: Value('Safety & SOS Preferences'),
       ),
       const SpatialNodesCompanion(
         id: Value('vision_f1'),
@@ -204,6 +218,7 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(1),
         x: Value(1),
         y: Value(0),
+        customTitle: Value('AI Vision Tuning'),
       ),
       const SpatialNodesCompanion(
         id: Value('agenda_f1'),
@@ -211,15 +226,39 @@ class AppDatabase extends _$AppDatabase {
         floorLevel: Value(1),
         x: Value(-1),
         y: Value(0),
+        customTitle: Value('Agenda Preferences'),
       ),
     ];
 
     for (final node in defaultNodes) {
-      await into(spatialNodes).insert(node, mode: InsertMode.insertOrIgnore);
+      await into(spatialNodes).insert(node, mode: InsertMode.insertOrReplace);
     }
   }
 
-  // ===========================================================================
+  /// تعبئة تلقائية آمنة للعناوين الفارغة في القواعد الحالية دون تجاوز تعديلات المستخدم
+  Future<void> _backfillDefaultTitles() async {
+    const titles = {
+      'cockpit_f0': 'Today Cockpit',
+      'focus_f0': 'Focus & Alarms',
+      'comms_f0': 'Communications',
+      'vision_f0': 'AI Vision Studio',
+      'agenda_f0': 'Agenda & Tasks',
+      'cockpit_f1': 'Core Engine & Preferences',
+      'focus_f1': 'Focus & Alarm Tuning',
+      'comms_f1': 'Safety & SOS Preferences',
+      'vision_f1': 'AI Vision Tuning',
+      'agenda_f1': 'Agenda Preferences',
+    };
+
+    for (final entry in titles.entries) {
+      await (update(spatialNodes)
+            ..where((n) => n.id.equals(entry.key) & n.customTitle.isNull()))
+          .write(SpatialNodesCompanion(customTitle: Value(entry.value)));
+    }
+  }
+
+  // =========
+  ==================================================================
   // 🎛️ 1. إدارة الإعدادات والهوية (Settings & Persona Engine)
   // ===========================================================================
 
@@ -638,7 +677,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteSpatialNode(String id) =>
       (delete(spatialNodes)..where((n) => n.id.equals(id))).go();
-  
+
   // ===========================================================================
   // 📋 عمليات المهام الإضافية للتعديل بالذكاء الاصطناعي
   // ===========================================================================

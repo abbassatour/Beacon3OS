@@ -27,6 +27,7 @@ class SpatialCameraController extends ChangeNotifier {
   bool _isTwoFingerElevator = false;
   bool _isTransitioningViaGesture = false;
   Axis? _lockedAxis;
+  bool _isInnerScrollingActive = false;
 
   double _initialScale = 0.0;
   double _startXAtGesture = 0.0;
@@ -53,6 +54,7 @@ class SpatialCameraController extends ChangeNotifier {
 
     _isTwoFingerElevator = details.pointerCount >= 2;
     _lockedAxis = null;
+    _isInnerScrollingActive = false;
     _initialScale = _floorZ.value;
     _startXAtGesture = _panX.value;
     _startYAtGesture = _panY.value;
@@ -153,9 +155,12 @@ class SpatialCameraController extends ChangeNotifier {
       }
     }
 
-    if (state.currentCoordinate.isOrigin &&
-        _lockedAxis == Axis.vertical &&
-        isInnerListScrolling) {
+    // 🛡️ حماية تصفح القوائم الداخلية في أي غرفة (سواء قمرة القيادة أو الأجندة أو التواصل)
+    if (isInnerListScrolling) {
+      _isInnerScrollingActive = true;
+    }
+
+    if (_lockedAxis == Axis.vertical && isInnerListScrolling) {
       return;
     }
 
@@ -429,6 +434,14 @@ class SpatialCameraController extends ChangeNotifier {
         SoundController.instance.playBoundaryBump();
       }
     } else if (_lockedAxis == Axis.vertical) {
+      // 🛡️ إذا كان السحب جزءاً من تصفح قائمة داخلية، نعيد ضبط المحاذاة دون تنقل فضائي أو أصوات ارتطام
+      if (_isInnerScrollingActive) {
+        snapToCoordinate(state.currentCoordinate, screenSize);
+        _lockedAxis = null;
+        _isInnerScrollingActive = false;
+        return;
+      }
+
       final vy = details.velocity.pixelsPerSecond.dy;
       final currentTargetY = state.currentCoordinate.y * screenSize.height;
       final deltaFromTarget = _panY.value - currentTargetY;
@@ -479,6 +492,7 @@ class SpatialCameraController extends ChangeNotifier {
     }
 
     _lockedAxis = null;
+    _isInnerScrollingActive = false;
   }
 
   void snapToCoordinate(SpatialCoordinate coord, Size screenSize) {
