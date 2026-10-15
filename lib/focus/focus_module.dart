@@ -27,6 +27,10 @@ class FocusModule extends SpatialModule {
   SoundCue get sonicSignature => SoundCue.navNorth;
 
   @override
+  SpatialCoordinate get defaultCoordinate =>
+      const SpatialCoordinate(x: 0, y: 1, floor: 0);
+
+  @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
 
   @override
@@ -49,11 +53,11 @@ class FocusModule extends SpatialModule {
         key: ValueKey('focus_floor_1_view'),
       );
     }
-    return const FocusFloor0View(
-      key: ValueKey('focus_floor_0_view'),
+    // 🌟 الحل الجذري: إرجاع الواجهة المستقلة التي تحقن FocusCubit تلقائياً
+    return const FocusFloor0StandaloneView(
+      key: ValueKey('focus_floor_0_standalone_view'),
     );
   }
 }
 
-// 🛡️ اسم توافقي لموديول التركيز
 typedef FocusAlarmsModule = FocusModule;

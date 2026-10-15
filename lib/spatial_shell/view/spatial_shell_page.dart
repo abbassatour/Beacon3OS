@@ -1,14 +1,10 @@
 // lib/spatial_shell/view/spatial_shell_page.dart
 import 'dart:async';
 
-import 'package:beacon_os/agenda/agenda.dart';
-import 'package:beacon_os/cockpit/cockpit.dart';
-import 'package:beacon_os/comms/comms.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/focus/focus.dart';
 import 'package:beacon_os/preferences/preferences.dart';
 import 'package:beacon_os/spatial_shell/controllers/spatial_camera_controller.dart';
 import 'package:beacon_os/spatial_shell/cubit/spatial_shell_cubit.dart';
@@ -19,7 +15,6 @@ import 'package:beacon_os/spatial_shell/widgets/spatial_compass_hud.dart';
 import 'package:beacon_os/spatial_shell/widgets/spatial_floor_layout.dart';
 import 'package:beacon_os/spatial_shell/widgets/spatial_portal_transform.dart';
 import 'package:beacon_os/spatial_shell/widgets/tactile_multi_touch_detector.dart';
-import 'package:beacon_os/vision/vision.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -37,13 +32,15 @@ class SpatialShellPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final topology = context.read<SpatialTopology>();
 
+    // 🌟 الغلاف الآن يحقن فقط حالات مستوى نظام التشغيل (OS-Level States)
+    // أي موديول جديد يضاف للنظام يدير حالته داخلياً دون لمس هذا الملف
     return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (context) => SpatialShellCubit(
             assistantRepository: context.read<AssistantRepository>(),
             topology: topology,
-            topologyRepository: context.read<TopologyRepository>(), // ⚡️ حقن مستودع الطوبولوجيا للمزامنة اللحظية
+            topologyRepository: context.read<TopologyRepository>(),
           ),
         ),
         BlocProvider(
@@ -60,43 +57,6 @@ class SpatialShellPage extends StatelessWidget {
             focusAlarmsRepository: context.read<FocusAlarmsRepository>(),
             settingsRepository: context.read<SettingsRepository>(),
             commsRepository: context.read<CommsRepository>(),
-          ),
-        ),
-        BlocProvider(
-          create: (context) => CockpitCubit(
-            taskRepository: context.read<TaskAgendaRepository>(),
-            focusAlarmsRepository: context.read<FocusAlarmsRepository>(),
-            hardwareRepository: context.read<SystemHardwareRepository>(),
-            assistantRepository: context.read<AssistantRepository>(),
-          ),
-        ),
-        BlocProvider(
-          create: (context) => FocusCubit(
-            focusRepository: context.read<FocusAlarmsRepository>(),
-            assistantRepository: context.read<AssistantRepository>(),
-            settingsRepository: context.read<SettingsRepository>(),
-          ),
-        ),
-        BlocProvider(
-          create: (context) => CommsCubit(
-            commsRepository: context.read<CommsRepository>(),
-            hardwareRepository: context.read<SystemHardwareRepository>(),
-            assistantRepository: context.read<AssistantRepository>(),
-          ),
-        ),
-        BlocProvider(
-          create: (context) => VisionCubit(
-            assistantRepository: context.read<AssistantRepository>(),
-            hardwareRepository: context.read<SystemHardwareRepository>(),
-            settingsRepository: context.read<SettingsRepository>(),
-            taskRepository: context.read<TaskAgendaRepository>(),
-          ),
-        ),
-        BlocProvider(
-          create: (context) => AgendaCubit(
-            taskRepository: context.read<TaskAgendaRepository>(),
-            assistantRepository: context.read<AssistantRepository>(),
-            settingsRepository: context.read<SettingsRepository>(),
           ),
         ),
       ],
@@ -123,7 +83,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     super.initState();
     _cameraController = SpatialCameraController(vsync: this);
 
-    // 🎯 محاذاة الكاميرا فورياً مع الإحداثي المحفوظ عند تشغيل الشاشة لمنع أي وميض أو قفزة غير مرغوبة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final state = context.read<SpatialShellCubit>().state;
@@ -136,7 +95,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ⚡️ الاستماع لتحديثات شبكة الغرف لإعادة رسم الكانفاس فورياً عند تحريك أي غرفة في الخلفية
     _topologySubscription ??=
         context.read<SpatialTopology>().changes.listen((_) {
       if (mounted) {
@@ -189,7 +147,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
               onThreeFingerSwipeUp: shellCubit.ascend,
               onThreeFingerSwipeDown: shellCubit.descend,
               onHoldToSpeakStart: voiceCubit.startSession,
-              onHoldToSpeakEnd: voiceCubit.stopAndExecute,
+              onHoldToSpeakEnd: () => voiceCubit.stopAndExecute(context: context),
               onHoldToSpeakCancel: voiceCubit.closeSession,
               onInnerScrollChanged: (isScrolling) {
                 _isInnerListScrolling = isScrolling;
@@ -274,5 +232,4 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   }
 }
 
-// 🛡️ توافق كامل مع الكود السابق
 typedef SpatialCompassPage = SpatialShellPage;

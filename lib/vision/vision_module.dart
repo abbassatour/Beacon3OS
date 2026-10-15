@@ -27,6 +27,10 @@ class VisionModule extends SpatialModule {
   SoundCue get sonicSignature => SoundCue.navEast;
 
   @override
+  SpatialCoordinate get defaultCoordinate =>
+      const SpatialCoordinate(x: 1, y: 0, floor: 0);
+
+  @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
 
   @override
@@ -49,11 +53,11 @@ class VisionModule extends SpatialModule {
         key: ValueKey('vision_floor_1_view'),
       );
     }
-    return const VisionFloor0View(
-      key: ValueKey('vision_floor_0_view'),
+    // 🌟 الحل الجذري: إرجاع الواجهة المستقلة التي تحقن VisionCubit تلقائياً
+    return const VisionFloor0StandaloneView(
+      key: ValueKey('vision_floor_0_standalone_view'),
     );
   }
 }
 
-// 🛡️ توافق عكسي مع الكود القديم
 typedef SpatialVisionModule = VisionModule;

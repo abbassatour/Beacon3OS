@@ -3,23 +3,24 @@ import 'dart:developer';
 import 'dart:math' as math;
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:http/http.dart' as http;
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' as web3;
 
 /// خدمة الـ Web3 السيادية لإدارة الهوية وتوثيق الطوارئ على شبكة Arbitrum Sepolia
 class Web3Service {
   Web3Service._();
   static final Web3Service instance = Web3Service._();
 
-  Web3Client? _client;
-  EthPrivateKey? _credentials;
-  DeployedContract? _impactContract;
+  web3.Web3Client? _client;
+  web3.EthPrivateKey? _credentials;
+  web3.DeployedContract? _impactContract;
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  /// العنوان الست عشري القياسي (EIP-55 Checksum Address)
+  /// العنوان الست عشري القياسي بصيغة EIP-55 الصريحة
   String get walletAddressHex =>
       _credentials?.address.hexEip55 ??
+      _credentials?.address.hex ??
       '0x0000000000000000000000000000000000000000';
 
   String get shortAddress {
@@ -43,18 +44,18 @@ class Web3Service {
 
     try {
       final httpClient = http.Client();
-      _client = Web3Client(ApiConstants.web3RpcUrl, httpClient);
+      _client = web3.Web3Client(ApiConstants.web3RpcUrl, httpClient);
 
-      // توليد مفتاح تشفير ذاتي للمحفظة السيادية (Sovereign Burner Wallet)
+      // توليد مفتاح تشفير ذاتي للمحفظة السيادية
       final rng = math.Random.secure();
-      _credentials = EthPrivateKey.createRandom(rng);
+      _credentials = web3.EthPrivateKey.createRandom(rng);
 
-      if (ApiConstants.impactContractAddress.isNotEmpty &&
-          ApiConstants.impactContractAddress !=
-              '0x0000000000000000000000000000000000000000') {
-        _impactContract = DeployedContract(
-          ContractAbi.fromJson(_contractAbiJson, 'BeaconImpactPool'),
-          EthereumAddress.fromHex(ApiConstants.impactContractAddress),
+      final contractAddress = ApiConstants.impactContractAddress.trim();
+      if (contractAddress.isNotEmpty &&
+          contractAddress != '0x0000000000000000000000000000000000000000') {
+        _impactContract = web3.DeployedContract(
+          web3.ContractAbi.fromJson(_contractAbiJson, 'BeaconImpactPool'),
+          web3.EthereumAddress.fromHex(contractAddress),
         );
       }
 
@@ -70,7 +71,6 @@ class Web3Service {
     if (!_isInitialized || _client == null || _credentials == null) return 0.0;
     try {
       final amount = await _client!.getBalance(_credentials!.address);
-      // التحويل الرياضي المباشر: 1 ETH = 10^18 Wei
       return amount.getInWei.toDouble() / 1e18;
     } catch (e) {
       log('Web3Service: Error fetching balance: $e');
@@ -94,7 +94,7 @@ class Web3Service {
 
         final txHash = await _client!.sendTransaction(
           _credentials!,
-          Transaction.callContract(
+          web3.Transaction.callContract(
             contract: _impactContract!,
             function: function,
             parameters: [latE6, lngE6, batt],
@@ -123,7 +123,7 @@ class Web3Service {
         final function = _impactContract!.function('logAiInferenceImpact');
         await _client!.sendTransaction(
           _credentials!,
-          Transaction.callContract(
+          web3.Transaction.callContract(
             contract: _impactContract!,
             function: function,
             parameters: [featureType],

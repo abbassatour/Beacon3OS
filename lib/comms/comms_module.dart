@@ -27,6 +27,10 @@ class CommsModule extends SpatialModule {
   SoundCue get sonicSignature => SoundCue.navSouth;
 
   @override
+  SpatialCoordinate get defaultCoordinate =>
+      const SpatialCoordinate(x: 0, y: -1, floor: 0);
+
+  @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
 
   @override
@@ -51,11 +55,11 @@ class CommsModule extends SpatialModule {
         key: ValueKey('comms_floor_1_view'),
       );
     }
-    return const CommsFloor0View(
-      key: ValueKey('comms_floor_0_view'),
+    // 🌟 واجهة مستقلة ذاتياً تدير Cubit الخاص بها
+    return const CommsFloor0StandaloneView(
+      key: ValueKey('comms_floor_0_standalone_view'),
     );
   }
 }
 
-// 🛡️ توافق عكسي مع الكود القديم
 typedef CommunicationsModule = CommsModule;

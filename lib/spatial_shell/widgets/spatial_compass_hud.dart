@@ -38,6 +38,13 @@ class SpatialCompassHud extends StatelessWidget {
     final canAscend = topology.canAscendFrom(currentFloor);
     final canDescend = topology.canDescendFrom(currentFloor);
 
+    // جلب عنوان الغرفة النظيف المحفوظ في قاعدة البيانات
+    final cleanRoomTitle = topology.titleAtCoordinate(activeCoord);
+
+    final semanticLabel = isAtCenter
+        ? 'Current location: $cleanRoomTitle. Floor $currentFloor.'
+        : 'Current location: $cleanRoomTitle. Tap to return to cockpit. Double tap to toggle floor.';
+
     return Positioned(
       top: 10,
       left: 18,
@@ -47,8 +54,7 @@ class SpatialCompassHud extends StatelessWidget {
         children: [
           Expanded(
             child: Semantics(
-              label:
-                  'Spatial compass HUD. Tap to return to cockpit. Double tap to toggle floor.',
+              label: semanticLabel,
               button: true,
               child: GestureDetector(
                 onTap: isAtCenter ? null : onCenterTap,
@@ -85,7 +91,7 @@ class SpatialCompassHud extends StatelessWidget {
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          _getDynamicLabel(context, topology, activeCoord),
+                          _getDynamicLabel(topology, activeCoord),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -194,7 +200,7 @@ class SpatialCompassHud extends StatelessWidget {
             top: top.clamp(0.0, 18.0),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic, // 👈 تم التصحيح لمنع الـ Negative Blur Radius
+              curve: Curves.easeOutCubic,
               width: dotSize,
               height: dotSize,
               decoration: BoxDecoration(
@@ -216,18 +222,13 @@ class SpatialCompassHud extends StatelessWidget {
     );
   }
 
+  /// 🏷️ قراءة العنوان مباشرة من قاعدة البيانات مع حذف الإحداثيات البرمجية (-1, 0)
   String _getDynamicLabel(
-    BuildContext context,
     SpatialTopology topology,
     SpatialCoordinate coord,
   ) {
-    final module = topology.moduleAtCoordinate(coord);
+    final roomName = topology.titleAtCoordinate(coord);
     final prefix = currentFloor != 0 ? 'FL $currentFloor • ' : '';
-    final roomName = module != null
-        ? module.getFloorTitle(currentFloor)
-        : 'ROOM ${coord.formattedCoordinate}';
-
-    final coordSuffix = !coord.isOrigin ? ' ${coord.formattedCoordinate}' : '';
-    return '$prefix$roomName$coordSuffix';
+    return '$prefix$roomName'.toUpperCase();
   }
 }

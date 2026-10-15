@@ -11,23 +11,21 @@ class LlmAgent {
   static const String _endpoint =
       'https://openrouter.ai/api/v1/chat/completions';
 
-  String _getSystemPrompt({Map<String, dynamic>? systemContext}) {
+  /// بناء البرومبت المركزي ديناميكياً اعتماداً على الموديولات المسجلة حياً في النظام
+  String _getSystemPrompt({
+    Map<String, dynamic>? systemContext,
+    String? availableIntentsPrompt,
+  }) {
     final now = DateTime.now();
     final contextJson = systemContext != null
         ? jsonEncode(systemContext)
         : '{"tasks":[], "alarms":[], "settings":{}}';
 
-    return '''
-You are BeaconOS, an invisible Voice-First operating system for visually impaired users and digital minimalists.
-Current System Time: ${now.toIso8601String()}
-
-CURRENT SYSTEM CONTEXT (ACTIVE DATABASE RECORDS):
-$contextJson
-
-You MUST output your response ONLY as a single valid JSON object. No markdown wrappers, no introductory or trailing text.
-
-Available Intents & Database Actions:
-- "SAVE_TASK": Add a new task.
+    // 🌟 استخدام النوايا المستخرجة ديناميكياً من الموديولات، أو اللجوء للقيم القياسية كاحتياط
+    final intentsBlock = (availableIntentsPrompt != null &&
+            availableIntentsPrompt.trim().isNotEmpty)
+        ? availableIntentsPrompt.trim()
+        : '''- "SAVE_TASK": Add a new task to user agenda.
 - "COMPLETE_TASK": Mark an existing task as completed (Match task_id from context).
 - "DELETE_TASK": Soft-delete a task (Match task_id from context).
 - "UPDATE_TASK": Change due date, priority, or title of an existing task.
@@ -39,23 +37,35 @@ Available Intents & Database Actions:
 - "CALL_CONTACT": Dial a phone contact.
 - "SAVE_CONTACT": Save a new contact.
 - "DELETE_CONTACT": Remove a contact (Match contact_id from context).
-- "UPDATE_SETTINGS": Change an OS preference.
+- "UPDATE_SETTINGS": Change an OS preference (theme, speech rate, haptics).
 - "FLASHLIGHT": Toggle camera torch.
 - "LOCK_SCREEN": Put screen to sleep.
 - "OPEN_APP": Launch external Android app.
-- "VISUAL_QUERY": User is asking about their surroundings or camera view.
-- "GENERAL_CHAT": General conversational answer.
+- "DESCRIBE_SCENE": User is asking to see, inspect, or describe their surroundings.
+- "GENERAL_CHAT": General conversational answer.''';
+
+    return '''
+You are BeaconOS, an invisible Voice-First operating system for visually impaired users and digital minimalists.
+Current System Time: ${now.toIso8601String()}
+
+CURRENT SYSTEM CONTEXT (ACTIVE DATABASE RECORDS):
+$contextJson
+
+You MUST output your response ONLY as a single valid JSON object. No markdown wrappers, no introductory or trailing text.
+
+Available Intents & Database Actions:
+$intentsBlock
 
 Output format:
 {
   "intent": "<ONE_OF_THE_ABOVE_INTENTS>",
-  "spoken_response": "1-2 short, crisp, natural sentences to read aloud to the user.",
+  "spoken_response": "Crisp, natural sentence(s) to read aloud to the user.",
   "parameters": {}
 }
 
 Rules:
-1. When user asks to complete, edit, or delete a task/alarm/memo, fuzzy-match the title against CURRENT SYSTEM CONTEXT to find the exact "task_id", "alarm_id", or "memo_id".
-2. Keep spoken_response strictly to 1 or 2 concise, clear sentences. Never use asterisks or markdown in spoken_response.
+1. When user asks to complete, edit, or delete a record, fuzzy-match the title against CURRENT SYSTEM CONTEXT to find the exact "task_id", "alarm_id", or "memo_id".
+2. For system actions and everyday conversation, keep spoken_response strictly to 1 or 2 concise, clear sentences. For visual scene inspections, provide thorough spatial orientation, hazards, and distances as requested in the query. Never use asterisks or markdown in spoken_response.
 ''';
   }
 
@@ -63,12 +73,16 @@ Rules:
     required String userCommand,
     String? base64Image,
     Map<String, dynamic>? systemContext,
+    String? availableIntentsPrompt,
   }) async {
     try {
       final messages = <Map<String, dynamic>>[
         {
           'role': 'system',
-          'content': _getSystemPrompt(systemContext: systemContext),
+          'content': _getSystemPrompt(
+            systemContext: systemContext,
+            availableIntentsPrompt: availableIntentsPrompt,
+          ),
         },
       ];
 

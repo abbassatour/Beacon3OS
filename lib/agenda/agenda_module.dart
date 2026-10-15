@@ -27,6 +27,10 @@ class AgendaModule extends SpatialModule {
   SoundCue get sonicSignature => SoundCue.navWest;
 
   @override
+  SpatialCoordinate get defaultCoordinate =>
+      const SpatialCoordinate(x: -1, y: 0, floor: 0);
+
+  @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
 
   @override
@@ -53,8 +57,9 @@ class AgendaModule extends SpatialModule {
         key: ValueKey('agenda_floor_1_view'),
       );
     }
-    return const AgendaFloor0View(
-      key: ValueKey('agenda_floor_0_view'),
+    // 🌟 واجهة مستقلة ذاتياً تدير Cubit الخاص بها
+    return const AgendaFloor0StandaloneView(
+      key: ValueKey('agenda_floor_0_standalone_view'),
     );
   }
 }

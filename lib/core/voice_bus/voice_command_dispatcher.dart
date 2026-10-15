@@ -28,6 +28,7 @@ class VoiceCommandDispatcher {
   final SoundController _sound;
   final HapticManager _haptics;
 
+  /// جمع جميع النوايا الصوتية من كافة الموديولات المسجلة في الطوبولوجيا
   List<VoiceIntentHandler> get _registeredHandlers {
     final handlers = <VoiceIntentHandler>[];
     for (final module in _topology.allModules) {
@@ -55,7 +56,7 @@ class VoiceCommandDispatcher {
 
     final handlers = _registeredHandlers;
 
-    // ⚡ المستوى 1: المسار السريع الفوري (Sub-5ms Fast Path - دون أي استعلام قاعدة بيانات)
+    // ⚡ المستوى 1: المسار السريع الفوري (Sub-5ms Fast Path)
     for (final handler in handlers) {
       if (handler.canHandle(intentContext)) {
         log('VoiceDispatcher: ⚡ Fast-path matched [${handler.intentId}] for query: "$rawQuery"');
@@ -71,16 +72,23 @@ class VoiceCommandDispatcher {
     }
 
     // 🧠 المستوى 2: المعالجة التوليدية بالذكاء الاصطناعي (Gemini 2.0 Flash)
-    // 💡 جلب السياق فقط عند هذه اللحظة لمنع إبطاء الأوامر المحلية
     log('VoiceDispatcher: 🧠 Invoking Gemini 2.0 Multimodal...');
     try {
       final resolvedContext =
           systemContext ?? (await contextProvider?.call() ?? {});
 
+      // 🌟 تجميع توصيفات النوايا المتاحة في النظام برمجياً وبشكل ديناميكي كامل
+      final dynamicIntentsDoc = handlers
+          .map((h) => h.promptDocumentation)
+          .where((doc) => doc.trim().isNotEmpty)
+          .join('\n');
+
       final llmResult = await _assistant.processLlmCommand(
         userCommand: rawQuery,
         base64Image: base64Image,
         systemContext: resolvedContext,
+        availableIntentsPrompt:
+            dynamicIntentsDoc.isNotEmpty ? dynamicIntentsDoc : null,
       );
 
       final intentName = llmResult['intent'] as String? ?? 'GENERAL_CHAT';

@@ -5,6 +5,7 @@ import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
+import 'package:beacon_os/core/topology/spatial_module_registry.dart';
 import 'package:beacon_os/core/voice_bus/ambient_voice/ambient_voice_state.dart';
 import 'package:beacon_os/core/voice_bus/voice_command_dispatcher.dart';
 import 'package:bloc/bloc.dart';
@@ -20,6 +21,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     required FocusAlarmsRepository focusAlarmsRepository,
     required SettingsRepository settingsRepository,
     CommsRepository? commsRepository,
+    GlobalKey<NavigatorState>? navigatorKey,
     SoundController? soundController,
     HapticManager? hapticManager,
   })  : _assistant = assistantRepository,
@@ -28,6 +30,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
         _focusRepo = focusAlarmsRepository,
         _settingsRepo = settingsRepository,
         _commsRepo = commsRepository,
+        _navigatorKey = navigatorKey,
         _sound = soundController ?? SoundController.instance,
         _haptics = hapticManager ?? HapticManager.instance,
         super(const AmbientVoiceState());
@@ -38,6 +41,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
   final FocusAlarmsRepository _focusRepo;
   final SettingsRepository _settingsRepo;
   final CommsRepository? _commsRepo;
+  final GlobalKey<NavigatorState>? _navigatorKey;
   final SoundController _sound;
   final HapticManager _haptics;
 
@@ -146,11 +150,13 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
       return;
     }
 
-    // ⚡️ تمرير _fetchLiveSystemContext كـ Provider يتم استدعاؤه كسولاً فقط إذا احتاجه الموديل
+    final activeContext = context ?? _navigatorKey?.currentContext;
+
+    // ⚡ تمرير مجمّع السياق الديناميكي المستقل
     final result = await _dispatcher.dispatchAndAnnounce(
       effectiveQuery,
-      context: context,
-      contextProvider: _fetchLiveSystemContext,
+      context: activeContext,
+      contextProvider: () => _fetchLiveSystemContext(activeContext),
     );
 
     final isError =
@@ -173,12 +179,14 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     });
   }
 
-  /// تجميع سياق النظام بشكل متوازٍ ومحصن بمهلات زمنية وسقف للبيانات
-  Future<Map<String, dynamic>> _fetchLiveSystemContext() async {
+  /// تجميع سياق النظام: يجمع البيانات الأساسية بالتوازي + يمر على الموديولات المسجلة في السجل
+  Future<Map<String, dynamic>> _fetchLiveSystemContext([
+    BuildContext? context,
+  ]) async {
     try {
       const timeout = Duration(milliseconds: 700);
 
-      // 🚀 تنفيذ الاستعلامات بالتوازي عبر Future.wait بدلاً من التسلسل البطيء
+      // 1. جمع البيانات الأساسية بالتوازي
       final results = await Future.wait([
         _tasksRepo.getPendingTasks().timeout(timeout, onTimeout: () => []),
         _focusRepo.watchAlarms().first.timeout(timeout, onTimeout: () => []),
@@ -204,7 +212,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
                 visionInspectionDetail: 'concise',
                 autoFlashlightInDark: true,
                 preferredCurrency: 'USD / Local',
-                updatedAt: DateTime.now(), // 👈 استبدال null بـ DateTime.now() وإزالة const
+                updatedAt: DateTime.now(),
                 isSynced: true,
               ),
             ),
@@ -214,14 +222,13 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
             : Future.value(<Contact>[]),
       ]);
 
-      // 🛡️ تحديد سقف منطقي لحجم البيانات لحماية التوكنز وتسريع الاستجابة
       final tasks = (results[0] as List<Task>).take(15).toList();
       final alarms = (results[1] as List<Alarm>).take(10).toList();
       final settings = results[2] as AppSetting;
       final memos = (results[3] as List<VoiceMemo>).take(5).toList();
       final contacts = (results[4] as List<Contact>).take(20).toList();
 
-      return {
+      final aggregatedContext = <String, dynamic>{
         'tasks': tasks
             .map((t) => {
                   'id': t.id,
@@ -268,6 +275,24 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
           'preferred_currency': settings.preferredCurrency,
         },
       };
+
+      // 🌟 2. استطلاع سياق الموديولات المسجلة في السجل المركزي تلقائياً
+      if (context != null) {
+        for (final module in SpatialModuleRegistry.instance.allModules) {
+          try {
+            final modCtx = await module
+                .getVoiceContext(context)
+                .timeout(const Duration(milliseconds: 200), onTimeout: () => null);
+            if (modCtx != null && modCtx.isNotEmpty) {
+              aggregatedContext[module.id] = modCtx;
+            }
+          } catch (e) {
+            log('AmbientVoiceCubit: Context poll skipped for [${module.id}]: $e');
+          }
+        }
+      }
+
+      return aggregatedContext;
     } catch (e, st) {
       log('AmbientVoiceCubit: Exception while assembling system context: $e',
           stackTrace: st);

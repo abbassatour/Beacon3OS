@@ -34,6 +34,7 @@ abstract class AssistantRepository {
     required String userCommand,
     String? base64Image,
     Map<String, dynamic>? systemContext,
+    String? availableIntentsPrompt,
   });
 }
 
@@ -83,7 +84,7 @@ class AssistantRepositoryImpl implements AssistantRepository {
     Function(String text, bool isFinal)? onResult,
     Function(double level)? onSoundLevel,
   }) async {
-    // 🛡️ حماية حاسمة: إيقاف النطق فوراً قبل فتح الميكروفون لمنع ارتداد صوت السماعة
+    // 🛡️ إيقاف النطق فوراً قبل فتح الميكروفون لمنع ارتداد صوت السماعة
     await _tts.stop();
     await _speech.startListening(
       onResult: onResult,
@@ -121,11 +122,13 @@ class AssistantRepositoryImpl implements AssistantRepository {
     required String userCommand,
     String? base64Image,
     Map<String, dynamic>? systemContext,
+    String? availableIntentsPrompt,
   }) {
     return _llm.processCommand(
       userCommand: userCommand,
       base64Image: base64Image,
       systemContext: systemContext,
+      availableIntentsPrompt: availableIntentsPrompt,
     );
   }
 }

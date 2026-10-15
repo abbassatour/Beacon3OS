@@ -74,251 +74,253 @@ class _TvShellPageState extends State<TvShellPage> {
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. شريط الحالة العلوي لشاشة التلفزيون
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colors.primary, width: 1.5),
-                      ),
-                      child: Icon(Icons.tv_rounded, color: colors.primary, size: 28),
-                    ),
-                    const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'BEACON OS • FIRE TV CANVAS',
-                          style: TextStyle(
-                            color: colors.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.0,
-                          ),
-                        ),
-                        Text(
-                          'Living Room Ambient Bridge & Family Radar',
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    // شارة Alexa MCP
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.green),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.wifi_tethering_rounded, color: Colors.green, size: 16),
-                          SizedBox(width: 6),
-                          Text(
-                            'ALEXA+ MCP',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // 🌟 شارة Arbitrum L2
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: colors.primary),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.verified_rounded, color: colors.primary, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            'ARBITRUM L2',
-                            style: TextStyle(
-                              color: colors.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          timeStr,
-                          style: TextStyle(
-                            color: colors.onSurface,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          dateStr,
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 2. راية التنبيه اللحظي عند استدعاء أليكسا أو إطلاق SOS
-            if (_activeAlert != null) ...[
-              _buildLiveAlertBanner(context, _activeAlert!),
-              const SizedBox(height: 18),
-            ],
-
-            // 3. المحتوى الرئيسي المقسم لشبكة تلفزيونية عريضة قابلة للتنقل بالريموت
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. شريط الحالة العلوي لشاشة التلفزيون
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // العمود الأيسر: الرادار التفاعلي وبحث الهاتف
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          flex: 6,
-                          child: _TvCard(
-                            focusNode: _locateCardFocus,
-                            title: 'ACOUSTIC PHONE LOCATOR',
-                            subtitle: 'Say "Alexa, find my Beacon phone" or press Select',
-                            icon: Icons.radar_rounded,
-                            accentColor: colors.primary,
-                            onSelect: () {
-                              context.read<CommsRepository>().executeLocateDevice();
-                            },
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 46,
-                                    backgroundColor: colors.primary.withValues(alpha: 0.15),
-                                    child: Icon(Icons.phonelink_ring_rounded, size: 48, color: colors.primary),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'PING PHONE HARDWARE',
-                                    style: TextStyle(
-                                      color: colors.onSurface,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 16,
-                                      letterSpacing: 1.2,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: colors.primary, width: 1.5),
+                        ),
+                        child: Icon(Icons.tv_rounded, color: colors.primary, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'BEACON OS • FIRE TV CANVAS',
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                          Text(
+                            'Living Room Ambient Bridge & Family Radar',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      // شارة Alexa MCP
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.wifi_tethering_rounded, color: Colors.green, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'ALEXA+ MCP',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // 🌟 شارة Arbitrum L2
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: colors.primary),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.verified_rounded, color: colors.primary, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'ARBITRUM L2',
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            dateStr,
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // 2. راية التنبيه اللحظي عند استدعاء أليكسا أو إطلاق SOS
+              if (_activeAlert != null) ...[
+                _buildLiveAlertBanner(context, _activeAlert!),
+                const SizedBox(height: 14),
+              ],
+
+              // 3. المحتوى الرئيسي المقسم لشبكة تلفزيونية عريضة قابلة للتنقل بالريموت
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // العمود الأيسر: الرادار التفاعلي وبحث الهاتف
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: _TvCard(
+                              focusNode: _locateCardFocus,
+                              title: 'ACOUSTIC PHONE LOCATOR',
+                              subtitle: 'Say "Alexa, find my Beacon phone" or press Select',
+                              icon: Icons.radar_rounded,
+                              accentColor: colors.primary,
+                              onSelect: () {
+                                context.read<CommsRepository>().executeLocateDevice();
+                              },
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 42,
+                                      backgroundColor: colors.primary.withValues(alpha: 0.15),
+                                      child: Icon(Icons.phonelink_ring_rounded, size: 44, color: colors.primary),
                                     ),
-                                  ),
-                                  Text(
-                                    'Triggers 100% siren, flashlight strobe & vibration',
-                                    style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'PING PHONE HARDWARE',
+                                      style: TextStyle(
+                                        color: colors.onSurface,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Triggers 100% siren, flashlight strobe & vibration',
+                                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            flex: 4,
+                            child: _TvCard(
+                              focusNode: _sosCardFocus,
+                              title: 'FAMILY SAFETY RADAR (ARBITRUM SOS)',
+                              subtitle: 'Press Select to broadcast test rescue radar & attestation',
+                              icon: Icons.emergency_rounded,
+                              accentColor: colors.error,
+                              onSelect: () {
+                                context.read<CommsRepository>().triggerEmergencySos();
+                              },
+                              child: Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded, size: 34, color: colors.error),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Triple-tap on Beacon Phone sends coordinates to this screen and anchors an on-chain record on Arbitrum Sepolia.',
+                                      style: TextStyle(color: colors.onSurface, fontSize: 12, height: 1.35),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          flex: 4,
-                          child: _TvCard(
-                            focusNode: _sosCardFocus,
-                            title: 'FAMILY SAFETY RADAR (ARBITRUM SOS)',
-                            subtitle: 'Press Select to broadcast test rescue radar & attestation',
-                            icon: Icons.emergency_rounded,
-                            accentColor: colors.error,
-                            onSelect: () {
-                              context.read<CommsRepository>().triggerEmergencySos();
-                            },
-                            child: Row(
-                              children: [
-                                Icon(Icons.warning_amber_rounded, size: 36, color: colors.error),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    'Triple-tap on Beacon Phone sends coordinates to this screen and anchors an on-chain record on Arbitrum Sepolia.',
-                                    style: TextStyle(color: colors.onSurface, fontSize: 13, height: 1.4),
-                                  ),
-                                ),
-                              ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+
+                    // العمود الأيمن: الأجندة وقمرة القيادة المزامنة
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: _TvCard(
+                              focusNode: _agendaFocus,
+                              title: 'AGENDA & PRIORITIES',
+                              subtitle: 'Synced in real-time from mobile vault',
+                              icon: Icons.calendar_today_rounded,
+                              accentColor: colors.secondary,
+                              child: _TvTasksList(),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-
-                  // العمود الأيمن: الأجندة وقمرة القيادة المزامنة
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          flex: 6,
-                          child: _TvCard(
-                            focusNode: _agendaFocus,
-                            title: 'AGENDA & PRIORITIES',
-                            subtitle: 'Synced in real-time from mobile vault',
-                            icon: Icons.calendar_today_rounded,
-                            accentColor: colors.secondary,
-                            child: _TvTasksList(),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            flex: 4,
+                            child: _TvCard(
+                              focusNode: _alarmsFocus,
+                              title: 'UPCOMING ALARMS',
+                              subtitle: 'Synchronized with Android Clock',
+                              icon: Icons.alarm_rounded,
+                              accentColor: colors.primary,
+                              child: _TvAlarmsList(),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          flex: 4,
-                          child: _TvCard(
-                            focusNode: _alarmsFocus,
-                            title: 'UPCOMING ALARMS',
-                            subtitle: 'Synchronized with Android Clock',
-                            icon: Icons.alarm_rounded,
-                            accentColor: colors.primary,
-                            child: _TvAlarmsList(),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -329,15 +331,15 @@ class _TvShellPageState extends State<TvShellPage> {
     final isSos = alert.actionType == RemoteActionType.triggerSos;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: isSos ? colors.error : colors.primary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: (isSos ? colors.error : colors.primary).withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -346,9 +348,9 @@ class _TvShellPageState extends State<TvShellPage> {
           Icon(
             isSos ? Icons.warning_rounded : Icons.cell_tower_rounded,
             color: Colors.white,
-            size: 32,
+            size: 28,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +362,7 @@ class _TvShellPageState extends State<TvShellPage> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 16,
+                    fontSize: 15,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -368,7 +370,7 @@ class _TvShellPageState extends State<TvShellPage> {
                   isSos
                       ? 'Live GPS broadcast received and verified on Arbitrum Sepolia ledger.'
                       : 'Living room query actuated phone siren and strobe flashlight.',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -376,10 +378,11 @@ class _TvShellPageState extends State<TvShellPage> {
           OutlinedButton(
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white, width: 2),
+              side: const BorderSide(color: Colors.white, width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
             onPressed: () => setState(() => _activeAlert = null),
-            child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ],
       ),
@@ -427,19 +430,19 @@ class _TvCardState extends State<_TvCard> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: colors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _isFocused ? widget.accentColor : colors.outline.withValues(alpha: 0.6),
-            width: _isFocused ? 3.0 : 1.2,
+            width: _isFocused ? 2.5 : 1.2,
           ),
           boxShadow: [
             if (_isFocused)
               BoxShadow(
                 color: widget.accentColor.withValues(alpha: 0.35),
-                blurRadius: 24,
+                blurRadius: 20,
                 spreadRadius: 2,
               ),
           ],
@@ -449,8 +452,8 @@ class _TvCardState extends State<_TvCard> {
           children: [
             Row(
               children: [
-                Icon(widget.icon, color: widget.accentColor, size: 22),
-                const SizedBox(width: 10),
+                Icon(widget.icon, color: widget.accentColor, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,7 +463,7 @@ class _TvCardState extends State<_TvCard> {
                         style: TextStyle(
                           color: colors.onSurface,
                           fontWeight: FontWeight.w900,
-                          fontSize: 13,
+                          fontSize: 12,
                           letterSpacing: 1.1,
                         ),
                       ),
@@ -473,7 +476,7 @@ class _TvCardState extends State<_TvCard> {
                 ),
                 if (_isFocused)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: widget.accentColor,
                       borderRadius: BorderRadius.circular(6),
@@ -485,7 +488,7 @@ class _TvCardState extends State<_TvCard> {
                   ),
               ],
             ),
-            const Divider(height: 20),
+            const Divider(height: 16),
             Expanded(child: widget.child),
           ],
         ),
@@ -509,7 +512,7 @@ class _TvTasksList extends StatelessWidget {
           return Center(
             child: Text(
               'Zero pending priorities! Agenda is clear.',
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
             ),
           );
         }
@@ -519,25 +522,25 @@ class _TvTasksList extends StatelessWidget {
           itemBuilder: (context, index) {
             final task = tasks[index];
             return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: context.scaffoldBg.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.radio_button_unchecked_rounded, size: 16, color: colors.primary),
-                  const SizedBox(width: 12),
+                  Icon(Icons.radio_button_unchecked_rounded, size: 15, color: colors.primary),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       task.title,
-                      style: TextStyle(color: colors.onSurface, fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: colors.onSurface, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                   Text(
                     task.priority.toUpperCase(),
-                    style: TextStyle(color: colors.secondary, fontSize: 10, fontWeight: FontWeight.w900),
+                    style: TextStyle(color: colors.secondary, fontSize: 9, fontWeight: FontWeight.w900),
                   ),
                 ],
               ),
@@ -580,18 +583,18 @@ class _TvAlarmsList extends StatelessWidget {
             children: [
               Text(
                 '$hour12:$minStr $period',
-                style: TextStyle(color: colors.onSurface, fontSize: 32, fontWeight: FontWeight.w900),
+                style: TextStyle(color: colors.onSurface, fontSize: 28, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
                   color: colors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   next.label,
-                  style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 11),
                 ),
               ),
             ],
