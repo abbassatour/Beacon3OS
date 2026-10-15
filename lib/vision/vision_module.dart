@@ -6,6 +6,8 @@ import 'package:beacon_os/vision/intents/vision_intents.dart';
 import 'package:beacon_os/vision/view/vision_floor_0_view.dart';
 import 'package:beacon_os/vision/view/vision_floor_1_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class VisionModule extends SpatialModule {
   VisionModule._();
@@ -40,6 +42,21 @@ class VisionModule extends SpatialModule {
   }
 
   @override
+  Future<Map<String, dynamic>?> getVoiceContext(BuildContext context) async {
+    try {
+      final settingsRepo = context.read<SettingsRepository>();
+      final settings = await settingsRepo.getSettings();
+      return {
+        'vision_inspection_detail': settings.visionInspectionDetail,
+        'preferred_currency': settings.preferredCurrency,
+        'auto_flashlight_in_dark': settings.autoFlashlightInDark,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   List<VoiceIntentHandler> get voiceIntents => [
         DescribeSceneIntentHandler(),
         ReadTextVisionIntentHandler(),
@@ -53,7 +70,6 @@ class VisionModule extends SpatialModule {
         key: ValueKey('vision_floor_1_view'),
       );
     }
-    // 🌟 الحل الجذري: إرجاع الواجهة المستقلة التي تحقن VisionCubit تلقائياً
     return const VisionFloor0StandaloneView(
       key: ValueKey('vision_floor_0_standalone_view'),
     );

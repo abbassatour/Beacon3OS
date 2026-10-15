@@ -1,5 +1,6 @@
 // lib/desktop/view/desktop_topology_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
+import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/desktop/cubit/desktop_topology_cubit.dart';
 import 'package:beacon_os/desktop/cubit/desktop_topology_state.dart';
 import 'package:flutter/material.dart';
@@ -9,37 +10,13 @@ import 'package:local_vault_api/local_vault_api.dart';
 
 extension on String {
   IconData get moduleIcon {
-    switch (this) {
-      case 'cockpit':
-        return Icons.dashboard_rounded;
-      case 'focus':
-        return Icons.hourglass_top_rounded;
-      case 'comms':
-        return Icons.chat_bubble_outline_rounded;
-      case 'vision':
-        return Icons.visibility_rounded;
-      case 'agenda':
-        return Icons.calendar_today_rounded;
-      default:
-        return Icons.widgets_rounded;
-    }
+    final module = SpatialModuleRegistry.instance.get(this);
+    return module?.icon ?? Icons.widgets_rounded;
   }
 
   String get defaultTitle {
-    switch (this) {
-      case 'cockpit':
-        return 'Today Cockpit';
-      case 'focus':
-        return 'Focus & Alarms';
-      case 'comms':
-        return 'Communications';
-      case 'vision':
-        return 'AI Vision Studio';
-      case 'agenda':
-        return 'Agenda & Tasks';
-      default:
-        return 'Custom Module';
-    }
+    final module = SpatialModuleRegistry.instance.get(this);
+    return module?.title ?? 'Custom Module';
   }
 }
 

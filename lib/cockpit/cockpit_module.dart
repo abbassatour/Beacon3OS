@@ -60,6 +60,7 @@ class CockpitModule extends SpatialModule {
         TimeDateIntentHandler(),
         DailyBriefingIntentHandler(),
         OpenAppIntentHandler(),
+        UpdateSettingsIntentHandler(),
       ];
 
   @override
@@ -69,7 +70,6 @@ class CockpitModule extends SpatialModule {
         key: ValueKey('cockpit_floor_1_view'),
       );
     }
-    // 🌟 واجهة مستقلة ذاتياً تدير Cubit الخاص بها
     return const CockpitFloor0StandaloneView(
       key: ValueKey('cockpit_floor_0_standalone_view'),
     );

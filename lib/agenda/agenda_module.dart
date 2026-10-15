@@ -6,6 +6,8 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class AgendaModule extends SpatialModule {
   AgendaModule._();
@@ -40,6 +42,20 @@ class AgendaModule extends SpatialModule {
   }
 
   @override
+  Future<Map<String, dynamic>?> getVoiceContext(BuildContext context) async {
+    try {
+      final tasksRepo = context.read<TaskAgendaRepository>();
+      final pending = await tasksRepo.getPendingTasks();
+      return {
+        'pending_tasks_count': pending.length,
+        'top_pending_task': pending.isNotEmpty ? pending.first.title : null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   List<VoiceIntentHandler> get voiceIntents => [
         ReadTasksIntentHandler(),
         SaveTaskIntentHandler(),
@@ -57,7 +73,6 @@ class AgendaModule extends SpatialModule {
         key: ValueKey('agenda_floor_1_view'),
       );
     }
-    // 🌟 واجهة مستقلة ذاتياً تدير Cubit الخاص بها
     return const AgendaFloor0StandaloneView(
       key: ValueKey('agenda_floor_0_standalone_view'),
     );

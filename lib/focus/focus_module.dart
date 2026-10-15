@@ -6,6 +6,8 @@ import 'package:beacon_os/focus/intents/focus_intents.dart';
 import 'package:beacon_os/focus/view/focus_floor_0_view.dart';
 import 'package:beacon_os/focus/view/focus_floor_1_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class FocusModule extends SpatialModule {
   FocusModule._();
@@ -40,6 +42,23 @@ class FocusModule extends SpatialModule {
   }
 
   @override
+  Future<Map<String, dynamic>?> getVoiceContext(BuildContext context) async {
+    try {
+      final focusRepo = context.read<FocusAlarmsRepository>();
+      final alarms = await focusRepo.watchAlarms().first;
+      final activeAlarms = alarms.where((a) => a.isActive).toList();
+      return {
+        'active_alarms_count': activeAlarms.length,
+        'next_alarm': activeAlarms.isNotEmpty
+            ? '${activeAlarms.first.hour}:${activeAlarms.first.minute.toString().padLeft(2, '0')}'
+            : null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   List<VoiceIntentHandler> get voiceIntents => [
         SetAlarmIntentHandler(),
         ToggleAlarmIntentHandler(),
@@ -53,7 +72,6 @@ class FocusModule extends SpatialModule {
         key: ValueKey('focus_floor_1_view'),
       );
     }
-    // 🌟 الحل الجذري: إرجاع الواجهة المستقلة التي تحقن FocusCubit تلقائياً
     return const FocusFloor0StandaloneView(
       key: ValueKey('focus_floor_0_standalone_view'),
     );

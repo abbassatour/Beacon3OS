@@ -1,6 +1,6 @@
 // lib/vision/intents/vision_intents.dart
 import 'package:beacon_os/core/services/camera_service.dart';
-import 'package:beacon_os/core/voice_bus/voice_bus.dart'; // 👈 السطر المضاف الذي يحل الخطأ
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -18,6 +18,13 @@ class DescribeSceneIntentHandler extends VoiceIntentHandler {
         r'^(?:look|see|what is in front of me|describe scene|what do you see|inspect scene)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Capture a camera frame and describe the immediate physical surroundings, obstacles, walking hazards, or scene layout for blind users.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {};
 
   @override
   Future<LauncherCommandResult> execute(
@@ -53,8 +60,9 @@ class DescribeSceneIntentHandler extends VoiceIntentHandler {
     );
 
     return LauncherCommandResult(
-      intent: 'DESCRIBE_SCENE',
+      intent: intentId,
       spokenResponse: spokenResult,
+      actionPayload: spokenResult,
     );
   }
 }
@@ -72,6 +80,13 @@ class ReadTextVisionIntentHandler extends VoiceIntentHandler {
         r'^(?:read this|read text|read document|read paper|read sign)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Read aloud all visible printed or digital text, document headings, signs, or packaging labels in front of the camera.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {};
 
   @override
   Future<LauncherCommandResult> execute(
@@ -99,8 +114,9 @@ class ReadTextVisionIntentHandler extends VoiceIntentHandler {
     );
 
     return LauncherCommandResult(
-      intent: 'READ_DOCUMENT_TEXT',
+      intent: intentId,
       spokenResponse: spokenResult,
+      actionPayload: spokenResult,
     );
   }
 }
@@ -120,12 +136,23 @@ class IdentifyCurrencyIntentHandler extends VoiceIntentHandler {
       );
 
   @override
+  String get llmDescription =>
+      'Identify, count, and announce the banknotes or coins visible in front of the camera with exact denomination value.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'preferred_currency':
+            'Optional currency code or format (e.g., USD, EUR, GBP, SAR).',
+      };
+
+  @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
     final assistantRepo = context.read<AssistantRepository>();
     final settingsRepo = context.read<SettingsRepository>();
+    final params = intentContext.llmParameters;
 
     String? base64Image = intentContext.base64Image;
     if (base64Image == null || base64Image.isEmpty) {
@@ -140,7 +167,8 @@ class IdentifyCurrencyIntentHandler extends VoiceIntentHandler {
     }
 
     final settings = await settingsRepo.getSettings();
-    final currencyPref = settings.preferredCurrency;
+    final currencyPref =
+        params['preferred_currency'] as String? ?? settings.preferredCurrency;
 
     final spokenResult = await assistantRepo.analyzeVisionFrame(
       base64Image: base64Image,
@@ -149,8 +177,9 @@ class IdentifyCurrencyIntentHandler extends VoiceIntentHandler {
     );
 
     return LauncherCommandResult(
-      intent: 'IDENTIFY_CURRENCY',
+      intent: intentId,
       spokenResponse: spokenResult,
+      actionPayload: spokenResult,
     );
   }
 }

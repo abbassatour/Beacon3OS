@@ -1,10 +1,11 @@
 // lib/cockpit/intents/cockpit_intents.dart
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-
+import 'package:local_vault_api/local_vault_api.dart';
 /// معالج فحص مستوى البطارية بالمسار السريع (Sub-5ms)
 class BatteryStatusIntentHandler extends VoiceIntentHandler {
   @override
@@ -237,5 +238,116 @@ class OpenAppIntentHandler extends VoiceIntentHandler {
         actionPayload: appTarget,
       );
     }
+  }
+}
+
+/// معالج تحديث إعدادات النظام صوتياً بالمسار السريع (Sub-5ms Fast Path)
+class UpdateSettingsIntentHandler extends VoiceIntentHandler {
+  @override
+  String get intentId => 'UPDATE_SETTINGS';
+
+  @override
+  int get priority => 80;
+
+  @override
+  RegExp get fastPathPattern => RegExp(
+        r'^(?:turn (?:on|off)|enable|disable|toggle|set)\s+(?:high contrast|haptics|sound cues|sounds?|speech rate|reading speed)',
+        caseSensitive: false,
+      );
+
+  @override
+  String get llmDescription =>
+      'Update system settings such as high contrast theme, sound cues, haptics, or speech rate';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'setting': 'Which setting to update (high_contrast, haptics, sound_cues, speech_rate)',
+        'value': 'Target value (true, false, or numeric rate)',
+      };
+
+  @override
+  Future<LauncherCommandResult> execute(
+    BuildContext context,
+    VoiceIntentContext intentContext,
+  ) async {
+    final settingsRepo = context.read<SettingsRepository>();
+    final query = intentContext.normalizedQuery;
+    final params = intentContext.llmParameters;
+
+    final isOff = query.contains('off') || query.contains('disable');
+    final isOn = query.contains('on') || query.contains('enable');
+
+    // 1. التباين العالي (High Contrast)
+    if (query.contains('contrast') || params['setting'] == 'high_contrast') {
+      final current = await settingsRepo.getSettings();
+      final enable = isOn ? true : (isOff ? false : !current.isHighContrast);
+
+      await settingsRepo.updateSettings(
+        AppSettingsCompanion(isHighContrast: Value(enable)),
+      );
+
+      return LauncherCommandResult(
+        intent: 'UPDATE_SETTINGS',
+        spokenResponse: enable ? 'High contrast display enabled.' : 'High contrast disabled.',
+      );
+    }
+
+    // 2. الاهتزازات التكتيكية (Haptics)
+    if (query.contains('haptic') || params['setting'] == 'haptics') {
+      final current = await settingsRepo.getSettings();
+      final enable = isOn ? true : (isOff ? false : !current.hapticsEnabled);
+
+      await settingsRepo.updateSettings(
+        AppSettingsCompanion(hapticsEnabled: Value(enable)),
+      );
+
+      return LauncherCommandResult(
+        intent: 'UPDATE_SETTINGS',
+        spokenResponse: enable ? 'Tactile haptics enabled.' : 'Tactile haptics turned off.',
+      );
+    }
+
+    // 3. الأصوات ونغمات البوصلة (Sound Cues)
+    if (query.contains('sound') || params['setting'] == 'sound_cues') {
+      final current = await settingsRepo.getSettings();
+      final enable = isOn ? true : (isOff ? false : !current.soundCuesEnabled);
+
+      await settingsRepo.updateSettings(
+        AppSettingsCompanion(soundCuesEnabled: Value(enable)),
+      );
+
+      return LauncherCommandResult(
+        intent: 'UPDATE_SETTINGS',
+        spokenResponse: enable ? 'Spatial sound cues enabled.' : 'Sound cues turned off.',
+      );
+    }
+
+    // 4. سرعة نطق الصوت (Speech Rate)
+    if (query.contains('speech rate') || query.contains('speed') || params['setting'] == 'speech_rate') {
+      final assistantRepo = context.read<AssistantRepository>();
+      final current = await settingsRepo.getSettings();
+      var newRate = current.speechRate;
+
+      if (query.contains('faster') || query.contains('increase')) {
+        newRate = (current.speechRate + 0.1).clamp(0.3, 1.0);
+      } else if (query.contains('slower') || query.contains('decrease')) {
+        newRate = (current.speechRate - 0.1).clamp(0.3, 1.0);
+      }
+
+      await assistantRepo.setSpeechRate(newRate);
+      await settingsRepo.updateSettings(
+        AppSettingsCompanion(speechRate: Value(newRate)),
+      );
+
+      return LauncherCommandResult(
+        intent: 'UPDATE_SETTINGS',
+        spokenResponse: 'Speech speed set to ${(newRate * 2).toStringAsFixed(1)} times.',
+      );
+    }
+
+    return const LauncherCommandResult(
+      intent: 'UPDATE_SETTINGS_FAILED',
+      spokenResponse: 'Could not recognize which setting to update.',
+    );
   }
 }

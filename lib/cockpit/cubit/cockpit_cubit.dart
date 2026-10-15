@@ -43,26 +43,34 @@ class CockpitCubit extends Cubit<CockpitState> {
     emit(state.copyWith(status: CockpitStatus.loading));
 
     _alarmsSub = _focusRepo.watchAlarms().listen((alarms) {
+      if (isClosed) return;
       emit(state.copyWith(alarms: alarms, status: CockpitStatus.success));
     });
 
     _tasksSub = _tasksRepo.watchTasks().listen((tasks) {
+      if (isClosed) return;
       emit(state.copyWith(tasks: tasks, status: CockpitStatus.success));
     });
 
     _memosSub = _tasksRepo.watchMemos().listen((memos) {
+      if (isClosed) return;
       emit(state.copyWith(memos: memos, status: CockpitStatus.success));
     });
 
     refreshBattery();
 
     _batteryTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      refreshBattery();
+      if (!isClosed) {
+        refreshBattery();
+      }
     });
   }
 
+  /// تحديث حالة البطارية بأمان مع حماية دورة الحياة
   Future<void> refreshBattery() async {
+    if (isClosed) return;
     final status = await _hardwareRepo.getBatteryStatus();
+    if (isClosed) return;
     emit(state.copyWith(batteryStatus: status));
   }
 
@@ -71,7 +79,9 @@ class CockpitCubit extends Cubit<CockpitState> {
     if (state.isBriefingPlaying) {
       await _assistantRepo.stopSpeaking();
       await _sound.stopAll();
-      emit(state.copyWith(isBriefingPlaying: false));
+      if (!isClosed) {
+        emit(state.copyWith(isBriefingPlaying: false));
+      }
       return;
     }
 
@@ -80,6 +90,7 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _haptics.successNotification();
     await _sound.play(SoundCue.wake);
 
+    if (isClosed) return;
     emit(state.copyWith(isBriefingPlaying: true));
 
     final now = DateTime.now();
@@ -109,7 +120,9 @@ class CockpitCubit extends Cubit<CockpitState> {
     buffer.write(state.batteryStatus);
 
     await _assistantRepo.speak(buffer.toString());
-    emit(state.copyWith(isBriefingPlaying: false));
+    if (!isClosed) {
+      emit(state.copyWith(isBriefingPlaying: false));
+    }
   }
 
   /// قراءة المهمة صوتياً دون تبديل حالتها
@@ -163,10 +176,10 @@ class CockpitCubit extends Cubit<CockpitState> {
 
   @override
   Future<void> close() {
+    _batteryTimer?.cancel();
     _alarmsSub?.cancel();
     _tasksSub?.cancel();
     _memosSub?.cancel();
-    _batteryTimer?.cancel();
     return super.close();
   }
 }

@@ -20,6 +20,13 @@ class EmergencySosIntentHandler extends VoiceIntentHandler {
       );
 
   @override
+  String get llmDescription =>
+      'Trigger emergency SOS distress broadcast, loud alarm siren, and share live GPS coordinates to emergency rescue radar.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {};
+
+  @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
     VoiceIntentContext intentContext,
@@ -28,7 +35,7 @@ class EmergencySosIntentHandler extends VoiceIntentHandler {
     final alertId = await commsRepo.triggerEmergencySos();
 
     return LauncherCommandResult(
-      intent: 'EMERGENCY_SOS',
+      intent: intentId,
       spokenResponse:
           'Emergency SOS broadcast initiated! Live GPS coordinates shared to family radar.',
       actionPayload: alertId,
@@ -36,7 +43,7 @@ class EmergencySosIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج الاتصال الهاتفي السريع بجهة اتصال (أولوية مرتفعة: 95)
+/// معالج الاتصال الهاتفي بجهة اتصال أو طلب رقم مباشرة
 class CallContactIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'CALL_CONTACT';
@@ -51,24 +58,49 @@ class CallContactIntentHandler extends VoiceIntentHandler {
       );
 
   @override
+  String get llmDescription =>
+      'Initiate a phone call to a saved contact by name, or dial a specific phone number directly.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'contact_name': 'Name of the contact person to call.',
+        'phone_number': 'Phone number digits to dial directly.',
+      };
+
+  @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
     final commsRepo = context.read<CommsRepository>();
     final hardwareRepo = context.read<SystemHardwareRepository>();
+    final params = intentContext.llmParameters;
 
     String targetQuery = '';
 
+    // 1. فحص هل مرر الذكاء الاصطناعي رقماً مباشراً
+    final directNumber = (params['phone_number'] as String?)?.trim();
+    if (directNumber != null && directNumber.isNotEmpty) {
+      final digits = directNumber.replaceAll(RegExp(r'[^\d+]'), '');
+      if (digits.length >= 3) {
+        await hardwareRepo.callPhoneNumber(digits);
+        return LauncherCommandResult(
+          intent: intentId,
+          spokenResponse: 'Dialing $digits.',
+          actionPayload: digits,
+        );
+      }
+    }
+
+    // 2. استخراج الاسم من المسار السريع
     final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
     if (match != null && match.groupCount >= 1) {
       targetQuery = match.group(1)?.trim() ?? '';
     }
 
-    if (targetQuery.isEmpty &&
-        intentContext.llmParameters.containsKey('contact_name')) {
-      targetQuery =
-          intentContext.llmParameters['contact_name'] as String? ?? '';
+    // 3. استخراج الاسم من معطيات LLM
+    if (targetQuery.isEmpty && params.containsKey('contact_name')) {
+      targetQuery = (params['contact_name'] as String? ?? '').trim();
     }
 
     if (targetQuery.isEmpty) {
@@ -83,7 +115,7 @@ class CallContactIntentHandler extends VoiceIntentHandler {
     if (contact != null) {
       await hardwareRepo.callPhoneNumber(contact.phoneNumber);
       return LauncherCommandResult(
-        intent: 'CALL_CONTACT',
+        intent: intentId,
         spokenResponse: 'Calling ${contact.name}.',
         actionPayload: contact,
       );
@@ -93,8 +125,9 @@ class CallContactIntentHandler extends VoiceIntentHandler {
     if (digitsOnly.length >= 3) {
       await hardwareRepo.callPhoneNumber(digitsOnly);
       return LauncherCommandResult(
-        intent: 'CALL_CONTACT',
+        intent: intentId,
         spokenResponse: 'Dialing $digitsOnly.',
+        actionPayload: digitsOnly,
       );
     }
 
@@ -106,7 +139,7 @@ class CallContactIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج حفظ جهة اتصال جديدة صوتياً (SAVE_CONTACT)
+/// معالج حفظ جهة اتصال جديدة (SAVE_CONTACT)
 class SaveContactIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'SAVE_CONTACT';
@@ -119,6 +152,20 @@ class SaveContactIntentHandler extends VoiceIntentHandler {
         r'^(?:save contact|add contact|new contact)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Save or add a new phone contact into the vault and phonebook, with optional relationship label and emergency status.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'name': 'Full name of the contact person.',
+        'phone_number': 'Phone number digits.',
+        'relationship':
+            'Optional relationship label (e.g. Mother, Father, Doctor, Friend).',
+        'is_emergency':
+            'Boolean true if this contact should be designated as an Emergency SOS contact, false otherwise.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -143,7 +190,10 @@ class SaveContactIntentHandler extends VoiceIntentHandler {
           phoneNumber = phoneMatch.group(1)!.replaceAll(RegExp(r'[\s-]'), '');
           name = query.replaceFirst(phoneMatch.group(1)!, '').trim();
           name = name
-              .replaceAll(RegExp(r'\b(number|phone|with)\b', caseSensitive: false), '')
+              .replaceAll(
+                RegExp(r'\b(number|phone|with)\b', caseSensitive: false),
+                '',
+              )
               .trim();
         } else if (name.isEmpty) {
           name = query;
@@ -174,14 +224,14 @@ class SaveContactIntentHandler extends VoiceIntentHandler {
 
     final roleText = isEmergency ? 'as an emergency contact' : 'to contacts';
     return LauncherCommandResult(
-      intent: 'SAVE_CONTACT',
+      intent: intentId,
       spokenResponse: 'Saved $name $roleText.',
       actionPayload: id,
     );
   }
 }
 
-/// معالج حذف جهة اتصال صوتياً (DELETE_CONTACT)
+/// معالج حذف جهة اتصال (DELETE_CONTACT)
 class DeleteContactIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'DELETE_CONTACT';
@@ -194,6 +244,16 @@ class DeleteContactIntentHandler extends VoiceIntentHandler {
         r'^(?:delete contact|remove contact)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Delete or remove an existing contact from the vault by contact_id or name.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'contact_id': 'Exact ID of the contact to delete from system context.',
+        'name': 'Name of the contact to match if contact_id is unknown.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -227,7 +287,7 @@ class DeleteContactIntentHandler extends VoiceIntentHandler {
     if (targetContact != null) {
       await commsRepo.deleteContact(targetContact.id);
       return LauncherCommandResult(
-        intent: 'DELETE_CONTACT',
+        intent: intentId,
         spokenResponse: 'Contact ${targetContact.name} deleted.',
         actionPayload: targetContact,
       );
@@ -241,7 +301,7 @@ class DeleteContactIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج مزامنة جهات اتصال الهاتف صوتياً (SYNC_CONTACTS) مع دعم إحصائيات الحذف والإضافة
+/// معالج مزامنة جهات اتصال الهاتف وسجل العتاد (SYNC_CONTACTS)
 class SyncContactsIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'SYNC_CONTACTS';
@@ -254,6 +314,13 @@ class SyncContactsIntentHandler extends VoiceIntentHandler {
         r'^(?:sync contacts|import contacts|sync phone contacts|update contacts|import phonebook)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Synchronize and reconcile contacts between the local device phonebook and the vault.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {};
 
   @override
   Future<LauncherCommandResult> execute(
@@ -277,7 +344,7 @@ class SyncContactsIntentHandler extends VoiceIntentHandler {
     }
 
     return LauncherCommandResult(
-      intent: 'SYNC_CONTACTS',
+      intent: intentId,
       spokenResponse: feedback,
       actionPayload: result,
     );

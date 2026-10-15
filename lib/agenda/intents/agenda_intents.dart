@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 
-/// معالج قراءة المهام بالمسار السريع الفوري (Sub-5ms)
+/// معالج قراءة واستعراض المهام والأولويات
 class ReadTasksIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'READ_TASKS';
@@ -15,9 +15,16 @@ class ReadTasksIntentHandler extends VoiceIntentHandler {
 
   @override
   RegExp get fastPathPattern => RegExp(
-        r'^(what are my tasks|read tasks|my tasks|list tasks|show tasks|tasks|what tasks do i have)',
+        r'^(?:what are my tasks|read tasks|my tasks|list tasks|show tasks|tasks|what tasks do i have)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'List, read, or summarize the user pending tasks and priorities from the agenda.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {};
 
   @override
   Future<LauncherCommandResult> execute(
@@ -39,7 +46,7 @@ class ReadTasksIntentHandler extends VoiceIntentHandler {
     final countStr = count == 1 ? 'one task' : '$count tasks';
 
     return LauncherCommandResult(
-      intent: 'READ_TASKS',
+      intent: intentId,
       spokenResponse:
           'You have $countStr pending. Top priority: ${topTask.title}.',
       actionPayload: pending,
@@ -47,7 +54,7 @@ class ReadTasksIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج إضافة مهمة جديدة بالمسار السريع الفوري
+/// معالج إضافة مهمة جديدة مع تحديد الأولوية وموعد الاستحقاق
 class SaveTaskIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'SAVE_TASK';
@@ -62,22 +69,35 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
       );
 
   @override
+  String get llmDescription =>
+      'Create and add a new task or reminder to the agenda with optional priority and deadline.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'title': 'Description or title of the task to create.',
+        'priority': 'Task priority level: "high", "medium", or "low".',
+        'due_date':
+            'Optional deadline timestamp in ISO-8601 string or date format.',
+      };
+
+  @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
     final tasksRepo = context.read<TaskAgendaRepository>();
+    final params = intentContext.llmParameters;
     String taskTitle = '';
 
-    // 1. استخراج النص من المسار السريع إذا تطابق النمط
+    // 1. استخراج العنوان من المسار السريع
     final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
     if (match != null && match.groupCount >= 1) {
       taskTitle = match.group(1)?.trim() ?? '';
     }
 
-    // 2. استخراج النص من معطيات LLM إذا أتى الاستدعاء عبر المسار الذكي
-    if (taskTitle.isEmpty && intentContext.llmParameters.containsKey('title')) {
-      taskTitle = intentContext.llmParameters['title'] as String;
+    // 2. استخراج العنوان من معطيات الذكاء الاصطناعي
+    if (taskTitle.isEmpty && params.containsKey('title')) {
+      taskTitle = params['title'] as String? ?? '';
     }
 
     if (taskTitle.isEmpty) {
@@ -87,29 +107,42 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
       );
     }
 
+    // 3. تحديد الأولوية
     String priority = 'medium';
-    if (taskTitle.toLowerCase().contains('urgent') ||
+    if (params.containsKey('priority') && params['priority'] is String) {
+      priority = (params['priority'] as String).toLowerCase();
+    } else if (taskTitle.toLowerCase().contains('urgent') ||
         taskTitle.toLowerCase().contains('high priority')) {
       priority = 'high';
       taskTitle = taskTitle
-          .replaceAll(RegExp(r'\b(urgent|high priority)\b', caseSensitive: false), '')
+          .replaceAll(
+            RegExp(r'\b(urgent|high priority)\b', caseSensitive: false),
+            '',
+          )
           .trim();
+    }
+
+    // 4. استخراج موعد الاستحقاق إن وُجد
+    DateTime? dueDate;
+    if (params.containsKey('due_date') && params['due_date'] != null) {
+      dueDate = DateTime.tryParse(params['due_date'].toString());
     }
 
     final id = await tasksRepo.createTask(
       title: taskTitle,
       priority: priority,
+      dueDate: dueDate,
     );
 
     return LauncherCommandResult(
-      intent: 'SAVE_TASK',
+      intent: intentId,
       spokenResponse: 'Task added: $taskTitle.',
       actionPayload: id,
     );
   }
 }
 
-/// معالج تدوين مذكرة سريعة بالمسار السريع الفوري
+/// معالج تدوين وحفظ مذكرة صوتية سريعة
 class SaveMemoIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'SAVE_MEMO';
@@ -124,11 +157,22 @@ class SaveMemoIntentHandler extends VoiceIntentHandler {
       );
 
   @override
+  String get llmDescription =>
+      'Save a quick note, idea, thought, or voice memo into the local vault.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'content': 'The body text or content of the note to save.',
+        'title': 'Optional short title for the note.',
+      };
+
+  @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
     final tasksRepo = context.read<TaskAgendaRepository>();
+    final params = intentContext.llmParameters;
     String memoContent = '';
 
     final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
@@ -136,8 +180,8 @@ class SaveMemoIntentHandler extends VoiceIntentHandler {
       memoContent = match.group(1)?.trim() ?? '';
     }
 
-    if (memoContent.isEmpty && intentContext.llmParameters.containsKey('content')) {
-      memoContent = intentContext.llmParameters['content'] as String;
+    if (memoContent.isEmpty && params.containsKey('content')) {
+      memoContent = params['content'] as String? ?? '';
     }
 
     if (memoContent.isEmpty) {
@@ -147,20 +191,26 @@ class SaveMemoIntentHandler extends VoiceIntentHandler {
       );
     }
 
+    String title = 'Voice Note';
+    if (params.containsKey('title') && params['title'] is String) {
+      final t = (params['title'] as String).trim();
+      if (t.isNotEmpty) title = t;
+    }
+
     final id = await tasksRepo.createMemo(
-      title: 'Voice Note',
+      title: title,
       content: memoContent,
     );
 
     return LauncherCommandResult(
-      intent: 'SAVE_MEMO',
+      intent: intentId,
       spokenResponse: 'Note saved: $memoContent.',
       actionPayload: id,
     );
   }
 }
 
-/// معالج إتمام المهمة صوتياً بالمسار السريع (Sub-5ms)
+/// معالج إتمام المهمة وتعليمها كمنجزة
 class CompleteTaskIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'COMPLETE_TASK';
@@ -173,6 +223,16 @@ class CompleteTaskIntentHandler extends VoiceIntentHandler {
         r'^(?:complete|finish|mark done|done with)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Mark an existing pending agenda task as completed by matching its task_id or title.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'task_id': 'Exact ID of the task to complete from system context.',
+        'title': 'Task title to fuzzy-match if task_id is unknown.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -215,7 +275,7 @@ class CompleteTaskIntentHandler extends VoiceIntentHandler {
     if (matchedTask != null) {
       await tasksRepo.toggleTask(matchedTask);
       return LauncherCommandResult(
-        intent: 'COMPLETE_TASK',
+        intent: intentId,
         spokenResponse: 'Task completed: ${matchedTask.title}.',
         actionPayload: matchedTask,
       );
@@ -228,7 +288,7 @@ class CompleteTaskIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج حذف المهمة صوتياً بالمسار السريع
+/// معالج حذف المهمة نهائياً من الأجندة
 class DeleteTaskIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'DELETE_TASK';
@@ -241,6 +301,16 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
         r'^(?:delete task|remove task)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Delete or remove an existing task from the agenda by task_id or title.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'task_id': 'Exact ID of the task to delete from system context.',
+        'title': 'Task title to fuzzy-match if task_id is unknown.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -277,7 +347,7 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
     if (matchedTask != null) {
       await tasksRepo.deleteTask(matchedTask.id);
       return LauncherCommandResult(
-        intent: 'DELETE_TASK',
+        intent: intentId,
         spokenResponse: 'Deleted task: ${matchedTask.title}.',
         actionPayload: matchedTask,
       );
@@ -290,7 +360,7 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج تعديل المهمة بالمسار الذكي والسريع (UPDATE_TASK)
+/// معالج تعديل بيانات المهمة (الأولوية، العنوان، الموعد)
 class UpdateTaskIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'UPDATE_TASK';
@@ -303,6 +373,18 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
         r'^(?:update task|change task|edit task|set task)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Update an existing task details such as priority (high/medium/low), deadline due date, or title.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'task_id': 'Exact ID of the task to update from system context.',
+        'title': 'New title for the task if renaming.',
+        'priority': 'New priority level: "high", "medium", or "low".',
+        'due_date': 'New deadline date/time in ISO-8601 format.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -327,7 +409,6 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
       targetTask = await tasksRepo.getTaskById(taskId);
     }
 
-    // مطابقة احتياطية بالاسم في حال تعذر الحصول على الـ id
     if (targetTask == null) {
       final raw = intentContext.rawQuery.toLowerCase();
       targetTask = pending.where((t) =>
@@ -335,7 +416,6 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
           t.title.toLowerCase().contains(raw)).firstOrNull;
     }
 
-    // استخراج أولوية المسار السريع إن لم يمررها الـ LLM
     if (targetTask != null && newPriority == null && newTitle == null) {
       final query = intentContext.normalizedQuery;
       if (query.contains('urgent') || query.contains('high')) {
@@ -370,14 +450,14 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
         updates.isNotEmpty ? updates.join(' and ') : 'updated successfully';
 
     return LauncherCommandResult(
-      intent: 'UPDATE_TASK',
+      intent: intentId,
       spokenResponse: 'Task "${targetTask.title}" $changeSummary.',
       actionPayload: targetTask,
     );
   }
 }
 
-/// معالج حذف الملاحظات الصوتية (DELETE_MEMO)
+/// معالج حذف الملاحظات والمذكرات الصوتية
 class DeleteMemoIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'DELETE_MEMO';
@@ -390,6 +470,16 @@ class DeleteMemoIntentHandler extends VoiceIntentHandler {
         r'^(?:delete note|remove note|delete memo|remove memo)\s+(.+)',
         caseSensitive: false,
       );
+
+  @override
+  String get llmDescription =>
+      'Delete an existing voice memo or note from the vault by memo_id or matching text.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'memo_id': 'Exact ID of the memo to delete from system context.',
+        'title': 'Title or content of the memo to match if memo_id is unknown.',
+      };
 
   @override
   Future<LauncherCommandResult> execute(
@@ -426,7 +516,7 @@ class DeleteMemoIntentHandler extends VoiceIntentHandler {
     if (targetMemo != null) {
       await tasksRepo.deleteMemo(targetMemo.id);
       return LauncherCommandResult(
-        intent: 'DELETE_MEMO',
+        intent: intentId,
         spokenResponse: 'Deleted note titled: ${targetMemo.title}.',
         actionPayload: targetMemo,
       );

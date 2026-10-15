@@ -6,6 +6,8 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class CommsModule extends SpatialModule {
   CommsModule._();
@@ -40,6 +42,21 @@ class CommsModule extends SpatialModule {
   }
 
   @override
+  Future<Map<String, dynamic>?> getVoiceContext(BuildContext context) async {
+    try {
+      final commsRepo = context.read<CommsRepository>();
+      final emergency = await commsRepo.getEmergencyContacts();
+      return {
+        'emergency_contacts_count': emergency.length,
+        'primary_emergency_contact':
+            emergency.isNotEmpty ? emergency.first.name : null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   List<VoiceIntentHandler> get voiceIntents => [
         EmergencySosIntentHandler(),
         CallContactIntentHandler(),
@@ -55,7 +72,6 @@ class CommsModule extends SpatialModule {
         key: ValueKey('comms_floor_1_view'),
       );
     }
-    // 🌟 واجهة مستقلة ذاتياً تدير Cubit الخاص بها
     return const CommsFloor0StandaloneView(
       key: ValueKey('comms_floor_0_standalone_view'),
     );
