@@ -1,4 +1,5 @@
 // lib/comms/intents/comms_intents.dart
+import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -348,5 +349,86 @@ class SyncContactsIntentHandler extends VoiceIntentHandler {
       spokenResponse: feedback,
       actionPayload: result,
     );
+  }
+}
+
+/// معالج الاقتران اللاتمركزي الفوري بالأجهزة وشاشات التلفزيون والكمبيوتر (PAIR_DEVICE)
+class PairDeviceIntentHandler extends VoiceIntentHandler {
+  @override
+  String get intentId => 'PAIR_DEVICE';
+
+  @override
+  int get priority => 90;
+
+  @override
+  RegExp get fastPathPattern => RegExp(
+        r'^(?:pair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*([0-9][0-9\s-]{4,8}[0-9])',
+        caseSensitive: false,
+      );
+
+  @override
+  String get llmDescription =>
+      'Pair or link this sovereign vault to a secondary display (Fire TV or Desktop) using a 6-digit code announced or displayed on that screen.';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'pairing_code':
+            'The 6-digit numeric pairing code displayed on the target screen.',
+      };
+
+  @override
+  Future<LauncherCommandResult> execute(
+    BuildContext context,
+    VoiceIntentContext intentContext,
+  ) async {
+    final commsRepo = context.read<CommsRepository>();
+    final params = intentContext.llmParameters;
+
+    String rawCode = '';
+
+    // 1. استخراج الأرقام من التعبير النمطي للمسار السريع (Sub-5ms)
+    final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
+    if (match != null && match.groupCount >= 1) {
+      rawCode = match.group(1)?.trim() ?? '';
+    }
+
+    // 2. استخراج الأرقام من معطيات الذكاء الاصطناعي كخيار بديل
+    if (rawCode.isEmpty && params.containsKey('pairing_code')) {
+      rawCode = params['pairing_code'] as String? ?? '';
+    }
+
+    final cleanCode = rawCode.replaceAll(RegExp(r'\D'), '');
+
+    if (cleanCode.length != 6) {
+      return const LauncherCommandResult(
+        intent: 'PAIR_DEVICE_FAILED',
+        spokenResponse:
+            'Please state the six-digit code announced on your screen, for example: Pair 8 4 9, 2 0 1.',
+      );
+    }
+
+    // استخدام المعرف السيادي اللامركزي للهاتف كـ Master Vault ID
+    final sovereignDid = Web3Service.instance.walletAddressHex.toLowerCase();
+
+    final success = await commsRepo.authorizePairingCode(
+      cleanCode,
+      customVaultId: sovereignDid,
+    );
+
+    if (success) {
+      return const LauncherCommandResult(
+        intent: 'PAIR_DEVICE',
+        spokenResponse:
+            'Living room display successfully linked! Real-time telemetry and agenda are now live.',
+        actionPayload: cleanCode,
+      );
+    } else {
+      return const LauncherCommandResult(
+        intent: 'PAIR_DEVICE_FAILED',
+        spokenResponse:
+            'Pairing failed. The code may be incorrect or has expired. Please check the screen.',
+        actionPayload: cleanCode,
+      );
+    }
   }
 }

@@ -3,7 +3,8 @@ import 'dart:developer';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// عميل المزامنة السحابية وبث الرادار لمنظومة BeaconOS عبر Supabase.
-/// يدعم معمارية UUID والحذف الناعم والدفع الجماعي (Batch Operations) والبث اللحظي (Realtime Streams).
+/// يدعم معمارية UUID والحذف الناعم والدفع الجماعي (Batch Operations)
+/// والبث اللحظي (Realtime Streams)، وبروتوكول الاقتران السيادي بدون حسابات.
 class CloudSyncClient {
   CloudSyncClient();
 
@@ -115,7 +116,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 📇 3. جهات الاتصال ورادار الطوارئ (Contacts - Complete with Batch Sync & Streams)
+  // 📇 3. جهات الاتصال ورادار الطوارئ (Contacts - Batch Sync & Streams)
   // ===========================================================================
 
   Future<void> syncContact({
@@ -674,7 +675,6 @@ class CloudSyncClient {
   // 🛰️ 11. الأوامر السحابية الواردة عن بُعد من أليكسا (Remote Actions Listener)
   // ===========================================================================
 
-  /// تدفق لحظي للأوامر المعلقة (pending) الصادرة من خادم MCP
   Stream<List<Map<String, dynamic>>>? streamRemoteActions() {
     final client = _client;
     if (client == null) return null;
@@ -692,7 +692,6 @@ class CloudSyncClient {
     return query;
   }
 
-  /// تأكيد استلام وتنفيذ الأمر لتجنب تكرار تنفيذه
   Future<void> acknowledgeRemoteAction(String actionId, {String status = 'completed'}) async {
     final client = _client;
     if (client == null) return;
@@ -705,6 +704,98 @@ class CloudSyncClient {
       log('CloudSyncClient: Remote action [$actionId] marked as $status.');
     } catch (e) {
       log('CloudSyncClient: Error acknowledging action: $e');
+    }
+  }
+
+  // ===========================================================================
+  // 🔗 12. بروتوكول الاقتران السيادي اللحظي (Zero-Login Device Pairing Protocol)
+  // ===========================================================================
+
+  /// تسجيل كود اقتران مؤقت جديد في السحابة من شاشة التلفزيون أو سطح المكتب
+  Future<bool> createPairingSession({
+    required String pairingCode,
+    required String targetDeviceType,
+  }) async {
+    final client = _client;
+    if (client == null) return false;
+
+    try {
+      await client.from('pairing_sessions').upsert({
+        'pairing_code': pairingCode,
+        'target_device_type': targetDeviceType,
+        'status': 'waiting',
+        'vault_id': null,
+        'created_at': DateTime.now().toIso8601String(),
+        'expires_at': DateTime.now()
+            .add(const Duration(minutes: 5))
+            .toIso8601String(),
+      }, onConflict: 'pairing_code');
+      log('CloudSyncClient: 🔗 Pairing session created for code: $pairingCode');
+      return true;
+    } catch (e, st) {
+      log('CloudSyncClient: Failed to create pairing session: $e', stackTrace: st);
+      return false;
+    }
+  }
+
+  /// الاستماع اللحظي لتحول حالة الكود إلى 'paired' على شاشة العرض (TV / Desktop)
+  Stream<Map<String, dynamic>?>? streamPairingSession(String pairingCode) {
+    final client = _client;
+    if (client == null) return null;
+
+    return client
+        .from('pairing_sessions')
+        .stream(primaryKey: ['id'])
+        .eq('pairing_code', pairingCode)
+        .map((list) => list.isNotEmpty ? list.first : null);
+  }
+
+  /// مصادقة وتفويض الكود من الهاتف الرئيسي وحقن معرّف الخزنة (Vault DID)
+  Future<bool> claimPairingSession({
+    required String pairingCode,
+    required String vaultId,
+  }) async {
+    final client = _client;
+    if (client == null) return false;
+
+    try {
+      final now = DateTime.now().toIso8601String();
+      final records = await client
+          .from('pairing_sessions')
+          .select()
+          .eq('pairing_code', pairingCode)
+          .eq('status', 'waiting')
+          .gt('expires_at', now);
+
+      if (records.isEmpty) {
+        log('CloudSyncClient: Pairing code $pairingCode not found or expired.');
+        return false;
+      }
+
+      await client.from('pairing_sessions').update({
+        'vault_id': vaultId,
+        'status': 'paired',
+      }).eq('pairing_code', pairingCode);
+
+      log('CloudSyncClient: ✅ Successfully claimed pairing session for $pairingCode with Vault: $vaultId');
+      return true;
+    } catch (e, st) {
+      log('CloudSyncClient: Error claiming pairing session: $e', stackTrace: st);
+      return false;
+    }
+  }
+
+  /// إحراق جلسة الاقتران بعد نجاح الربط لتأمين القناة (One-Time Burn)
+  Future<void> burnPairingSession(String pairingCode) async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.from('pairing_sessions').update({
+        'status': 'expired',
+      }).eq('pairing_code', pairingCode);
+      log('CloudSyncClient: 🔒 Pairing code $pairingCode burned.');
+    } catch (e) {
+      log('CloudSyncClient: Failed to burn pairing session: $e');
     }
   }
 }

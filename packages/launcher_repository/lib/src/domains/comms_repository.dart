@@ -1,6 +1,7 @@
 // packages/launcher_repository/lib/src/domains/comms_repository.dart
 import 'dart:async';
 import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
@@ -98,6 +99,28 @@ abstract class CommsRepository {
 
   /// 🛑 إيقاف الاشتراكات اللحظية بأمان
   void dispose();
+
+  // ===========================================================================
+  // 🔗 بروتوكول الاقتران السيادي بدون حسابات (Zero-Login Device Pairing)
+  // ===========================================================================
+
+  /// توليد كود اقتران من 6 أرقام للتلفزيون والكمبيوتر وبدء الجلسة
+  Future<String?> initiateDevicePairing({required String deviceType});
+
+  /// الاستماع اللحظي على شاشة العرض لانتظار مصادقة الهاتف
+  Stream<String?> listenForDeviceAuthorization(String pairingCode);
+
+  /// مصادقة كود الاقتران عبر الهاتف الرئيسي (يدوياً أو بالأمر الصوتي)
+  Future<bool> authorizePairingCode(String pairingCode, {String? customVaultId});
+
+  /// التحقق من حالة اقتران هذا الجهاز بخزنة رئيسية
+  Future<bool> isDeviceLinked();
+
+  /// جلب معرف الخزنة المقترنة
+  Future<String?> getLinkedVaultId();
+
+  /// فك الاقتران والعودة للوضع المستقل
+  Future<void> unpairDevice();
 }
 
 class CommsRepositoryImpl implements CommsRepository {
@@ -661,5 +684,103 @@ class CommsRepositoryImpl implements CommsRepository {
     } catch (e, st) {
       log('CommsRepository: Pending batch sync error: $e', stackTrace: st);
     }
+  }
+
+  // ===========================================================================
+  // 🔗 إدارة الاقتران السيادي المحلي (Sovereign Device Pairing)
+  // ===========================================================================
+
+  Future<void> _ensurePairingTable() async {
+    try {
+      await _db.customStatement(
+        'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
+      );
+    } catch (e) {
+      log('CommsRepository: Pairing table creation check: $e');
+    }
+  }
+
+  @override
+  Future<String?> initiateDevicePairing({required String deviceType}) async {
+    final rng = math.Random();
+    // توليد كود مكوّن من 6 أرقام سهل النطق والفهم للكفيف (بين 100000 و 999999)
+    final code = (rng.nextInt(900000) + 100000).toString();
+
+    final success = await _cloud.createPairingSession(
+      pairingCode: code,
+      targetDeviceType: deviceType,
+    );
+
+    return success ? code : null;
+  }
+
+  @override
+  Stream<String?> listenForDeviceAuthorization(String pairingCode) {
+    final stream = _cloud.streamPairingSession(pairingCode);
+    if (stream == null) return const Stream.empty();
+
+    return stream.asyncMap((data) async {
+      if (data != null && data['status'] == 'paired') {
+        final vaultId = data['vault_id'] as String?;
+        if (vaultId != null && vaultId.isNotEmpty) {
+          await _ensurePairingTable();
+          await _db.customStatement(
+            'INSERT OR REPLACE INTO device_pairing_meta (key, val) VALUES ("linked_vault_id", "$vaultId");',
+          );
+          await _cloud.burnPairingSession(pairingCode);
+          return vaultId;
+        }
+      }
+      return null;
+    });
+  }
+
+  @override
+  Future<bool> authorizePairingCode(
+    String pairingCode, {
+    String? customVaultId,
+  }) async {
+    final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
+    if (cleanCode.length != 6) return false;
+
+    // استخدام المعرف المحدد أو المعرف النشط للهاتف
+    final masterVaultId = customVaultId ?? _cloud.activeUserId;
+
+    final success = await _cloud.claimPairingSession(
+      pairingCode: cleanCode,
+      vaultId: masterVaultId,
+    );
+
+    if (success) {
+      log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
+    }
+    return success;
+  }
+
+  @override
+  Future<bool> isDeviceLinked() async {
+    await _ensurePairingTable();
+    final rows = await _db.customSelect(
+      'SELECT val FROM device_pairing_meta WHERE key = "linked_vault_id" LIMIT 1;',
+    ).get();
+    return rows.isNotEmpty && (rows.first.read<String>('val')).isNotEmpty;
+  }
+
+  @override
+  Future<String?> getLinkedVaultId() async {
+    await _ensurePairingTable();
+    final rows = await _db.customSelect(
+      'SELECT val FROM device_pairing_meta WHERE key = "linked_vault_id" LIMIT 1;',
+    ).get();
+    return rows.isNotEmpty ? rows.first.read<String>('val') : null;
+  }
+
+  @override
+  Future<void> unpairDevice() async {
+    await _ensurePairingTable();
+    await _db.customStatement(
+      'DELETE FROM device_pairing_meta WHERE key = "linked_vault_id";',
+    );
+    log('CommsRepository: Device unpaired successfully.');
   }
 }

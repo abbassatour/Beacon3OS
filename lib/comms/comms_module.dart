@@ -46,10 +46,13 @@ class CommsModule extends SpatialModule {
     try {
       final commsRepo = context.read<CommsRepository>();
       final emergency = await commsRepo.getEmergencyContacts();
+      final isLinked = await commsRepo.isDeviceLinked();
+
       return {
         'emergency_contacts_count': emergency.length,
         'primary_emergency_contact':
             emergency.isNotEmpty ? emergency.first.name : null,
+        'is_device_linked': isLinked,
       };
     } catch (_) {
       return null;
@@ -63,6 +66,7 @@ class CommsModule extends SpatialModule {
         SaveContactIntentHandler(),
         DeleteContactIntentHandler(),
         SyncContactsIntentHandler(),
+        PairDeviceIntentHandler(), // 👈 تسجيل معالج الاقتران الصوتي في نواة الغرفة
       ];
 
   @override

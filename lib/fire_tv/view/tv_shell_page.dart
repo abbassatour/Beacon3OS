@@ -17,10 +17,18 @@ class TvShellPage extends StatefulWidget {
   State<TvShellPage> createState() => _TvShellPageState();
 }
 
-class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin {
+class _TvShellPageState extends State<TvShellPage>
+    with TickerProviderStateMixin {
   late Timer _clockTimer;
   DateTime _currentTime = DateTime.now();
 
+  // حالة الاقتران السيادي اللحظي
+  bool _isCheckingLink = true;
+  bool _isDeviceLinked = false;
+  String? _activePairingCode;
+  StreamSubscription<String?>? _pairingSubscription;
+
+  // الاستماع للأوامر السحابية الواردة عن بعد (أليكسا / الهاتف)
   StreamSubscription<RemoteActionEvent>? _remoteSub;
   RemoteActionEvent? _activeAlert;
   Timer? _alertDismissTimer;
@@ -29,10 +37,13 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
   Timer? _screensaverTimer;
   bool _isAmbientMode = false;
 
+  // D-Pad Focus Nodes لريموت التحكم الخاص بـ Fire TV
   final FocusNode _locateCardFocus = FocusNode();
   final FocusNode _sosCardFocus = FocusNode();
   final FocusNode _agendaFocus = FocusNode();
   final FocusNode _alarmsFocus = FocusNode();
+  final FocusNode _refreshCodeFocus = FocusNode();
+  final FocusNode _skipPairingFocus = FocusNode();
 
   @override
   void initState() {
@@ -42,7 +53,106 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
     });
 
     _resetScreensaverTimer();
+    _checkPairingStatus();
+    _listenToRemoteActions();
+  }
 
+  // ===========================================================================
+  // 🔗 دورة حياة الاقتران والمزامنة السحابية
+  // ===========================================================================
+
+  Future<void> _checkPairingStatus() async {
+    final commsRepo = context.read<CommsRepository>();
+    final isLinked = await commsRepo.isDeviceLinked();
+
+    if (!mounted) return;
+
+    if (isLinked) {
+      setState(() {
+        _isDeviceLinked = true;
+        _isCheckingLink = false;
+      });
+      _focusInitialDashboardCard();
+    } else {
+      setState(() => _isCheckingLink = false);
+      _startNewPairingSession();
+    }
+  }
+
+  Future<void> _startNewPairingSession() async {
+    _pairingSubscription?.cancel();
+    final commsRepo = context.read<CommsRepository>();
+
+    final code = await commsRepo.initiateDevicePairing(deviceType: 'fire_tv');
+
+    if (!mounted) return;
+
+    if (code != null) {
+      setState(() => _activePairingCode = code);
+
+      // نطق الكود صوتياً للمكفوفين عبر مكبرات التلفزيون
+      _announcePairingCodeAloud(code);
+
+      // الاستماع اللحظي لاعتماد الكود من الهاتف الرئيسي
+      _pairingSubscription =
+          commsRepo.listenForDeviceAuthorization(code).listen((vaultId) {
+        if (!mounted) return;
+        if (vaultId != null && vaultId.isNotEmpty) {
+          _onPairingSuccessful();
+        }
+      });
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isDeviceLinked) {
+        _refreshCodeFocus.requestFocus();
+      }
+    });
+  }
+
+  Future<void> _announcePairingCodeAloud(String code) async {
+    try {
+      final assistant = context.read<AssistantRepository>();
+      final spacedDigits = code.split('').join(', ');
+      await SoundController.instance.play(SoundCue.wake);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await assistant.speak(
+        'Living Room TV is ready to connect. Hold anywhere on your Beacon phone and say: Pair $spacedDigits.',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _onPairingSuccessful() async {
+    await SoundController.instance.play(SoundCue.success);
+
+    try {
+      final assistant = context.read<AssistantRepository>();
+      await assistant.speak(
+        'Living Room TV linked successfully! Telemetry, agenda, and safety radar are now synchronized.',
+      );
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _isDeviceLinked = true;
+        _activePairingCode = null;
+      });
+      _focusInitialDashboardCard();
+    }
+  }
+
+  Future<void> _unpairDevice() async {
+    final commsRepo = context.read<CommsRepository>();
+    await commsRepo.unpairDevice();
+    if (mounted) {
+      setState(() {
+        _isDeviceLinked = false;
+      });
+      _startNewPairingSession();
+    }
+  }
+
+  void _listenToRemoteActions() {
     final commsRepo = context.read<CommsRepository>();
     _remoteSub = commsRepo.remoteActionEvents.listen((event) {
       if (!mounted) return;
@@ -64,11 +174,19 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
         }
       });
     });
+  }
 
+  void _focusInitialDashboardCard() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _locateCardFocus.requestFocus();
+      if (mounted && _isDeviceLinked) {
+        _locateCardFocus.requestFocus();
+      }
     });
   }
+
+  // ===========================================================================
+  // 🌙 إدارة وضع الخمول (OLED Ambient Mode)
+  // ===========================================================================
 
   void _resetScreensaverTimer() {
     _screensaverTimer?.cancel();
@@ -83,7 +201,11 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
     _resetScreensaverTimer();
     if (_isAmbientMode) {
       setState(() => _isAmbientMode = false);
-      _locateCardFocus.requestFocus();
+      if (_isDeviceLinked) {
+        _locateCardFocus.requestFocus();
+      } else {
+        _refreshCodeFocus.requestFocus();
+      }
     }
   }
 
@@ -93,10 +215,13 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
     _screensaverTimer?.cancel();
     _alertDismissTimer?.cancel();
     _remoteSub?.cancel();
+    _pairingSubscription?.cancel();
     _locateCardFocus.dispose();
     _sosCardFocus.dispose();
     _agendaFocus.dispose();
     _alarmsFocus.dispose();
+    _refreshCodeFocus.dispose();
+    _skipPairingFocus.dispose();
     super.dispose();
   }
 
@@ -115,18 +240,348 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
         body: SafeArea(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 600),
-            child: _isAmbientMode
-                ? _buildAmbientScreensaver(context)
-                : _buildMainDashboard(context),
+            child: _resolveActiveScreen(context),
           ),
         ),
       ),
     );
   }
 
+  Widget _resolveActiveScreen(BuildContext context) {
+    if (_isCheckingLink) {
+      return const Center(
+        key: ValueKey('tv_checking_link'),
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_isAmbientMode) {
+      return _buildAmbientScreensaver(context);
+    }
+
+    if (!_isDeviceLinked) {
+      return _buildPairingView(context);
+    }
+
+    return _buildMainDashboard(context);
+  }
+
   // ===========================================================================
-  // 📺 1. لوحة التحكم المتجاوبة تماماً مع شاشة التلفزيون
+  // 🔗 1. شاشة الاقتران الفوري (Zero-Login Pairing Canvas)
   // ===========================================================================
+
+  Widget _buildPairingView(BuildContext context) {
+    final colors = context.colors;
+    final code = _activePairingCode ?? '------';
+    final part1 = code.length >= 3 ? code.substring(0, 3) : '---';
+    final part2 = code.length >= 6 ? code.substring(3, 6) : '---';
+
+    return Padding(
+      key: const ValueKey('tv_pairing_screen'),
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // الطرف الأيسر: الأرقام الكبيرة والتعليمات الصوتية
+          Expanded(
+            flex: 6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.wifi_tethering_rounded,
+                          color: colors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'BEACON OS • ZERO-LOGIN DEVICE LINK',
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Connect Living Room TV',
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No passwords or accounts required. Hold anywhere on your phone screen and speak the code aloud:',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // بطاقات الأرقام الكبيرة للقراءة من مسافة 4 أمتار
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildCodeDigitsBox(context, part1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        '—',
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    _buildCodeDigitsBox(context, part2),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // شارة الأمر الصوتي
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.outline),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mic_rounded, color: colors.secondary, size: 20),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Voice Command: "Pair $part1 $part2"',
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // أزرار التحكم بالريموت
+                Row(
+                  children: [
+                    _buildRemoteActionButton(
+                      focusNode: _refreshCodeFocus,
+                      icon: Icons.refresh_rounded,
+                      label: 'Generate New Code',
+                      onPressed: _startNewPairingSession,
+                      colors: colors,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildRemoteActionButton(
+                      focusNode: _skipPairingFocus,
+                      icon: Icons.skip_next_rounded,
+                      label: 'Continue Standalone',
+                      onPressed: () {
+                        setState(() => _isDeviceLinked = true);
+                        _focusInitialDashboardCard();
+                      },
+                      colors: colors,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 32),
+
+          // الطرف الأيمن: مصفوفة المزامنة الهندسية (Visual Sync Matrix)
+          Expanded(
+            flex: 4,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: 0.5),
+                    width: 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.12),
+                      blurRadius: 30,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 160,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: context.scaffoldBg,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: colors.outline),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 110,
+                            color: colors.primary.withValues(alpha: 0.7),
+                          ),
+                          Positioned(
+                            bottom: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'SOVEREIGN DID',
+                                style: TextStyle(
+                                  color: colors.surface,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'P2P VAULT RELAY',
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Arbitrum Sepolia L2 Attestation\n& Supabase Live Channel',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodeDigitsBox(BuildContext context, String digits) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.primary, width: 2.2),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.2),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        digits,
+        style: TextStyle(
+          color: colors.onSurface,
+          fontSize: 48,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 6,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemoteActionButton({
+    required FocusNode focusNode,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    required ColorScheme colors,
+  }) {
+    return FocusableActionDetector(
+      focusNode: focusNode,
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => onPressed()),
+      },
+      child: Builder(
+        builder: (context) {
+          final isFocused = Focus.of(context).hasFocus;
+          return AnimatedScale(
+            scale: isFocused ? 1.05 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: isFocused ? colors.primary : colors.surface,
+                foregroundColor: isFocused ? colors.surface : colors.onSurface,
+                side: BorderSide(
+                  color: isFocused ? colors.primary : colors.outline,
+                  width: isFocused ? 2.2 : 1.2,
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: Icon(icon, size: 18),
+              label: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              ),
+              onPressed: onPressed,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 📺 2. لوحة التحكم المتجاوبة المقترنة (Active Living Room Dashboard)
+  // ===========================================================================
+
   Widget _buildMainDashboard(BuildContext context) {
     final colors = context.colors;
     final timeStr = DateFormat('h:mm a').format(_currentTime);
@@ -138,10 +593,9 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // شريط الحالة العلوي المستجيب (Responsive Header Bar)
+          // شريط الحالة العلوي المستجيب
           Row(
             children: [
-              // الطرف الأيسر: الشعار واسم النظام
               Expanded(
                 child: Row(
                   children: [
@@ -172,7 +626,7 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
                             ),
                           ),
                           Text(
-                            'Living Room Bridge',
+                            'Living Room Bridge • Linked',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -188,22 +642,29 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
                 ),
               ),
               const SizedBox(width: 12),
-              // الطرف الأيمن: الشارات والساعة
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildPillBadge(
-                    icon: Icons.wifi_tethering_rounded,
-                    label: 'ALEXA+',
+                    icon: Icons.link_rounded,
+                    label: 'VAULT LINKED',
                     color: Colors.green,
                   ),
                   const SizedBox(width: 8),
                   _buildPillBadge(
                     icon: Icons.verified_rounded,
-                    label: 'ARBITRUM',
+                    label: 'ARBITRUM L2',
                     color: colors.primary,
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
+                  // زر فك الاقتران
+                  IconButton(
+                    icon: Icon(Icons.link_off_rounded,
+                        color: colors.onSurfaceVariant, size: 20),
+                    tooltip: 'Unpair this display',
+                    onPressed: _unpairDevice,
+                  ),
+                  const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
@@ -242,7 +703,6 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // العمود الأيسر: الرادار واستدعاء الهاتف
                 Expanded(
                   flex: 5,
                   child: Column(
@@ -313,8 +773,10 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
                             children: [
                               CircleAvatar(
                                 radius: 22,
-                                backgroundColor: colors.error.withValues(alpha: 0.15),
-                                child: Icon(Icons.warning_amber_rounded, size: 26, color: colors.error),
+                                backgroundColor:
+                                    colors.error.withValues(alpha: 0.15),
+                                child: Icon(Icons.warning_amber_rounded,
+                                    size: 26, color: colors.error),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -339,7 +801,6 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
                 ),
                 const SizedBox(width: 16),
 
-                // العمود الأيمن: الأولويات الحية والمنبهات
                 Expanded(
                   flex: 5,
                   child: Column(
@@ -380,8 +841,9 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
   }
 
   // ===========================================================================
-  // 🌙 2. وضع شاشة الخمول المهدئ (OLED Zen Screensaver)
+  // 🌙 3. شاشة الخمول (Zen Screensaver)
   // ===========================================================================
+
   Widget _buildAmbientScreensaver(BuildContext context) {
     final colors = context.colors;
     final timeStr = DateFormat('h:mm').format(_currentTime);
@@ -438,11 +900,16 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.radio_button_checked_rounded, size: 14, color: Colors.green),
+                const Icon(Icons.radio_button_checked_rounded,
+                    size: 14, color: Colors.green),
                 const SizedBox(width: 8),
                 Text(
                   'Living Room Bridge Active • Press any remote button to wake',
-                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -491,7 +958,11 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
                   isSos
                       ? 'Distress radar broadcasting live coordinates to Arbitrum ledger.'
                       : 'Living room voice query triggered hardware siren & flashlight strobe.',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -501,13 +972,16 @@ class _TvShellPageState extends State<TvShellPage> with TickerProviderStateMixin
               backgroundColor: Colors.white,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () {
               setState(() => _activeAlert = null);
               SoundController.instance.stopAll();
             },
-            child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+            child: const Text('Dismiss',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
           ),
         ],
       ),
@@ -598,7 +1072,9 @@ class _TvCardResponsiveState extends State<_TvCardResponsive> {
             color: colors.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: _isFocused ? widget.accentColor : colors.outline.withValues(alpha: 0.5),
+              color: _isFocused
+                  ? widget.accentColor
+                  : colors.outline.withValues(alpha: 0.5),
               width: _isFocused ? 3.0 : 1.2,
             ),
             boxShadow: [
@@ -636,21 +1112,32 @@ class _TvCardResponsiveState extends State<_TvCardResponsive> {
                           widget.subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   if (_isFocused)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: widget.accentColor,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         'PRESS [SELECT]',
-                        style: TextStyle(color: colors.surface, fontSize: 10, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          color: colors.surface,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                 ],
@@ -678,7 +1165,8 @@ class _TvPulsingRadarIcon extends StatefulWidget {
   State<_TvPulsingRadarIcon> createState() => _TvPulsingRadarIconState();
 }
 
-class _TvPulsingRadarIconState extends State<_TvPulsingRadarIcon> with SingleTickerProviderStateMixin {
+class _TvPulsingRadarIconState extends State<_TvPulsingRadarIcon>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -710,7 +1198,8 @@ class _TvPulsingRadarIconState extends State<_TvPulsingRadarIcon> with SingleTic
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: widget.color.withValues(alpha: (1.0 - _controller.value) * 0.5),
+                  color: widget.color
+                      .withValues(alpha: (1.0 - _controller.value) * 0.5),
                   width: 1.8,
                 ),
               ),
@@ -741,13 +1230,18 @@ class _TvInteractiveTasksList extends StatelessWidget {
     return StreamBuilder<List<Task>>(
       stream: taskRepo.watchTasks(),
       builder: (context, snapshot) {
-        final tasks = (snapshot.data ?? []).where((t) => !t.isCompleted).take(3).toList();
+        final tasks =
+            (snapshot.data ?? []).where((t) => !t.isCompleted).take(3).toList();
 
         if (tasks.isEmpty) {
           return Center(
             child: Text(
               'Zero pending priorities! Agenda clear.',
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           );
         }
@@ -764,33 +1258,47 @@ class _TvInteractiveTasksList extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: context.scaffoldBg.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.outline.withValues(alpha: 0.3)),
+                  border:
+                      Border.all(color: colors.outline.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.radio_button_unchecked_rounded, size: 16, color: colors.primary),
+                    Icon(Icons.radio_button_unchecked_rounded,
+                        size: 16, color: colors.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         task.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: colors.onSurface, fontSize: 13, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.secondary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         task.priority.toUpperCase(),
-                        style: TextStyle(color: colors.secondary, fontSize: 9, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          color: colors.secondary,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],
@@ -824,7 +1332,11 @@ class _TvInteractiveAlarmsList extends StatelessWidget {
           return Center(
             child: Text(
               'No active alarms scheduled.',
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           );
         }
@@ -846,11 +1358,16 @@ class _TvInteractiveAlarmsList extends StatelessWidget {
               children: [
                 Text(
                   '$hour12:$minStr $period',
-                  style: TextStyle(color: colors.onSurface, fontSize: 28, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: colors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -858,7 +1375,11 @@ class _TvInteractiveAlarmsList extends StatelessWidget {
                   ),
                   child: Text(
                     next.label,
-                    style: TextStyle(color: colors.primary, fontWeight: FontWeight.w900, fontSize: 12),
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
