@@ -1,13 +1,15 @@
 // lib/agenda/view/agenda_floor_0_view.dart
 import 'package:beacon_os/agenda/cubit/agenda_cubit.dart';
 import 'package:beacon_os/agenda/cubit/agenda_state.dart';
+import 'package:beacon_os/agenda/widgets/add_memo_dialog.dart';
+import 'package:beacon_os/agenda/widgets/add_task_dialog.dart';
+import 'package:beacon_os/agenda/widgets/dismissible_memo_card.dart';
+import 'package:beacon_os/agenda/widgets/dismissible_task_card.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 /// واجهة الطابق الأرضي للأجندة (Floor 0: Day Tasks & Voice Notes)
 class AgendaFloor0View extends StatelessWidget {
@@ -62,8 +64,7 @@ class AgendaFloor0View extends StatelessWidget {
                                   ),
                                   icon: const Icon(Icons.note_add_rounded),
                                   tooltip: 'Add Note',
-                                  onPressed: () =>
-                                      _showAddMemoDialog(context, cubit),
+                                  onPressed: () => _showAddMemo(context, cubit),
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton.filledTonal(
@@ -74,8 +75,7 @@ class AgendaFloor0View extends StatelessWidget {
                                   ),
                                   icon: const Icon(Icons.add_task_rounded),
                                   tooltip: 'Add Task',
-                                  onPressed: () =>
-                                      _showAddTaskDialog(context, cubit),
+                                  onPressed: () => _showAddTask(context, cubit),
                                 ),
                               ],
                             ),
@@ -147,11 +147,15 @@ class AgendaFloor0View extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildDismissibleTaskCard(
-                          context,
-                          state.pendingTasks[index],
-                          cubit,
-                        ),
+                        (context, index) {
+                          final task = state.pendingTasks[index];
+                          return DismissibleTaskCard(
+                            task: task,
+                            onDismissed: () => cubit.deleteTask(task),
+                            onToggle: () => cubit.toggleTask(task),
+                            onReadAloud: () => cubit.readTaskAloud(task),
+                          );
+                        },
                         childCount: state.pendingTasks.length,
                       ),
                     ),
@@ -197,11 +201,14 @@ class AgendaFloor0View extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildDismissibleMemoCard(
-                          context,
-                          state.sortedMemos[index],
-                          cubit,
-                        ),
+                        (context, index) {
+                          final memo = state.sortedMemos[index];
+                          return DismissibleMemoCard(
+                            memo: memo,
+                            onDismissed: () => cubit.deleteMemo(memo),
+                            onReadAloud: () => cubit.readMemoAloud(memo),
+                          );
+                        },
                         childCount: state.sortedMemos.length,
                       ),
                     ),
@@ -236,11 +243,15 @@ class AgendaFloor0View extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildDismissibleTaskCard(
-                          context,
-                          state.completedTasks[index],
-                          cubit,
-                        ),
+                        (context, index) {
+                          final task = state.completedTasks[index];
+                          return DismissibleTaskCard(
+                            task: task,
+                            onDismissed: () => cubit.deleteTask(task),
+                            onToggle: () => cubit.toggleTask(task),
+                            onReadAloud: () => cubit.readTaskAloud(task),
+                          );
+                        },
                         childCount: state.completedTasks.length,
                       ),
                     ),
@@ -255,460 +266,38 @@ class AgendaFloor0View extends StatelessWidget {
     );
   }
 
-  Widget _buildDismissibleTaskCard(
-    BuildContext context,
-    Task task,
-    AgendaCubit cubit,
-  ) {
-    final colors = context.colors;
-    final isDone = task.isCompleted;
-
-    Color priorityColor = colors.onSurfaceVariant;
-    if (task.priority == 'high') priorityColor = colors.error;
-    if (task.priority == 'medium') priorityColor = colors.secondary;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Dismissible(
-        key: Key(task.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          decoration: BoxDecoration(
-            color: colors.error.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(Icons.delete_outline_rounded, color: colors.error),
-        ),
-        onDismissed: (_) => cubit.deleteTask(task),
-        child: Semantics(
-          label:
-              'Task: ${task.title}. Tap to read, or toggle completion checkbox.',
-          button: true,
-          child: Material(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => cubit.readTaskAloud(task),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDone
-                        ? colors.outline
-                        : priorityColor.withValues(alpha: 0.4),
-                    width: 1.2,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        isDone
-                            ? Icons.check_circle_rounded
-                            : Icons.circle_outlined,
-                        color: isDone
-                            ? colors.onSurfaceVariant
-                            : priorityColor,
-                        size: 24,
-                      ),
-                      onPressed: () => cubit.toggleTask(task),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (task.priority == 'high' && !isDone)
-                                Container(
-                                  margin: const EdgeInsets.only(right: 6),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colors.error.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'HIGH',
-                                    style: TextStyle(
-                                      color: colors.error,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                              Expanded(
-                                child: Text(
-                                  task.title,
-                                  style: TextStyle(
-                                    color: isDone
-                                        ? colors.onSurfaceVariant
-                                        : colors.onSurface,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    decoration: isDone
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (task.dueDate != null) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!)}',
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.volume_up_rounded,
-                        color: colors.primary,
-                        size: 20,
-                      ),
-                      onPressed: () => cubit.readTaskAloud(task),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDismissibleMemoCard(
-    BuildContext context,
-    VoiceMemo memo,
-    AgendaCubit cubit,
-  ) {
-    final colors = context.colors;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Dismissible(
-        key: Key(memo.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          decoration: BoxDecoration(
-            color: colors.error.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(Icons.delete_outline_rounded, color: colors.error),
-        ),
-        onDismissed: (_) => cubit.deleteMemo(memo),
-        child: Semantics(
-          label: 'Note titled ${memo.title}. Tap to listen.',
-          button: true,
-          child: Material(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => cubit.readMemoAloud(memo),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.outline, width: 1.2),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor:
-                          colors.secondary.withValues(alpha: 0.15),
-                      child: Icon(
-                        Icons.notes_rounded,
-                        color: colors.secondary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            memo.title,
-                            style: TextStyle(
-                              color: colors.onSurface,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            memo.content,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.volume_up_rounded,
-                      color: colors.primary,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAddTaskDialog(BuildContext context, AgendaCubit cubit) {
-    final colors = context.colors;
-    final titleController = TextEditingController();
-    String priority = 'medium';
-    DateTime? selectedDateTime;
-
+  void _showAddTask(BuildContext context, AgendaCubit cubit) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: colors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: colors.outline, width: 1.5),
-          ),
-          title: Text(
-            'New Task',
-            style: TextStyle(
-              color: colors.onSurface,
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  autofocus: true,
-                  style: TextStyle(color: colors.onSurface),
-                  decoration: InputDecoration(
-                    labelText: 'Task title...',
-                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: priority,
-                  dropdownColor: colors.surface,
-                  style: TextStyle(color: colors.onSurface),
-                  decoration: InputDecoration(
-                    labelText: 'Priority',
-                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'high',
-                      child: Text('High Priority 🔴'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'medium',
-                      child: Text('Medium Priority 🟡'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'low',
-                      child: Text('Low Priority ⚪'),
-                    ),
-                  ],
-                  onChanged: (val) =>
-                      setDialogState(() => priority = val ?? 'medium'),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.outline),
-                    foregroundColor: colors.onSurface,
-                    minimumSize: const Size(double.infinity, 44),
-                  ),
-                  icon: Icon(
-                    Icons.event_rounded,
-                    size: 18,
-                    color: colors.primary,
-                  ),
-                  label: Text(
-                    selectedDateTime == null
-                        ? 'Set Deadline (Optional)'
-                        : 'Due: ${DateFormat('MMM d • h:mm a').format(selectedDateTime!)}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null && context.mounted) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (time != null) {
-                        setDialogState(() {
-                          selectedDateTime = DateTime(
-                            date.year,
-                            date.month,
-                            date.day,
-                            time.hour,
-                            time.minute,
-                          );
-                        });
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: colors.onSurfaceVariant),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.primary,
-                foregroundColor: colors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                final text = titleController.text.trim();
-                if (text.isNotEmpty) {
-                  cubit.addNewTask(
-                    title: text,
-                    priority: priority,
-                    dueDate: selectedDateTime,
-                  );
-                  Navigator.of(ctx).pop();
-                }
-              },
-              child: const Text(
-                'Create Task',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => AddTaskDialog(
+        onSave: ({
+          required title,
+          required priority,
+          dueDate,
+        }) {
+          cubit.addNewTask(
+            title: title,
+            priority: priority,
+            dueDate: dueDate,
+          );
+        },
       ),
     );
   }
 
-  void _showAddMemoDialog(BuildContext context, AgendaCubit cubit) {
-    final colors = context.colors;
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-
+  void _showAddMemo(BuildContext context, AgendaCubit cubit) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: colors.outline, width: 1.5),
-        ),
-        title: Text(
-          'New Voice / Quick Note',
-          style: TextStyle(
-            color: colors.onSurface,
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                style: TextStyle(color: colors.onSurface),
-                decoration: InputDecoration(
-                  labelText: 'Title (e.g. Ideas, Project memo)...',
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contentController,
-                maxLines: 4,
-                style: TextStyle(color: colors.onSurface),
-                decoration: InputDecoration(
-                  labelText: 'Note content...',
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: colors.onSurfaceVariant),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.secondary,
-              foregroundColor: colors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              final title = titleController.text.trim();
-              final content = contentController.text.trim();
-              if (title.isNotEmpty || content.isNotEmpty) {
-                cubit.addNewMemo(
-                  title: title.isEmpty ? 'Untitled Note' : title,
-                  content: content.isEmpty ? title : content,
-                );
-                Navigator.of(ctx).pop();
-              }
-            },
-            child: const Text(
-              'Save Note',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+      builder: (_) => AddMemoDialog(
+        onSave: ({
+          required title,
+          required content,
+        }) {
+          cubit.addNewMemo(
+            title: title,
+            content: content,
+          );
+        },
       ),
     );
   }
@@ -731,8 +320,6 @@ class AgendaFloor0StandaloneView extends StatelessWidget {
   }
 }
 
-// ===========================================================================
 // 🛡️ أسماء توافقية لمنع أي تعطل أثناء فترة الترحيل
-// ===========================================================================
 typedef AgendaView = AgendaFloor0StandaloneView;
 typedef AgendaContentView = AgendaFloor0View;

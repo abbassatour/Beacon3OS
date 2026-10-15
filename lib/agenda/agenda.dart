@@ -5,3 +5,7 @@ export 'cubit/agenda_state.dart';
 export 'intents/agenda_intents.dart';
 export 'view/agenda_floor_0_view.dart';
 export 'view/agenda_floor_1_view.dart';
+export 'widgets/add_memo_dialog.dart';
+export 'widgets/add_task_dialog.dart';
+export 'widgets/dismissible_memo_card.dart';
+export 'widgets/dismissible_task_card.dart';
