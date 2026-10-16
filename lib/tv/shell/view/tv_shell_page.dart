@@ -26,6 +26,7 @@ class TvShellPage extends StatelessWidget {
           create: (context) => TvShellCubit(
             commsRepository: context.read<CommsRepository>(),
             assistantRepository: context.read<AssistantRepository>(),
+            ringRepository: context.read<LauncherRepository>().ring, // 👈 تم توفير ringRepository
           ),
         ),
         BlocProvider<TvAgendaCubit>(

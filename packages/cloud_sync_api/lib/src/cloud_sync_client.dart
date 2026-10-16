@@ -675,23 +675,67 @@ class CloudSyncClient {
   // 🛰️ 11. الأوامر السحابية الواردة عن بُعد من أليكسا (Remote Actions Listener)
   // ===========================================================================
 
+  /// تدفق الأوامر الواردة من أليكسا أو الشاشات المنزلية مع معالجة ذكية للتصفية
   Stream<List<Map<String, dynamic>>>? streamRemoteActions() {
     final client = _client;
     if (client == null) return null;
 
     final userId = currentUser?.id;
-    var query = client
-        .from('remote_actions')
-        .stream(primaryKey: ['id'])
-        .eq('status', 'pending');
 
-    if (userId != null) {
-      query = query.eq('user_id', userId);
+    try {
+      return client
+          .from('remote_actions')
+          .stream(primaryKey: ['id'])
+          .eq('status', 'pending')
+          .map((actions) {
+            // إذا لم يكن المستخدم مسجلاً بعد بحساب سحابي، يستقبل كل الأوامر العامة المعلقة
+            if (userId == null) return actions;
+
+            // تصفية ذكية: قبول الأوامر المخصصة لهذا المستخدم، أو الأوامر العامة/أوامر الضيف
+            return actions.where((action) {
+              final targetUser = action['user_id'] as String?;
+              return targetUser == null ||
+                  targetUser.isEmpty ||
+                  targetUser == 'local_guest_user' ||
+                  targetUser == userId;
+            }).toList();
+          });
+    } catch (e) {
+      log('CloudSyncClient: Error initiating remote actions stream: $e');
+      return null;
     }
-
-    return query;
   }
 
+  /// إرسال أمر تنفيذي عن بُعد من أي شاشة أو جهاز إلى السحابة
+  Future<String?> dispatchRemoteAction({
+    required String actionType,
+    required Map<String, dynamic> payload,
+    String? targetUserId,
+  }) async {
+    final client = _client;
+    if (client == null) return null;
+
+    try {
+      final actionId = 'action_${DateTime.now().millisecondsSinceEpoch}';
+      final effectiveUserId = targetUserId ?? currentUser?.id;
+
+      await client.from('remote_actions').insert({
+        'id': actionId,
+        'action_type': actionType,
+        'payload': payload,
+        'status': 'pending',
+        'user_id': effectiveUserId,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      log('CloudSyncClient: Dispatched remote action [$actionType] with ID: $actionId');
+      return actionId;
+    } catch (e) {
+      log('CloudSyncClient: Error dispatching remote action: $e');
+      return null;
+    }
+  }
+
+  /// تأكيد استلام وتنفيذ الأمر الوارد عن بُعد
   Future<void> acknowledgeRemoteAction(String actionId, {String status = 'completed'}) async {
     final client = _client;
     if (client == null) return;

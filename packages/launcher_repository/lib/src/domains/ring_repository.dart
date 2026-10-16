@@ -46,6 +46,9 @@ abstract class RingRepository {
   /// إطلاق سيناريو محاكاة اختباري للمحكمين
   Future<void> triggerSimulatedScenario(RingScenarioPreset scenario);
 
+  /// تعليم حدث أمني كمقروء
+  Future<void> markEventAsRead(String eventId);
+
   /// تحرير الموارد
   void dispose();
 }
@@ -187,6 +190,10 @@ class RingRepositoryImpl implements RingRepository {
   Future<void> triggerSimulatedScenario(RingScenarioPreset scenario) async {
     await _ringClient.triggerSimulatedScenario(scenario);
   }
+
+  @override
+  Future<void> markEventAsRead(String eventId) =>
+      _db.markRingEventAsRead(eventId);
 
   @override
   void dispose() {

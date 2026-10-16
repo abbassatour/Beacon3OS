@@ -53,6 +53,10 @@ abstract class CommsRepository {
   /// 🚨 تنفيذ بروتوكول وميض الكشاف والاهتزاز لتحديد موقع الهاتف
   Future<void> executeLocateDevice({int pulseCycles = 8});
 
+  /// 🔍 تسجيل معالج إضافي (صوتي/اهتزازي) عند تحديد موقع الهاتف
+  void registerLocateHandler(Future<void> Function() handler);
+  void unregisterLocateHandler();
+
   /// 🔍 إرسال طلب تحديد موقع الهاتف من شاشة التلفزيون أو الكمبيوتر (Local-First)
   Future<bool> requestLocatePhone({String reason = 'Living room request'});
 
@@ -116,6 +120,7 @@ class CommsRepositoryImpl implements CommsRepository {
   final StreamController<RemoteActionEvent> _remoteActionController =
       StreamController<RemoteActionEvent>.broadcast();
 
+  Future<void> Function()? _locateHandler;
   bool _isLocating = false;
 
   @override
@@ -128,6 +133,16 @@ class CommsRepositoryImpl implements CommsRepository {
 
   @override
   SyncTransportMode get currentTransportMode => _hybridSync.currentMode;
+
+  @override
+  void registerLocateHandler(Future<void> Function() handler) {
+    _locateHandler = handler;
+  }
+
+  @override
+  void unregisterLocateHandler() {
+    _locateHandler = null;
+  }
 
   @override
   Future<void> initializeHybridTransport({
@@ -167,15 +182,13 @@ class CommsRepositoryImpl implements CommsRepository {
     _authSubscription = _cloud.authStateChanges?.listen((authState) {
       if (_cloud.isAuthenticated) {
         _subscribeToRealtimeContacts();
-        _subscribeToRemoteActions();
       } else {
         _realtimeContactsSubscription?.cancel();
         _realtimeContactsSubscription = null;
-        _remoteActionsSubscription?.cancel();
-        _remoteActionsSubscription = null;
       }
     });
 
+    // الاستماع للأوامر السحابية يبقى مفعلاً دائماً لالتقاط أوامر أليكسا والشاشات المنزلية
     _subscribeToRemoteActions();
 
     if (_cloud.isAuthenticated) {
@@ -214,6 +227,7 @@ class CommsRepositoryImpl implements CommsRepository {
           },
           cancelOnError: false,
         );
+        log('CommsRepository: 🛰️ Listening for remote actions (Alexa / Displays)...');
       }
     } catch (e) {
       log('CommsRepository: Safe catch on streamRemoteActions init: $e');
@@ -247,7 +261,15 @@ class CommsRepositoryImpl implements CommsRepository {
     if (_isLocating) return;
     _isLocating = true;
 
-    log('CommsRepository: 📢 Locating Device: Flashing torch & hardware strobe...');
+    log('CommsRepository: 📢 Locating Device: Triggering audio siren, haptics & flashlight strobe...');
+
+    // تشغيل التنبيه الصوتي والحسي المسجل بالتوازي
+    if (_locateHandler != null) {
+      unawaited(_locateHandler!().catchError((Object err) {
+        log('CommsRepository: Custom locate handler note: $err');
+      }));
+    }
+
     try {
       for (var i = 0; i < pulseCycles; i++) {
         await _hardware.toggleFlashlight(enable: true);
@@ -258,6 +280,8 @@ class CommsRepositoryImpl implements CommsRepository {
     } catch (e) {
       log('CommsRepository: Hardware locator strobe error: $e');
     } finally {
+      // إطفاء الفلاش بشكل حتمي
+      await _hardware.toggleFlashlight(enable: false).catchError((_) => false);
       _isLocating = false;
     }
   }
@@ -633,7 +657,7 @@ class CommsRepositoryImpl implements CommsRepository {
       log('CommsRepository: Cloud pairing registration deferred (offline-first): $e');
     }
 
-    // 🌟 إرجاع الكود دائماً لعرضه على شاشة التلفاز والاقتران محلياً عبر الواي فاي
+    // إرجاع الكود دائماً لعرضه على شاشة التلفاز أو شاشات الغرفة
     return code;
   }
 
