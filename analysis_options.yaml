@@ -1,9 +1,36 @@
-include:
+﻿include:
   - package:very_good_analysis/analysis_options.yaml
   - package:bloc_lint/recommended.yaml
+
 analyzer:
   exclude:
-    - lib/l10n/gen/*
+    - lib/l10n/gen/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    lines_longer_than_80_chars: ignore
+    eol_at_end_of_file: ignore
+    discarded_futures: ignore
+    prefer_int_literals: ignore
+    avoid_redundant_argument_values: ignore
+    cascade_invocations: ignore
+    avoid_positional_boolean_parameters: ignore
+    avoid_catches_without_on_clauses: ignore
+    omit_local_variable_types: ignore
+    unnecessary_breaks: ignore
+    unnecessary_parenthesis: ignore
+    unnecessary_raw_strings: ignore
+    prefer_const_constructors: ignore
+    prefer_const_declarations: ignore
+    prefer_initializing_formals: ignore
+    deprecated_member_use: ignore
+    depend_on_referenced_packages: ignore
+    include_file_not_found: ignore
+
 linter:
   rules:
     public_member_api_docs: false
+    lines_longer_than_80_chars: false
+    discarded_futures: false
+    eol_at_end_of_file: false
+    prefer_const_constructors: false

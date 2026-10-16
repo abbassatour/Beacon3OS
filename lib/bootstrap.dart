@@ -79,19 +79,25 @@ Future<void> bootstrap() async {
     }
   }
 
-  // 4. تهيئة خدمة الـ Web3 السيادية
+  // 4. إنشاء نسخة مفردة واحدة من الخزنة المشفرة لجميع الخدمات (Single Source of Truth)
+  final database = AppDatabase();
+
+  // 5. تهيئة خدمة الـ Web3 السيادية بنفس نسخة قاعدة البيانات
   try {
-    await Web3Service.instance.initialize().timeout(const Duration(seconds: 6));
+    await Web3Service.instance.initialize(database: database).timeout(const Duration(seconds: 6));
     log('Bootstrap: Web3 Sovereign Identity initialized.');
   } catch (e) {
     log('Bootstrap: Web3 init deferred: $e');
   }
 
-  // 5. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام
+  // 6. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام بنفس نسخة قاعدة البيانات
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
-  final launcherRepository = LauncherRepository(llmAgent: llmAgent);
+  final launcherRepository = LauncherRepository(
+    database: database,
+    llmAgent: llmAgent,
+  );
 
-  // 6. تهيئة محركات الصوت بمهلة كافية للمحاكي
+  // 7. تهيئة محركات الصوت بمهلة كافية للمحاكي
   try {
     await launcherRepository.assistant
         .initializeEngines()
@@ -101,7 +107,7 @@ Future<void> bootstrap() async {
     log('Bootstrap: Audio engines init bypassed: $e');
   }
 
-  // 7. قراءة الإعدادات
+  // 8. قراءة الإعدادات
   AppSetting initialSettings;
   try {
     initialSettings = await launcherRepository.settings
@@ -137,7 +143,7 @@ Future<void> bootstrap() async {
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));
 
-  // 8. إطلاق التطبيق
+  // 9. إطلاق التطبيق
   runApp(
     App(
       launcherRepository: launcherRepository,

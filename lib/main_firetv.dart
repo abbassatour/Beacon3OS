@@ -1,4 +1,4 @@
-// lib/main_firetv.dart
+﻿// lib/main_firetv.dart
 import 'dart:async';
 import 'dart:developer';
 
@@ -15,16 +15,16 @@ import 'package:system_hardware_api/system_hardware_api.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. تثبيت اتجاه الشاشة أفقياً دائماً للتلفزيون
+  // 1. ØªØ«Ø¨ÙŠØª Ø§ØªØ¬Ø§Ù‡ Ø§Ù„Ø´Ø§Ø´Ø© Ø£ÙÙ‚ÙŠØ§Ù‹ Ø¯Ø§Ø¦Ù…Ø§Ù‹ Ù„Ù„ØªÙ„ÙØ²ÙŠÙˆÙ†
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
 
-  // 2. إخفاء أشرطة الحالة الافتراضية للاندرويد لشاشات التلفزيون
+  // 2. Ø¥Ø®ÙØ§Ø¡ Ø£Ø´Ø±Ø·Ø© Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ© Ù„Ù„Ø§Ù†Ø¯Ø±ÙˆÙŠØ¯ Ù„Ø´Ø§Ø´Ø§Øª Ø§Ù„ØªÙ„ÙØ²ÙŠÙˆÙ†
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // 3. تهيئة سحابة Supabase لمزامنة غرفة المعيشة مع الهاتف
+  // 3. ØªÙ‡ÙŠØ¦Ø© Ø³Ø­Ø§Ø¨Ø© Supabase Ù„Ù…Ø²Ø§Ù…Ù†Ø© ØºØ±ÙØ© Ø§Ù„Ù…Ø¹ÙŠØ´Ø© Ù…Ø¹ Ø§Ù„Ù‡Ø§ØªÙ
   if (ApiConstants.supabaseUrl.isNotEmpty &&
       ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
@@ -38,12 +38,12 @@ Future<void> main() async {
     }
   }
 
-  // 4. تشغيل الخزنة المحلية ومحركات العتاد
+  // 4. ØªØ´ØºÙŠÙ„ Ø§Ù„Ø®Ø²Ù†Ø© Ø§Ù„Ù…Ø­Ù„ÙŠØ© ÙˆÙ…Ø­Ø±ÙƒØ§Øª Ø§Ù„Ø¹ØªØ§Ø¯
   final database = AppDatabase();
   final cloudSync = CloudSyncClient();
   final hardware = HardwareClient();
 
-  // 5. تهيئة المستودعات السحابية والمحلية
+  // 5. ØªÙ‡ÙŠØ¦Ø© Ø§Ù„Ù…Ø³ØªÙˆØ¯Ø¹Ø§Øª Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠØ© ÙˆØ§Ù„Ù…Ø­Ù„ÙŠØ©
   final taskRepo = TaskAgendaRepositoryImpl(
     database: database,
     cloudSync: cloudSync,
@@ -67,23 +67,23 @@ Future<void> main() async {
     cloudSync: cloudSync,
   );
 
-  // تفعيل الاستماع اللحظي لأوامر الطوارئ واستدعاءات Alexa+
+  // ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø§Ø³ØªÙ…Ø§Ø¹ Ø§Ù„Ù„Ø­Ø¸ÙŠ Ù„Ø£ÙˆØ§Ù…Ø± Ø§Ù„Ø·ÙˆØ§Ø±Ø¦ ÙˆØ§Ø³ØªØ¯Ø¹Ø§Ø¡Ø§Øª Alexa+
   commsRepo.initializeRealtimeSync();
   topologyRepo.initializeRealtimeSync();
 
-  // جلب إعدادات الخزنة
+  // Ø¬Ù„Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®Ø²Ù†Ø©
   AppSetting initialSettings;
   try {
     initialSettings = await settingsRepo.getSettings();
   } catch (_) {
-    initialSettings = const AppSetting(
+    initialSettings = AppSetting(
       id: 'local_device_settings',
       userPersona: 'blind_accessible',
       hasCompletedOnboarding: true,
       speechRate: 0.5,
       hapticsEnabled: true,
       soundCuesEnabled: true,
-      isHighContrast: true, // تباين عالي افتراضي للقراءة الواضحة من مسافة 3 أمتار
+      isHighContrast: true, // ØªØ¨Ø§ÙŠÙ† Ø¹Ø§Ù„ÙŠ Ø§ÙØªØ±Ø§Ø¶ÙŠ Ù„Ù„Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„ÙˆØ§Ø¶Ø­Ø© Ù…Ù† Ù…Ø³Ø§ÙØ© 3 Ø£Ù…ØªØ§Ø±
       defaultPriority: 'medium',
       autoArchiveCompleted: true,
       speakDueDatesAloud: true,
@@ -96,7 +96,7 @@ Future<void> main() async {
       visionInspectionDetail: 'concise',
       autoFlashlightInDark: true,
       preferredCurrency: 'USD / Local',
-      updatedAt: null,
+      updatedAt: DateTime(2026),
       isSynced: false,
     );
   }

@@ -603,18 +603,8 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 🔗 بروتوكول الاقتران السيادي
+  // 🔗 بروتوكول الاقتران السيادي (عبر دوال Drift المحمية بدون Raw SQL)
   // ===========================================================================
-
-  Future<void> _ensurePairingTable() async {
-    try {
-      await _db.customStatement(
-        'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
-      );
-    } catch (e) {
-      log('CommsRepository: Pairing table creation check: $e');
-    }
-  }
 
   @override
   Future<String?> initiateDevicePairing({required String deviceType}) async {
@@ -638,10 +628,7 @@ class CommsRepositoryImpl implements CommsRepository {
       if (data != null && data['status'] == 'paired') {
         final vaultId = data['vault_id'] as String?;
         if (vaultId != null && vaultId.isNotEmpty) {
-          await _ensurePairingTable();
-          await _db.customStatement(
-            'INSERT OR REPLACE INTO device_pairing_meta (key, val) VALUES ("linked_vault_id", "$vaultId");',
-          );
+          await _db.setDevicePairingMeta('linked_vault_id', vaultId);
           await _cloud.burnPairingSession(pairingCode);
 
           await initializeHybridTransport(
@@ -679,28 +666,18 @@ class CommsRepositoryImpl implements CommsRepository {
 
   @override
   Future<bool> isDeviceLinked() async {
-    await _ensurePairingTable();
-    final rows = await _db.customSelect(
-      'SELECT val FROM device_pairing_meta WHERE key = "linked_vault_id" LIMIT 1;',
-    ).get();
-    return rows.isNotEmpty && (rows.first.read<String>('val')).isNotEmpty;
+    final val = await _db.getDevicePairingMeta('linked_vault_id');
+    return val != null && val.isNotEmpty;
   }
 
   @override
   Future<String?> getLinkedVaultId() async {
-    await _ensurePairingTable();
-    final rows = await _db.customSelect(
-      'SELECT val FROM device_pairing_meta WHERE key = "linked_vault_id" LIMIT 1;',
-    ).get();
-    return rows.isNotEmpty ? rows.first.read<String>('val') : null;
+    return _db.getDevicePairingMeta('linked_vault_id');
   }
 
   @override
   Future<void> unpairDevice() async {
-    await _ensurePairingTable();
-    await _db.customStatement(
-      'DELETE FROM device_pairing_meta WHERE key = "linked_vault_id";',
-    );
+    await _db.deleteDevicePairingMeta('linked_vault_id');
     log('CommsRepository: Device unpaired successfully.');
   }
 }

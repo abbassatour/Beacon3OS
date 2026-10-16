@@ -128,20 +128,11 @@ class Web3Service {
     }
   }
 
-  /// استرجاع المفتاح من جدول التخزين المشفر في SQLite مع النسخ الاحتياطي
+  /// استرجاع المفتاح من جدول التخزين المشفر في SQLite عبر دوال Drift الآمنة
   Future<String?> _loadStoredKey(AppDatabase db) async {
     try {
-      await db.customStatement(
-        'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
-      );
-      final rows = await db.customSelect(
-        'SELECT key_hex FROM sovereign_keys WHERE id = "primary_sovereign_wallet" LIMIT 1;',
-      ).get();
-
-      if (rows.isNotEmpty) {
-        final key = rows.first.read<String>('key_hex').trim();
-        if (key.isNotEmpty) return key;
-      }
+      final key = await db.getSovereignKey('primary_sovereign_wallet');
+      if (key != null && key.isNotEmpty) return key;
     } catch (e) {
       log('Web3Service: Database key read note: $e');
     }
@@ -158,15 +149,10 @@ class Web3Service {
     return null;
   }
 
-  /// حفظ المفتاح في SQLite وملف النسخ الاحتياطي
+  /// حفظ المفتاح في SQLite وملف النسخ الاحتياطي عبر دوال Drift الآمنة
   Future<void> _persistKey(AppDatabase db, String keyHex) async {
     try {
-      await db.customStatement(
-        'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
-      );
-      await db.customStatement(
-        'INSERT OR REPLACE INTO sovereign_keys (id, key_hex) VALUES ("primary_sovereign_wallet", "$keyHex");',
-      );
+      await db.setSovereignKey('primary_sovereign_wallet', keyHex);
     } catch (e) {
       log('Web3Service: Database key write note: $e');
     }

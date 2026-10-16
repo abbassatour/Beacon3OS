@@ -35,6 +35,15 @@ class DatabaseMigrations {
         if (from < 8) {
           await backfillDefaultTitles(db);
         }
+        if (from < 9) {
+          // إنشاء جدولي المفاتيح السيادية وبيانات الاقتران بأمان تام
+          await db.customStatement(
+            'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
+          );
+          await db.customStatement(
+            'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
+          );
+        }
       },
       beforeOpen: (details) async {
         await backfillDefaultTitles(db);

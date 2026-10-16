@@ -1,9 +1,9 @@
-// lib/main_windows.dart
+﻿// lib/main_windows.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/core/constants/api_constants.dart';
-import 'package:beacon_os/desktop/desktop_app.dart';
+import 'package:beacon_os/desktop/desktop.dart';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:flutter/material.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -14,7 +14,7 @@ import 'package:system_hardware_api/system_hardware_api.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. تهيئة سحابة Supabase بأمان
+  // 1. ØªÙ‡ÙŠØ¦Ø© Ø³Ø­Ø§Ø¨Ø© Supabase Ø¨Ø£Ù…Ø§Ù†
   if (ApiConstants.supabaseUrl.isNotEmpty &&
       ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
@@ -28,12 +28,12 @@ Future<void> main() async {
     }
   }
 
-  // 2. تشغيل المحركات الأساسية (Drift SQLite + Cloud Sync + Hardware)
+  // 2. ØªØ´ØºÙŠÙ„ Ø§Ù„Ù…Ø­Ø±ÙƒØ§Øª Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ© (Drift SQLite + Cloud Sync + Hardware)
   final database = AppDatabase();
   final cloudSync = CloudSyncClient();
   final hardware = HardwareClient();
 
-  // 3. حقن المستودعات المشتركة لسطح المكتب
+  // 3. Ø­Ù‚Ù† Ø§Ù„Ù…Ø³ØªÙˆØ¯Ø¹Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© Ù„Ø³Ø·Ø­ Ø§Ù„Ù…ÙƒØªØ¨
   final taskRepo = TaskAgendaRepositoryImpl(
     database: database,
     cloudSync: cloudSync,
@@ -57,16 +57,16 @@ Future<void> main() async {
     cloudSync: cloudSync,
   );
 
-  // تفعيل الاستماع اللحظي لتغييرات السحابة على سطح المكتب
+  // ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø§Ø³ØªÙ…Ø§Ø¹ Ø§Ù„Ù„Ø­Ø¸ÙŠ Ù„ØªØºÙŠÙŠØ±Ø§Øª Ø§Ù„Ø³Ø­Ø§Ø¨Ø© Ø¹Ù„Ù‰ Ø³Ø·Ø­ Ø§Ù„Ù…ÙƒØªØ¨
   commsRepo.initializeRealtimeSync();
   topologyRepo.initializeRealtimeSync();
 
-  // جلب إعدادات الثيم الحالية من الخزنة المحلية
+  // Ø¬Ù„Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø«ÙŠÙ… Ø§Ù„Ø­Ø§Ù„ÙŠØ© Ù…Ù† Ø§Ù„Ø®Ø²Ù†Ø© Ø§Ù„Ù…Ø­Ù„ÙŠØ©
   AppSetting initialSettings;
   try {
     initialSettings = await settingsRepo.getSettings();
   } catch (_) {
-    initialSettings = const AppSetting(
+    initialSettings = AppSetting(
       id: 'local_device_settings',
       userPersona: 'digital_minimalist',
       hasCompletedOnboarding: true,
@@ -86,7 +86,7 @@ Future<void> main() async {
       visionInspectionDetail: 'concise',
       autoFlashlightInDark: true,
       preferredCurrency: 'USD / Local',
-      updatedAt: null,
+      updatedAt: DateTime(2026),
       isSynced: false,
     );
   }
@@ -102,3 +102,4 @@ Future<void> main() async {
     ),
   );
 }
+

@@ -1,4 +1,4 @@
-// lib/app/view/app.dart
+﻿// lib/app/view/app.dart
 import 'dart:async';
 import 'dart:io';
 
@@ -8,7 +8,7 @@ import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/desktop/view/desktop_shell_page.dart';
+import 'package:beacon_os/desktop/desktop.dart';
 import 'package:beacon_os/fire_tv/view/tv_shell_page.dart';
 import 'package:beacon_os/onboarding/onboarding.dart';
 import 'package:beacon_os/spatial_shell/spatial_shell.dart';
@@ -75,7 +75,7 @@ class _AppState extends State<App> {
       ),
     );
 
-    // ⚡️ تأخير طلب الأذونات لمدة 1.2 ثانية في الخلفية لضمان اكتمال رسم الإطار الأول للواجهة تماماً وتجنب الشاشة السوداء
+    // âš¡ï¸ ØªØ£Ø®ÙŠØ± Ø·Ù„Ø¨ Ø§Ù„Ø£Ø°ÙˆÙ†Ø§Øª Ù„Ù…Ø¯Ø© 1.2 Ø«Ø§Ù†ÙŠØ© ÙÙŠ Ø§Ù„Ø®Ù„ÙÙŠØ© Ù„Ø¶Ù…Ø§Ù† Ø§ÙƒØªÙ…Ø§Ù„ Ø±Ø³Ù… Ø§Ù„Ø¥Ø·Ø§Ø± Ø§Ù„Ø£ÙˆÙ„ Ù„Ù„ÙˆØ§Ø¬Ù‡Ø© ØªÙ…Ø§Ù…Ø§Ù‹ ÙˆØªØ¬Ù†Ø¨ Ø§Ù„Ø´Ø§Ø´Ø© Ø§Ù„Ø³ÙˆØ¯Ø§Ø¡
     if (!_isDesktop && !_isTv) {
       Future.delayed(const Duration(milliseconds: 1200), () {
         if (mounted) {
@@ -88,20 +88,20 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     _nodesSubscription?.cancel();
-    _topology.dispose(); // 👈 إغلاق قناة بث الطوبولوجيا بأمان
+    _topology.dispose(); // ðŸ‘ˆ Ø¥ØºÙ„Ø§Ù‚ Ù‚Ù†Ø§Ø© Ø¨Ø« Ø§Ù„Ø·ÙˆØ¨ÙˆÙ„ÙˆØ¬ÙŠØ§ Ø¨Ø£Ù…Ø§Ù†
     super.dispose();
   }
 
-  /// 🌟 الدالة الذكية لاختيار الشاشة المناسبة للمنصة
+  /// ðŸŒŸ Ø§Ù„Ø¯Ø§Ù„Ø© Ø§Ù„Ø°ÙƒÙŠØ© Ù„Ø§Ø®ØªÙŠØ§Ø± Ø§Ù„Ø´Ø§Ø´Ø© Ø§Ù„Ù…Ù†Ø§Ø³Ø¨Ø© Ù„Ù„Ù…Ù†ØµØ©
   Widget _resolveHomeScreen(bool hasCompletedOnboarding) {
     if (_isDesktop) {
       return const DesktopShellPage();
     }
     if (_isTv) {
-      return const TvShellPage(); // 📺 شاشة التلفزيون في غرفة المعيشة
+      return const TvShellPage(); // ðŸ“º Ø´Ø§Ø´Ø© Ø§Ù„ØªÙ„ÙØ²ÙŠÙˆÙ† ÙÙŠ ØºØ±ÙØ© Ø§Ù„Ù…Ø¹ÙŠØ´Ø©
     }
     return hasCompletedOnboarding
-        ? const SpatialShellPage() // 📱 شاشة الهاتف الأساسية
+        ? const SpatialShellPage() // ðŸ“± Ø´Ø§Ø´Ø© Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ©
         : const GatewayPage();
   }
 
