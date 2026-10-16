@@ -15,37 +15,48 @@ class TopologyHeader extends StatelessWidget {
     final cubit = context.read<DesktopTopologyCubit>();
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.grid_view_rounded, color: colors.primary, size: 26),
-                const SizedBox(width: 10),
-                Text(
-                  'SPATIAL TOPOLOGY STUDIO',
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+        // 👈 تغليف العنوان بـ Expanded يمنع الضغط الزائد نحو اليمين
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.grid_view_rounded, color: colors.primary, size: 26),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'SPATIAL TOPOLOGY STUDIO',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Drag rooms across the Cartesian grid to update spatial phone gestures in real-time.',
-              style: TextStyle(
-                color: colors.onSurfaceVariant,
-                fontSize: 12,
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Drag rooms across the Cartesian grid to update spatial phone gestures in real-time.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 14),
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(4),
@@ -57,20 +68,20 @@ class TopologyHeader extends StatelessWidget {
               child: Row(
                 children: [
                   _FloorButton(
-                    label: 'Floor 0 - Today Canvas',
+                    label: 'Floor 0 - Canvas',
                     isSelected: state.currentFloor == 0,
                     onTap: () => cubit.selectFloor(0),
                   ),
                   const SizedBox(width: 4),
                   _FloorButton(
-                    label: 'Floor 1 - Engine & Settings',
+                    label: 'Floor 1 - Engine',
                     isSelected: state.currentFloor == 1,
                     onTap: () => cubit.selectFloor(1),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.surface,
@@ -83,7 +94,7 @@ class TopologyHeader extends StatelessWidget {
               ),
               icon: const Icon(Icons.restart_alt_rounded, size: 18),
               label: const Text(
-                'Reset Layout',
+                'Reset',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               onPressed: () => cubit.resetFloorToDefaults(),

@@ -21,8 +21,12 @@ class SpatialGridCanvas extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // 👈 استخدام Wrap مرن يمنع تجاوز الـ 20 بيكسل على مختلف أحجام الشاشات
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 8,
             children: [
               Text(
                 'CARTESIAN MATRIX (X: -2..+2, Y: -2..+2)',
@@ -33,12 +37,13 @@ class SpatialGridCanvas extends StatelessWidget {
                   letterSpacing: 1.1,
                 ),
               ),
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _legendDot(colors.primary, 'Active Room'),
-                  const SizedBox(width: 14),
                   _legendDot(colors.secondary, 'Center (Origin)'),
-                  const SizedBox(width: 14),
                   _legendDot(colors.outline, 'Empty Slot'),
                 ],
               ),
@@ -91,6 +96,7 @@ class SpatialGridCanvas extends StatelessWidget {
 
   Widget _legendDot(Color color, String label) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 8,
@@ -105,4 +111,4 @@ class SpatialGridCanvas extends StatelessWidget {
       ],
     );
   }
-} 
+}
