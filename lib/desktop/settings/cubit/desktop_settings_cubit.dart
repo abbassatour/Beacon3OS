@@ -112,7 +112,7 @@ class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
       emit(
         state.copyWith(
           isSyncing: false,
-          lastSyncMessage: 'Full Vault Sync Complete â€¢ Realtime Live',
+          lastSyncMessage: 'Full Vault Sync Complete - Realtime Live',
         ),
       );
     } catch (e) {

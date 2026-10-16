@@ -96,9 +96,9 @@ class AgendaHeader extends StatelessWidget {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('Filter: All')),
-                    DropdownMenuItem(value: 'high', child: Text('ðŸ”´ High Priority')),
-                    DropdownMenuItem(value: 'medium', child: Text('ðŸŸ¡ Medium Priority')),
-                    DropdownMenuItem(value: 'low', child: Text('âšª Low Priority')),
+                    DropdownMenuItem(value: 'high', child: Text('High Priority')),
+                    DropdownMenuItem(value: 'medium', child: Text('Medium Priority')),
+                    DropdownMenuItem(value: 'low', child: Text('Low Priority')),
                   ],
                   onChanged: (val) {
                     if (val != null) cubit.setPriorityFilter(val);

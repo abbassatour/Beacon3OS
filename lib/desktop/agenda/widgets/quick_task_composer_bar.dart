@@ -75,9 +75,9 @@ class _QuickTaskComposerBarState extends State<QuickTaskComposerBar> {
                 fontWeight: FontWeight.bold,
               ),
               items: const [
-                DropdownMenuItem(value: 'high', child: Text('ðŸ”´ High')),
-                DropdownMenuItem(value: 'medium', child: Text('ðŸŸ¡ Medium')),
-                DropdownMenuItem(value: 'low', child: Text('âšª Low')),
+                DropdownMenuItem(value: 'high', child: Text('High')),
+                DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                DropdownMenuItem(value: 'low', child: Text('Low')),
               ],
               onChanged: (val) {
                 if (val != null) setState(() => _selectedPriority = val);

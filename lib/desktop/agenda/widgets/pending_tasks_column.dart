@@ -122,9 +122,9 @@ class PendingTasksColumn extends StatelessWidget {
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(value: 'high', child: Text('ðŸ”´ Set High Priority')),
-              const PopupMenuItem(value: 'medium', child: Text('ðŸŸ¡ Set Medium Priority')),
-              const PopupMenuItem(value: 'low', child: Text('âšª Set Low Priority')),
+              const PopupMenuItem(value: 'high', child: Text('Set High Priority')),
+              const PopupMenuItem(value: 'medium', child: Text('Set Medium Priority')),
+              const PopupMenuItem(value: 'low', child: Text('Set Low Priority')),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',

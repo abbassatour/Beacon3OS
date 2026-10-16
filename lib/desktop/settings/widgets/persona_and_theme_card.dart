@@ -34,7 +34,7 @@ class PersonaAndThemeCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ChoiceChip(
-                  label: const Center(child: Text('Blind Accessible ðŸ‘ï¸')),
+                  label: const Center(child: Text('Blind Accessible')),
                   selected: isBlindMode,
                   onSelected: (val) {
                     if (val) {
@@ -48,7 +48,7 @@ class PersonaAndThemeCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: ChoiceChip(
-                  label: const Center(child: Text('Digital Minimalist ðŸ§˜')),
+                  label: const Center(child: Text('Digital Minimalist')),
                   selected: !isBlindMode,
                   onSelected: (val) {
                     if (val) {

@@ -93,10 +93,10 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
 
     String? cardinalHint;
     if (widget.isCenter) cardinalHint = 'ORIGIN';
-    if (widget.x == 0 && widget.y == 1) cardinalHint = 'NORTH â¬†ï¸';
-    if (widget.x == 0 && widget.y == -1) cardinalHint = 'SOUTH â¬‡ï¸';
-    if (widget.x == 1 && widget.y == 0) cardinalHint = 'EAST âž¡ï¸';
-    if (widget.x == -1 && widget.y == 0) cardinalHint = 'WEST â¬…ï¸';
+    if (widget.x == 0 && widget.y == 1) cardinalHint = 'NORTH [UP]';
+    if (widget.x == 0 && widget.y == -1) cardinalHint = 'SOUTH [DOWN]';
+    if (widget.x == 1 && widget.y == 0) cardinalHint = 'EAST [RIGHT]';
+    if (widget.x == -1 && widget.y == 0) cardinalHint = 'WEST [LEFT]';
 
     return Center(
       child: Column(

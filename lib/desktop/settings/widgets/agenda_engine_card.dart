@@ -34,9 +34,9 @@ class AgendaEngineCard extends StatelessWidget {
                 dropdownColor: colors.surface,
                 style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 12),
                 items: const [
-                  DropdownMenuItem(value: 'high', child: Text('ðŸ”´ High')),
-                  DropdownMenuItem(value: 'medium', child: Text('ðŸŸ¡ Medium')),
-                  DropdownMenuItem(value: 'low', child: Text('âšª Low')),
+                  DropdownMenuItem(value: 'high', child: Text('High')),
+                  DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                  DropdownMenuItem(value: 'low', child: Text('Low')),
                 ],
                 onChanged: (val) {
                   if (val != null) {

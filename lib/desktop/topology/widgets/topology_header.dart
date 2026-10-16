@@ -57,13 +57,13 @@ class TopologyHeader extends StatelessWidget {
               child: Row(
                 children: [
                   _FloorButton(
-                    label: 'Floor 0 â€¢ Today Canvas',
+                    label: 'Floor 0 - Today Canvas',
                     isSelected: state.currentFloor == 0,
                     onTap: () => cubit.selectFloor(0),
                   ),
                   const SizedBox(width: 4),
                   _FloorButton(
-                    label: 'Floor 1 â€¢ Engine & Settings',
+                    label: 'Floor 1 - Engine & Settings',
                     isSelected: state.currentFloor == 1,
                     onTap: () => cubit.selectFloor(1),
                   ),

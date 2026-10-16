@@ -218,8 +218,8 @@ class _AlarmsSchedulerSectionState extends State<AlarmsSchedulerSection> {
                                   ),
                                   Text(
                                     alarm.isActive
-                                        ? '${alarm.label} â€¢ $relativeTime'
-                                        : '${alarm.label} â€¢ Disabled',
+                                        ? '${alarm.label} - $relativeTime'
+                                        : '${alarm.label} - Disabled',
                                     style: TextStyle(
                                       color: colors.onSurfaceVariant,
                                       fontSize: 11,

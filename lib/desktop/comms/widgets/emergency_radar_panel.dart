@@ -189,7 +189,7 @@ class EmergencyRadarPanel extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '${contact.relationship ?? 'Emergency Primary'} â€¢ ${contact.phoneNumber}',
+                                    '${contact.relationship ?? 'Emergency Primary'} - ${contact.phoneNumber}',
                                     style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
                                   ),
                                 ],
