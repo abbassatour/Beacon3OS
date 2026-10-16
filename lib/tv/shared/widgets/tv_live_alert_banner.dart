@@ -20,15 +20,15 @@ class TvLiveAlertBanner extends StatelessWidget {
     final bannerColor = isSos ? colors.error : colors.primary;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       decoration: BoxDecoration(
         color: bannerColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: bannerColor.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: bannerColor.withValues(alpha: 0.45),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -37,9 +37,9 @@ class TvLiveAlertBanner extends StatelessWidget {
           Icon(
             isSos ? Icons.warning_rounded : Icons.cell_tower_rounded,
             color: Colors.white,
-            size: 32,
+            size: 38, // 👈 أيقونة واضحة وكبيرة
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,36 +52,38 @@ class TvLiveAlertBanner extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                    fontSize: 18.5, // 👈 عنوان التنبيه بارز جداً
                     letterSpacing: 1.1,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   isSos
-                      ? 'Distress radar broadcasting live coordinates to Arbitrum ledger.'
-                      : 'Living room voice query triggered hardware siren & flashlight strobe.',
+                      ? 'Distress radar broadcasting live coordinates to Arbitrum ledger and family devices.'
+                      : 'Living room voice query triggered hardware siren & flashlight strobe on phone.',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 15, // 👈 قراءة مريحة
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 16),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             onPressed: onDismiss,
             child: const Text(
               'Dismiss [Back]',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
             ),
           ),
         ],

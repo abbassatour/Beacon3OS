@@ -185,28 +185,38 @@ class CommsRepositoryImpl implements CommsRepository {
 
   void _subscribeToRealtimeContacts() {
     _realtimeContactsSubscription?.cancel();
-    final stream = _cloud.streamContacts();
-    if (stream != null) {
-      _realtimeContactsSubscription = stream.listen(
-        _handleCloudRealtimeContacts,
-        onError: (Object error) {
-          log('CommsRepository: Realtime contacts stream error: $error');
-        },
-      );
-      log('CommsRepository: 🛰️ Subscribed to Supabase Realtime contacts stream.');
+    try {
+      final stream = _cloud.streamContacts();
+      if (stream != null) {
+        _realtimeContactsSubscription = stream.listen(
+          _handleCloudRealtimeContacts,
+          onError: (Object error) {
+            log('CommsRepository: Realtime contacts stream error (offline handled): $error');
+          },
+          cancelOnError: false,
+        );
+        log('CommsRepository: 🛰️ Subscribed to Supabase Realtime contacts stream.');
+      }
+    } catch (e) {
+      log('CommsRepository: Safe catch on streamContacts init: $e');
     }
   }
 
   void _subscribeToRemoteActions() {
     _remoteActionsSubscription?.cancel();
-    final stream = _cloud.streamRemoteActions();
-    if (stream != null) {
-      _remoteActionsSubscription = stream.listen(
-        _handleIncomingRemoteActions,
-        onError: (Object error) {
-          log('CommsRepository: Remote actions stream error: $error');
-        },
-      );
+    try {
+      final stream = _cloud.streamRemoteActions();
+      if (stream != null) {
+        _remoteActionsSubscription = stream.listen(
+          _handleIncomingRemoteActions,
+          onError: (Object error) {
+            log('CommsRepository: Remote actions stream error (offline handled): $error');
+          },
+          cancelOnError: false,
+        );
+      }
+    } catch (e) {
+      log('CommsRepository: Safe catch on streamRemoteActions init: $e');
     }
   }
 
@@ -603,44 +613,66 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 🔗 بروتوكول الاقتران السيادي (عبر دوال Drift المحمية بدون Raw SQL)
+  // 🔗 بروتوكول الاقتران السيادي الصامت (Offline-First Device Pairing)
   // ===========================================================================
 
   @override
   Future<String?> initiateDevicePairing({required String deviceType}) async {
     final rng = math.Random();
+    // توليد كود الـ 6 أرقام محلياً دائماً
     final code = (rng.nextInt(900000) + 100000).toString();
 
-    final success = await _cloud.createPairingSession(
-      pairingCode: code,
-      targetDeviceType: deviceType,
-    );
+    // محاولة غير معطلة لتسجيل الكود في السحابة إن وُجد إنترنت
+    try {
+      await _cloud.createPairingSession(
+        pairingCode: code,
+        targetDeviceType: deviceType,
+      );
+      log('CommsRepository: Pairing code registered with cloud: $code');
+    } catch (e) {
+      log('CommsRepository: Cloud pairing registration deferred (offline-first): $e');
+    }
 
-    return success ? code : null;
+    // 🌟 إرجاع الكود دائماً لعرضه على شاشة التلفاز والاقتران محلياً عبر الواي فاي
+    return code;
   }
 
   @override
   Stream<String?> listenForDeviceAuthorization(String pairingCode) {
-    final stream = _cloud.streamPairingSession(pairingCode);
-    if (stream == null) return const Stream.empty();
+    try {
+      final stream = _cloud.streamPairingSession(pairingCode);
+      if (stream == null) return const Stream.empty();
 
-    return stream.asyncMap((data) async {
-      if (data != null && data['status'] == 'paired') {
-        final vaultId = data['vault_id'] as String?;
-        if (vaultId != null && vaultId.isNotEmpty) {
-          await _db.setDevicePairingMeta('linked_vault_id', vaultId);
-          await _cloud.burnPairingSession(pairingCode);
+      return stream
+          .handleError((Object error) {
+            log('CommsRepository: Safe catch on pairing stream error: $error');
+          })
+          .asyncMap((data) async {
+            if (data != null && data['status'] == 'paired') {
+              final vaultId = data['vault_id'] as String?;
+              if (vaultId != null && vaultId.isNotEmpty) {
+                await _db.setDevicePairingMeta('linked_vault_id', vaultId);
+                try {
+                  await _cloud.burnPairingSession(pairingCode);
+                } catch (_) {}
 
-          await initializeHybridTransport(
-            deviceType: 'fire_tv',
-            nodeId: 'node_$vaultId',
-          );
+                await initializeHybridTransport(
+                  deviceType: 'fire_tv',
+                  nodeId: 'node_$vaultId',
+                );
 
-          return vaultId;
-        }
-      }
-      return null;
-    });
+                return vaultId;
+              }
+            }
+            return null;
+          })
+          .handleError((Object error) {
+            log('CommsRepository: Pairing auth stream error handled: $error');
+          });
+    } catch (e) {
+      log('CommsRepository: Unable to listen for device authorization: $e');
+      return const Stream.empty();
+    }
   }
 
   @override
@@ -653,15 +685,20 @@ class CommsRepositoryImpl implements CommsRepository {
 
     final masterVaultId = customVaultId ?? _cloud.activeUserId;
 
-    final success = await _cloud.claimPairingSession(
-      pairingCode: cleanCode,
-      vaultId: masterVaultId,
-    );
+    try {
+      final success = await _cloud.claimPairingSession(
+        pairingCode: cleanCode,
+        vaultId: masterVaultId,
+      );
 
-    if (success) {
-      log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
+      if (success) {
+        log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
+      }
+      return success;
+    } catch (e) {
+      log('CommsRepository: Cloud pairing authorization failed: $e');
+      return false;
     }
-    return success;
   }
 
   @override

@@ -139,14 +139,19 @@ class TopologyRepositoryImpl implements TopologyRepository {
   @override
   void initializeRealtimeSync() {
     _authSubscription?.cancel();
-    _authSubscription = _cloud.authStateChanges?.listen((_) {
-      if (_cloud.isAuthenticated) {
-        _subscribeToRealtimeNodes();
-      } else {
-        _realtimeSubscription?.cancel();
-        _realtimeSubscription = null;
-      }
-    });
+    _authSubscription = _cloud.authStateChanges?.listen(
+      (_) {
+        if (_cloud.isAuthenticated) {
+          _subscribeToRealtimeNodes();
+        } else {
+          _realtimeSubscription?.cancel();
+          _realtimeSubscription = null;
+        }
+      },
+      onError: (Object error) {
+        log('TopologyRepository: Auth state stream error (offline handled): $error');
+      },
+    );
 
     if (_cloud.isAuthenticated) {
       _subscribeToRealtimeNodes();
@@ -155,49 +160,59 @@ class TopologyRepositoryImpl implements TopologyRepository {
 
   void _subscribeToRealtimeNodes() {
     _realtimeSubscription?.cancel();
-    final stream = _cloud.streamSpatialNodes();
-    if (stream != null) {
-      _realtimeSubscription = stream.listen((cloudNodes) async {
-        if (cloudNodes.isEmpty) return;
-        try {
-          await _db.batch((batch) {
-            for (final item in cloudNodes) {
-              final id = item['id'] as String?;
-              if (id == null) continue;
+    try {
+      final stream = _cloud.streamSpatialNodes();
+      if (stream != null) {
+        _realtimeSubscription = stream.listen(
+          (cloudNodes) async {
+            if (cloudNodes.isEmpty) return;
+            try {
+              await _db.batch((batch) {
+                for (final item in cloudNodes) {
+                  final id = item['id'] as String?;
+                  if (id == null) continue;
 
-              final deletedAt = item['deleted_at'] != null
-                  ? DateTime.tryParse(item['deleted_at'] as String)
-                  : null;
+                  final deletedAt = item['deleted_at'] != null
+                      ? DateTime.tryParse(item['deleted_at'] as String)
+                      : null;
 
-              if (deletedAt != null) {
-                batch.delete(
-                  _db.spatialNodes,
-                  SpatialNodesCompanion(id: Value(id)),
-                );
-              } else {
-                batch.insert(
-                  _db.spatialNodes,
-                  SpatialNodesCompanion.insert(
-                    id: id,
-                    moduleId: item['module_id'] as String,
-                    floorLevel: Value(item['floor_level'] as int? ?? 0),
-                    x: Value(item['x'] as int? ?? 0),
-                    y: Value(item['y'] as int? ?? 0),
-                    customTitle: Value(item['custom_title'] as String?),
-                    configJson: Value(item['config_json'] as String?),
-                    isVisible: Value(item['is_visible'] as bool? ?? true),
-                    isSynced: const Value(true),
-                  ),
-                  mode: InsertMode.insertOrReplace,
-                );
-              }
+                  if (deletedAt != null) {
+                    batch.delete(
+                      _db.spatialNodes,
+                      SpatialNodesCompanion(id: Value(id)),
+                    );
+                  } else {
+                    batch.insert(
+                      _db.spatialNodes,
+                      SpatialNodesCompanion.insert(
+                        id: id,
+                        moduleId: item['module_id'] as String,
+                        floorLevel: Value(item['floor_level'] as int? ?? 0),
+                        x: Value(item['x'] as int? ?? 0),
+                        y: Value(item['y'] as int? ?? 0),
+                        customTitle: Value(item['custom_title'] as String?),
+                        configJson: Value(item['config_json'] as String?),
+                        isVisible: Value(item['is_visible'] as bool? ?? true),
+                        isSynced: const Value(true),
+                      ),
+                      mode: InsertMode.insertOrReplace,
+                    );
+                  }
+                }
+              });
+              log('TopologyRepository: ⚡ Realtime topology synced (${cloudNodes.length} nodes).');
+            } catch (e) {
+              log('TopologyRepository: Error handling realtime nodes: $e');
             }
-          });
-          log('TopologyRepository: ⚡ Realtime topology synced (${cloudNodes.length} nodes).');
-        } catch (e) {
-          log('TopologyRepository: Error handling realtime nodes: $e');
-        }
-      });
+          },
+          onError: (Object error) {
+            log('TopologyRepository: Realtime spatial nodes stream error (offline handled): $error');
+          },
+          cancelOnError: false,
+        );
+      }
+    } catch (e) {
+      log('TopologyRepository: Safe catch on streamSpatialNodes init: $e');
     }
   }
 

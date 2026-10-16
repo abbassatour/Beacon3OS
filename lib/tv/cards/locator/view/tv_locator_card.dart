@@ -26,8 +26,8 @@ class TvLocatorCard extends StatelessWidget {
           focusNode: focusNode,
           title: 'ACOUSTIC PHONE LOCATOR',
           subtitle: state.isPinging
-              ? 'Pinging Phone Siren Now...'
-              : 'Press [SELECT] to ping missing phone',
+              ? 'Pinging Phone Siren & Strobe Flashlight...'
+              : 'Press [SELECT] to ping missing phone in living room',
           icon: Icons.radar_rounded,
           accentColor: state.isPinging ? colors.secondary : colors.primary,
           onSelect: cubit.pingPhone,
@@ -41,7 +41,7 @@ class TvLocatorCard extends StatelessWidget {
                     icon: Icons.phonelink_ring_rounded,
                     color: state.isPinging ? colors.secondary : colors.primary,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     state.isPinging
                         ? 'SIREN & STROBE ACTIVE'
@@ -49,17 +49,17 @@ class TvLocatorCard extends StatelessWidget {
                     style: TextStyle(
                       color: colors.onSurface,
                       fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: 1.1,
+                      fontSize: 19, // 👈 وضوح تام من مسافة 3 أمتار
+                      letterSpacing: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     'Pings phone instantly via Local LAN (< 2ms)',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
-                      fontSize: 12,
+                      fontSize: 14.5, // 👈 مقروء ومريح
                       fontWeight: FontWeight.w600,
                     ),
                   ),

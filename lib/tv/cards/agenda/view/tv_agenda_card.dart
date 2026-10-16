@@ -48,7 +48,7 @@ class TvAgendaCard extends StatelessWidget {
       return Center(
         child: CircularProgressIndicator(
           color: colors.secondary,
-          strokeWidth: 2,
+          strokeWidth: 3,
         ),
       );
     }
@@ -59,7 +59,7 @@ class TvAgendaCard extends StatelessWidget {
           'Zero pending priorities! Agenda clear.',
           style: TextStyle(
             color: colors.onSurfaceVariant,
-            fontSize: 13,
+            fontSize: 16, // 👈 وضوح القراءة للشاشات الكبيرة
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -73,25 +73,25 @@ class TvAgendaCard extends StatelessWidget {
         final task = state.tasks[index];
         return InkWell(
           onTap: () => cubit.toggleTaskCompletion(task),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: context.scaffoldBg.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(10),
+              color: context.scaffoldBg.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: colors.outline.withValues(alpha: 0.3),
+                color: colors.outline.withValues(alpha: 0.35),
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.radio_button_unchecked_rounded,
-                  size: 16,
+                  size: 20, // 👈 أيقونة أكبر
                   color: colors.primary,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     task.title,
@@ -99,26 +99,30 @@ class TvAgendaCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: colors.onSurface,
-                      fontSize: 13,
+                      fontSize: 16, // 👈 اسم المهمة كبير ومقروء بوضوح
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
+                    horizontal: 8,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: colors.secondary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
+                    color: colors.secondary.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: colors.secondary.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Text(
                     task.priority.toUpperCase(),
                     style: TextStyle(
                       color: colors.secondary,
-                      fontSize: 9,
+                      fontSize: 11.5, // 👈 شارة أولوية واضحة
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
                     ),
                   ),
                 ),

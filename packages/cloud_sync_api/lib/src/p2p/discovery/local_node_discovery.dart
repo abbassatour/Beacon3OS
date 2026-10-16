@@ -1,3 +1,4 @@
+// packages/cloud_sync_api/lib/src/p2p/discovery/local_node_discovery.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
@@ -22,7 +23,7 @@ class LocalNodeDiscovery {
 
   bool get isActive => _socket != null;
 
-  /// تهيئة مقبس الـ UDP للاستماع والإرسال
+  /// تهيئة مقبس الـ UDP للاستماع والإرسال بأمان على كافة المنصات
   Future<bool> initialize() async {
     if (_socket != null) return true;
 
@@ -30,8 +31,7 @@ class LocalNodeDiscovery {
       _socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         discoveryPort,
-        reuseAddress: true,
-        reusePort: true,
+        reuseAddress: true, // 👈 تم حذف reusePort لتفادي خطأ لينكس وأندرويد
       );
       _socket!.broadcastEnabled = true;
 

@@ -56,27 +56,27 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
         ),
       },
       child: AnimatedScale(
-        scale: _isFocused ? 1.02 : 1.0,
+        scale: _isFocused ? 1.025 : 1.0,
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: colors.surface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _isFocused
                   ? widget.accentColor
                   : colors.outline.withValues(alpha: 0.5),
-              width: _isFocused ? 3.0 : 1.2,
+              width: _isFocused ? 3.2 : 1.4,
             ),
             boxShadow: [
               if (_isFocused)
                 BoxShadow(
-                  color: widget.accentColor.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  spreadRadius: 2,
+                  color: widget.accentColor.withValues(alpha: 0.35),
+                  blurRadius: 24,
+                  spreadRadius: 3,
                 ),
             ],
           ),
@@ -85,8 +85,8 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
             children: [
               Row(
                 children: [
-                  Icon(widget.icon, color: widget.accentColor, size: 20),
-                  const SizedBox(width: 10),
+                  Icon(widget.icon, color: widget.accentColor, size: 24),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,17 +98,18 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
                           style: TextStyle(
                             color: colors.onSurface,
                             fontWeight: FontWeight.w900,
-                            fontSize: 14,
+                            fontSize: 17, // 👈 متوافق مع شاشات 10-Foot UI
                             letterSpacing: 1.1,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           widget.subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
-                            fontSize: 11,
+                            fontSize: 13.5, // 👈 وضوح القراءة عن بعد
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -118,25 +119,26 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
                   if (_isFocused)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
+                        horizontal: 10,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: widget.accentColor,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         'PRESS [SELECT]',
                         style: TextStyle(
                           color: colors.surface,
-                          fontSize: 10,
+                          fontSize: 11.5, // 👈 وضوح شارة الريموت
                           fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
                 ],
               ),
-              const Divider(height: 16, thickness: 1.0),
+              const Divider(height: 20, thickness: 1.2),
               Expanded(child: widget.child),
             ],
           ),

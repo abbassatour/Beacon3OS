@@ -39,7 +39,7 @@ class TvDashboardView extends StatelessWidget {
 
         return Padding(
           key: const ValueKey('tv_active_dashboard'),
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -50,17 +50,19 @@ class TvDashboardView extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: colors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border:
-                                Border.all(color: colors.primary, width: 1.5),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: colors.primary, width: 1.8),
                           ),
-                          child: Icon(Icons.tv_rounded,
-                              color: colors.primary, size: 26),
+                          child: Icon(
+                            Icons.tv_rounded,
+                            color: colors.primary,
+                            size: 28,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
                         Flexible(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,9 +74,9 @@ class TvDashboardView extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: colors.onSurface,
-                                  fontSize: 18,
+                                  fontSize: 22, // 👈 وضوح عنوان النظام
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.5,
+                                  letterSpacing: 1.8,
                                 ),
                               ),
                               Text(
@@ -83,7 +85,7 @@ class TvDashboardView extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: colors.onSurfaceVariant,
-                                  fontSize: 12,
+                                  fontSize: 14, // 👈 خط مريح
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -93,28 +95,28 @@ class TvDashboardView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       TvStatusPill.forTransport(state.transportMode, colors),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       TvStatusPill(
                         icon: Icons.verified_rounded,
                         label: 'ARBITRUM L2',
                         color: colors.primary,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: Icon(
                           Icons.link_off_rounded,
                           color: colors.onSurfaceVariant,
-                          size: 20,
+                          size: 22,
                         ),
                         tooltip: 'Unpair this display',
                         onPressed: cubit.unpairDevice,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 14),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
@@ -123,15 +125,16 @@ class TvDashboardView extends StatelessWidget {
                             timeStr,
                             style: TextStyle(
                               color: colors.onSurface,
-                              fontSize: 24,
+                              fontSize: 30, // 👈 ساعة علوية عريضة ومقروءة
                               fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
                             ),
                           ),
                           Text(
                             dateStr,
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
-                              fontSize: 12,
+                              fontSize: 14.5, // 👈 تاريخ واضح
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -141,7 +144,7 @@ class TvDashboardView extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // 2. شريط التنبيه اللحظي المنبثق للطوارئ والـ Ping
               if (state.hasActiveAlert) ...[
@@ -149,7 +152,7 @@ class TvDashboardView extends StatelessWidget {
                   alert: state.activeAlert!,
                   onDismiss: cubit.dismissActiveAlert,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
               ],
 
               // 3. شبكة الـ 2x2 المعيارية المحكومة بسياسة الفوكس الحتمية
@@ -167,7 +170,7 @@ class TvDashboardView extends StatelessWidget {
                               flex: 6,
                               child: TvLocatorCard(focusNode: locateCardFocus),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Expanded(
                               flex: 4,
                               child: TvSafetyCard(focusNode: sosCardFocus),
@@ -175,7 +178,7 @@ class TvDashboardView extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 20),
                       Expanded(
                         flex: 5,
                         child: Column(
@@ -185,7 +188,7 @@ class TvDashboardView extends StatelessWidget {
                               flex: 6,
                               child: TvAgendaCard(focusNode: agendaFocus),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Expanded(
                               flex: 4,
                               child: TvAlarmsCard(focusNode: alarmsFocus),
