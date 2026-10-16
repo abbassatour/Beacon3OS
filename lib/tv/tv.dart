@@ -29,5 +29,3 @@ export 'shell/cubit/tv_shell_cubit.dart';
 export 'shell/cubit/tv_shell_state.dart';
 export 'shell/view/tv_shell_page.dart';
 export 'shell/view/tv_shell_view.dart';
-
-export 'tv_app.dart';
