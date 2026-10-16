@@ -290,5 +290,3 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     return super.close();
   }
 }
-
-typedef SpatialCompassCubit = SpatialShellCubit;

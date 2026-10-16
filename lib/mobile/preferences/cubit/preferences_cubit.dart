@@ -159,5 +159,3 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     return super.close();
   }
 }
-
-typedef SettingsCubit = PreferencesCubit;

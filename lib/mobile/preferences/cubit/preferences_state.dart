@@ -56,7 +56,3 @@ class PreferencesState extends Equatable {
   @override
   List<Object?> get props => [status, settings, errorMessage];
 }
-
-// 🛡️ أسماء توافقية لمنع انكسار أي واجهة أو كود قديم
-typedef SettingsState = PreferencesState;
-typedef SettingsStatus = PreferencesStatus;

@@ -46,7 +46,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
     final fullDate = DateFormat('MMMM d, yyyy').format(_currentTime);
     final timeString = DateFormat('h:mm a').format(_currentTime);
 
-    final compassCubit = context.read<SpatialCompassCubit>();
+    final shellCubit = context.read<SpatialShellCubit>();
     final colors = context.colors;
 
     return Scaffold(
@@ -121,7 +121,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                                   ),
                                   icon: const Icon(Icons.tune_rounded, size: 18),
                                   tooltip: 'Floor 1 • Engine & Settings',
-                                  onPressed: compassCubit.goToSettingsFloor,
+                                  onPressed: shellCubit.goToSettingsFloor,
                                 ),
                               ],
                             ),

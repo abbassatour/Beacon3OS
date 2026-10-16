@@ -42,7 +42,7 @@ class SpatialShellPage extends StatelessWidget {
           ),
         ),
         BlocProvider(
-          create: (context) => SettingsCubit(
+          create: (context) => PreferencesCubit(
             settingsRepository: context.read<SettingsRepository>(),
             assistantRepository: context.read<AssistantRepository>(),
           ),
@@ -229,5 +229,3 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     );
   }
 }
-
-typedef SpatialCompassPage = SpatialShellPage;

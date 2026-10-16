@@ -23,9 +23,9 @@ class CockpitFloor1View extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       body: SafeArea(
-        child: BlocBuilder<SettingsCubit, SettingsState>(
+        child: BlocBuilder<PreferencesCubit, PreferencesState>(
           builder: (context, state) {
-            final cubit = context.read<SettingsCubit>();
+            final cubit = context.read<PreferencesCubit>();
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),

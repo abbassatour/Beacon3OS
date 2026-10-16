@@ -1,8 +1,8 @@
-// lib/spatial_shell/spatial_shell.dart
+// lib/mobile/shell/spatial_shell.dart
 export 'controllers/spatial_camera_controller.dart';
 export 'cubit/spatial_shell_cubit.dart';
 export 'cubit/spatial_shell_state.dart';
-export 'models/spatial_direction.dart';
+export 'package:beacon_os/core/topology/spatial_direction.dart';
 export 'models/spatial_gestures.dart';
 export 'view/spatial_shell_page.dart';
 export 'widgets/ambient_voice_overlay.dart';

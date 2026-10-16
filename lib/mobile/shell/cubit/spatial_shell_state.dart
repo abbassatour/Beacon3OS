@@ -1,11 +1,13 @@
+// lib/mobile/shell/cubit/spatial_shell_state.dart
 import 'package:beacon_os/core/topology/spatial_coordinate.dart';
-import 'package:beacon_os/mobile/shell/models/spatial_direction.dart';
+import 'package:beacon_os/core/topology/spatial_direction.dart';
 import 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 import 'package:equatable/equatable.dart';
 
 export 'package:beacon_os/core/topology/spatial_coordinate.dart';
-export 'package:beacon_os/mobile/shell/models/spatial_direction.dart';
+export 'package:beacon_os/core/topology/spatial_direction.dart';
 export 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
+
 class SpatialShellState extends Equatable {
   const SpatialShellState({
     this.currentCoordinate = SpatialCoordinate.origin,
@@ -33,7 +35,7 @@ class SpatialShellState extends Equatable {
   bool get isGroundFloor => currentCoordinate.floor == 0;
   bool get isSettingsFloor => currentCoordinate.floor == 1;
 
-  /// 🛡️ توافق عكسي مع واجهات البوصلة والـ HUD القديمة
+  /// توافق ملاحي مع الاتجاهات الكاردينالية
   SpatialDirection get currentDirection =>
       currentCoordinate.toCompassDirection();
 
@@ -83,6 +85,3 @@ class SpatialShellState extends Equatable {
         activeModuleId,
       ];
 }
-
-// 🛡️ توافق كامل مع الكود السابق
-typedef SpatialCompassState = SpatialShellState;

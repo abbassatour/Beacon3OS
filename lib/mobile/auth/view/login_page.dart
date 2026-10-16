@@ -34,7 +34,7 @@ class LoginPage extends StatelessWidget {
             } else {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute<void>(
-                  builder: (_) => const SpatialCompassPage(),
+                  builder: (_) => const SpatialShellPage(),
                 ),
               );
             }
