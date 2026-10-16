@@ -8,8 +8,6 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
-import 'package:beacon_os/desktop/desktop.dart';
-import 'package:beacon_os/tv/tv.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -18,8 +16,8 @@ import 'package:local_vault_api/local_vault_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:voice_ai_api/voice_ai_api.dart';
 
-/// يحدد نمط الإطلاق المستهدف للتطبيق
-enum DeviceTarget { auto, mobile, tv, desktop }
+/// بيئات التشغيل المدعومة في النظام
+enum AppFlavor { development, staging, production }
 
 class AppBlocObserver extends BlocObserver {
   const AppBlocObserver();
@@ -37,44 +35,45 @@ class AppBlocObserver extends BlocObserver {
   }
 }
 
-Future<void> bootstrap({DeviceTarget target = DeviceTarget.auto}) async {
+Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
   FlutterError.onError = (details) {
     log(details.exceptionAsString(), stackTrace: details.stack);
   };
 
-  Bloc.observer = const AppBlocObserver();
+  // 🛡️ تفعيل مراقب الأحداث (Observer) فقط في بيئتي التطوير والتجريب
+  // أما في الإنتاج (Production) نتركه معطلاً لتوفير الذاكرة وأداء المعالج
+  if (flavor != AppFlavor.production) {
+    Bloc.observer = const AppBlocObserver();
+  }
+  
   WidgetsFlutterBinding.ensureInitialized();
 
-  final isMobilePlatform = Platform.isAndroid || Platform.isIOS;
+  final isMobile = Platform.isAndroid || Platform.isIOS;
 
-  // 📺 1. فحص التلفاز وتهيئة أبعاد العرض
-  var isTv = target == DeviceTarget.tv;
-  if (!isTv && Platform.isAndroid) {
+  // 📺 1. فحص فوري: هل الجهاز شاشة تلفزيون (Android TV / Fire TV)؟
+  var isTv = false;
+  if (Platform.isAndroid) {
     try {
       const channel = MethodChannel('com.beaconos/system');
       isTv = await channel.invokeMethod<bool>('isTv') ?? false;
-      log('Bootstrap: Television auto-detected -> $isTv');
+      log('Bootstrap: Television detected -> $isTv');
     } catch (e) {
       log('Bootstrap: isTv check skipped: $e');
     }
   }
 
-  // فرض الوضع الأفقي وشاشة كاملة لشاشات التلفزيون
-  if (isTv) {
+  // 2. وضع الشاشة الكاملة الحقيقي للهواتف والتلفزيونات
+  if (isMobile) {
     try {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    } catch (_) {}
-  } else if (isMobilePlatform) {
-    try {
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    } catch (_) {}
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.immersiveSticky,
+      );
+    } catch (e) {
+      log('Bootstrap: Immersive mode setup bypassed: $e');
+    }
   }
 
-  // 2. تهيئة سحابة Supabase بأمان
+  // 3. تهيئة Supabase بأمان تام
   if (ApiConstants.supabaseUrl.isNotEmpty &&
       ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
@@ -84,60 +83,53 @@ Future<void> bootstrap({DeviceTarget target = DeviceTarget.auto}) async {
       );
       log('Supabase: Initialized successfully.');
     } catch (e) {
-      log('Supabase init error (offline tolerant): $e');
+      log('Supabase init error: $e');
     }
   }
 
-  // 3. الخزنة المحلية ومحرك الهوية السيادية Web3 DID (Single Source of Truth)
+  // 4. إنشاء نسخة مفردة واحدة من الخزنة المشفرة لجميع الخدمات (Single Source of Truth)
   final database = AppDatabase();
 
+  // 5. تهيئة خدمة الـ Web3 السيادية بنفس نسخة قاعدة البيانات
   try {
-    await Web3Service.instance
-        .initialize(database: database)
-        .timeout(const Duration(seconds: 5));
+    await Web3Service.instance.initialize(database: database).timeout(const Duration(seconds: 6));
     log('Bootstrap: Web3 Sovereign Identity initialized.');
   } catch (e) {
     log('Bootstrap: Web3 init deferred: $e');
   }
 
-  // 4. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام
+  // 6. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام بنفس نسخة قاعدة البيانات
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(
     database: database,
     llmAgent: llmAgent,
   );
 
-  // تفعيل الاستماع اللحظي للرادار والطوبولوجيا
-  launcherRepository.comms.initializeRealtimeSync();
-  launcherRepository.topology.initializeRealtimeSync();
-
-  // 5. تهيئة محركات الصوت (للهواتف فقط)
-  if (isMobilePlatform && !isTv) {
-    try {
-      await launcherRepository.assistant
-          .initializeEngines()
-          .timeout(const Duration(seconds: 4));
-      log('Bootstrap: Audio engines initialized.');
-    } catch (e) {
-      log('Bootstrap: Audio engines init bypassed: $e');
-    }
+  // 7. تهيئة محركات الصوت بمهلة كافية للمحاكي
+  try {
+    await launcherRepository.assistant
+        .initializeEngines()
+        .timeout(const Duration(seconds: 6));
+    log('Bootstrap: Audio engines initialized.');
+  } catch (e) {
+    log('Bootstrap: Audio engines init bypassed: $e');
   }
 
-  // 6. قراءة الإعدادات مع إعدادات افتراضية ذكية بحسب نوع الشاشة
+  // 8. قراءة الإعدادات
   AppSetting initialSettings;
   try {
     initialSettings = await launcherRepository.settings
         .getSettings()
-        .timeout(const Duration(seconds: 4));
+        .timeout(const Duration(seconds: 6));
   } catch (e) {
     initialSettings = AppSetting(
       id: 'local_device_settings',
       userPersona: isTv ? 'blind_accessible' : 'digital_minimalist',
-      hasCompletedOnboarding: isTv || target == DeviceTarget.desktop,
+      hasCompletedOnboarding: isTv ? true : false,
       speechRate: 0.5,
       hapticsEnabled: true,
       soundCuesEnabled: true,
-      isHighContrast: isTv, // تباين عالي افتراضي للقراءة من مسافة 3 أمتار على التلفاز
+      isHighContrast: isTv ? true : false,
       defaultPriority: 'medium',
       autoArchiveCompleted: true,
       speakDueDatesAloud: true,
@@ -159,36 +151,12 @@ Future<void> bootstrap({DeviceTarget target = DeviceTarget.auto}) async {
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));
 
-  // 7. توجيه إطلاق التطبيق للمنصة المناسبة
-  if (target == DeviceTarget.tv || isTv) {
-    runApp(
-      TvApp(
-        taskRepository: launcherRepository.tasks,
-        focusAlarmsRepository: launcherRepository.focusAlarms,
-        commsRepository: launcherRepository.comms,
-        settingsRepository: launcherRepository.settings,
-        topologyRepository: launcherRepository.topology,
-        initialSettings: initialSettings,
-      ),
-    );
-  } else if (target == DeviceTarget.desktop) {
-    runApp(
-      DesktopApp(
-        taskRepository: launcherRepository.tasks,
-        focusAlarmsRepository: launcherRepository.focusAlarms,
-        commsRepository: launcherRepository.comms,
-        settingsRepository: launcherRepository.settings,
-        topologyRepository: launcherRepository.topology,
-        initialSettings: initialSettings,
-      ),
-    );
-  } else {
-    runApp(
-      App(
-        launcherRepository: launcherRepository,
-        initialSettings: initialSettings,
-        isTv: false,
-      ),
-    );
-  }
+  // 9. إطلاق التطبيق
+  runApp(
+    App(
+      launcherRepository: launcherRepository,
+      initialSettings: initialSettings,
+      isTv: isTv,
+    ),
+  );
 }
