@@ -700,7 +700,3 @@ class CommsFloor0StandaloneView extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ توافق عكسي مع الكود القديم
-typedef CommunicationsView = CommsFloor0StandaloneView;
-typedef CommunicationsContentView = CommsFloor0View;

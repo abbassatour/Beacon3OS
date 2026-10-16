@@ -732,6 +732,3 @@ class CockpitFloor0StandaloneView extends StatelessWidget {
     );
   }
 }
-
-typedef CockpitDashboardView = CockpitFloor0StandaloneView;
-typedef CockpitDashboardContentView = CockpitFloor0View;

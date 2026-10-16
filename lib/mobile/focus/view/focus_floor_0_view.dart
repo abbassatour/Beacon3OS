@@ -548,7 +548,3 @@ class FocusFloor0StandaloneView extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ أسماء توافقية لمنع انكسار الكود القديم
-typedef FocusAlarmsView = FocusFloor0StandaloneView;
-typedef FocusAlarmsContentView = FocusFloor0View;

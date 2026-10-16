@@ -279,5 +279,3 @@ class VisionCubit extends Cubit<VisionState> {
     return super.close();
   }
 }
-
-typedef SpatialVisionCubit = VisionCubit;

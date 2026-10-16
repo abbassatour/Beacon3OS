@@ -137,6 +137,3 @@ class CommsFloor1View extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ توافق عكسي مع الكود القديم
-typedef SettingsCommsRoom = CommsFloor1View;

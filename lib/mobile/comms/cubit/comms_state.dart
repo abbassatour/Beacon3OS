@@ -63,7 +63,3 @@ class CommsState extends Equatable {
         errorMessage,
       ];
 }
-
-// 🛡️ أسماء توافقية لمنع انكسار الكود القديم
-typedef CommunicationsState = CommsState;
-typedef CommunicationsStatus = CommsStatus;

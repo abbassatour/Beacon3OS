@@ -337,5 +337,3 @@ class CockpitFloor1View extends StatelessWidget {
     );
   }
 }
-
-typedef SettingsCoreRoom = CockpitFloor1View;

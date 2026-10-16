@@ -68,6 +68,3 @@ class FocusState extends Equatable {
         todayCompletedSessions,
       ];
 }
-
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
-typedef FocusAlarmsState = FocusState;

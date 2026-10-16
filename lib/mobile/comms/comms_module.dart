@@ -81,5 +81,3 @@ class CommsModule extends SpatialModule {
     );
   }
 }
-
-typedef CommunicationsModule = CommsModule;

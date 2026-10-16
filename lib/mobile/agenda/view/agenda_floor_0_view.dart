@@ -319,7 +319,3 @@ class AgendaFloor0StandaloneView extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ أسماء توافقية
-typedef AgendaView = AgendaFloor0StandaloneView;
-typedef AgendaContentView = AgendaFloor0View;

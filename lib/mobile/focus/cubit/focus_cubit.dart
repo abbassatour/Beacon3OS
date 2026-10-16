@@ -283,5 +283,3 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     return super.close();
   }
 }
-
-typedef FocusAlarmsCubit = FocusCubit;

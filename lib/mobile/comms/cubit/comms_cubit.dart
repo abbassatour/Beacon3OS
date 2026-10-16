@@ -198,5 +198,3 @@ class CommsCubit extends Cubit<CommsState> {
     return super.close();
   }
 }
-
-typedef CommunicationsCubit = CommsCubit;

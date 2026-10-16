@@ -75,5 +75,3 @@ class VisionModule extends SpatialModule {
     );
   }
 }
-
-typedef SpatialVisionModule = VisionModule;

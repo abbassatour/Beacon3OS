@@ -176,5 +176,3 @@ class CockpitCubit extends Cubit<CockpitState> {
     return super.close();
   }
 }
-
-typedef CockpitDashboardCubit = CockpitCubit;

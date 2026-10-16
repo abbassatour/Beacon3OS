@@ -236,6 +236,3 @@ class VisionFloor1View extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ توافق عكسي
-typedef SettingsVisionRoom = VisionFloor1View;

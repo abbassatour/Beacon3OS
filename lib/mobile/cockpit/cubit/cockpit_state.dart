@@ -97,6 +97,3 @@ class CockpitState extends Equatable {
         errorMessage,
       ];
 }
-
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
-typedef CockpitDashboardState = CockpitState;

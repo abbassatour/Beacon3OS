@@ -77,5 +77,3 @@ class FocusModule extends SpatialModule {
     );
   }
 }
-
-typedef FocusAlarmsModule = FocusModule;
