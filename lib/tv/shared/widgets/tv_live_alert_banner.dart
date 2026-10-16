@@ -1,3 +1,4 @@
+// lib/tv/shared/widgets/tv_live_alert_banner.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -23,13 +24,20 @@ class TvLiveAlertBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: bannerColor,
         borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: bannerColor.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Icon(
             isSos ? Icons.warning_rounded : Icons.cell_tower_rounded,
             color: Colors.white,
-            size: 30,
+            size: 32,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -65,14 +73,14 @@ class TvLiveAlertBanner extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             onPressed: onDismiss,
             child: const Text(
-              'Dismiss',
+              'Dismiss [Back]',
               style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
             ),
           ),

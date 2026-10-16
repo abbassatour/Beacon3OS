@@ -36,7 +36,6 @@ class DatabaseMigrations {
           await backfillDefaultTitles(db);
         }
         if (from < 9) {
-          // إنشاء جدولي المفاتيح السيادية وبيانات الاقتران بأمان تام
           await db.customStatement(
             'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
           );
@@ -46,6 +45,13 @@ class DatabaseMigrations {
         }
       },
       beforeOpen: (details) async {
+        // تأمين وجود الجداول دائماً
+        await db.customStatement(
+          'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
+        );
+        await db.customStatement(
+          'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
+        );
         await backfillDefaultTitles(db);
       },
     );
@@ -53,7 +59,6 @@ class DatabaseMigrations {
 
   static Future<void> seedDefaultSpatialNodes(AppDatabase db) async {
     final defaultNodes = <SpatialNodesCompanion>[
-      // 🏠 Floor 0 (Ground)
       const SpatialNodesCompanion(
         id: Value('cockpit_f0'),
         moduleId: Value('cockpit'),
@@ -94,8 +99,6 @@ class DatabaseMigrations {
         y: Value(0),
         customTitle: Value('Agenda & Tasks'),
       ),
-
-      // ⚙️ Floor 1 (Settings & Engine)
       const SpatialNodesCompanion(
         id: Value('cockpit_f1'),
         moduleId: Value('cockpit'),

@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9; // 👈 تم التحديث إلى 9
 
   @override
   MigrationStrategy get migration => DatabaseMigrations.createStrategy(this);
@@ -57,7 +57,7 @@ class AppDatabase extends _$AppDatabase {
   late final SafetyDao safetyDao = SafetyDao(this);
 
   // ===========================================================================
-  // 🛡️ Forwarding Facade API (تضمن عدم انكسار أي كود في launcher_repository)
+  // 🛡️ Forwarding Facade API
   // ===========================================================================
 
   // 1. Spatial Nodes
@@ -257,4 +257,61 @@ class AppDatabase extends _$AppDatabase {
       );
   Stream<List<VisionScan>> watchRecentVisionScans({int limit = 20}) =>
       safetyDao.watchRecentVisionScans(limit: limit);
+
+  // ===========================================================================
+  // 🌟 7. الدوال المضافة: المفاتيح السيادية واقتران الأجهزة (تم حل الخطأ هنا)
+  // ===========================================================================
+
+  Future<String?> getSovereignKey(String id) async {
+    try {
+      final rows = await customSelect(
+        'SELECT key_hex FROM sovereign_keys WHERE id = ? LIMIT 1',
+        variables: [Variable<String>(id)],
+      ).get();
+      if (rows.isEmpty) return null;
+      return rows.first.data['key_hex'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setSovereignKey(String id, String keyHex) async {
+    try {
+      await customStatement(
+        'INSERT OR REPLACE INTO sovereign_keys (id, key_hex) VALUES (?, ?)',
+        [id, keyHex],
+      );
+    } catch (_) {}
+  }
+
+  Future<String?> getDevicePairingMeta(String key) async {
+    try {
+      final rows = await customSelect(
+        'SELECT val FROM device_pairing_meta WHERE key = ? LIMIT 1',
+        variables: [Variable<String>(key)],
+      ).get();
+      if (rows.isEmpty) return null;
+      return rows.first.data['val'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setDevicePairingMeta(String key, String val) async {
+    try {
+      await customStatement(
+        'INSERT OR REPLACE INTO device_pairing_meta (key, val) VALUES (?, ?)',
+        [key, val],
+      );
+    } catch (_) {}
+  }
+
+  Future<void> deleteDevicePairingMeta(String key) async {
+    try {
+      await customStatement(
+        'DELETE FROM device_pairing_meta WHERE key = ?',
+        [key],
+      );
+    } catch (_) {}
+  }
 }

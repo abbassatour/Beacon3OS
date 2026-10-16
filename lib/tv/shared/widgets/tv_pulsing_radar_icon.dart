@@ -1,3 +1,4 @@
+// lib/tv/shared/widgets/tv_pulsing_radar_icon.dart
 import 'package:flutter/material.dart';
 
 class TvPulsingRadarIcon extends StatefulWidget {

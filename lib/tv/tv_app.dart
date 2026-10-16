@@ -1,14 +1,14 @@
-// lib/fire_tv/fire_tv_app.dart
+// lib/tv/tv_app.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
-import 'package:beacon_os/fire_tv/view/tv_shell_page.dart';
+import 'package:beacon_os/tv/shell/view/tv_shell_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 
-class FireTvApp extends StatelessWidget {
-  const FireTvApp({
+class TvApp extends StatelessWidget {
+  const TvApp({
     required this.taskRepository,
     required this.focusAlarmsRepository,
     required this.commsRepository,
@@ -45,7 +45,7 @@ class FireTvApp extends StatelessWidget {
           builder: (context, themeMode) {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
-              title: 'BeaconOS Fire TV Canvas',
+              title: 'BeaconOS TV Canvas',
               theme: themeMode == AppThemeMode.highContrastOled
                   ? AppTheme.highContrastOledTheme
                   : AppTheme.warmPaperTheme,

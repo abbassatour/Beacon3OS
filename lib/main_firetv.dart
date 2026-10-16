@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/core/constants/api_constants.dart';
-import 'package:beacon_os/fire_tv/fire_tv_app.dart';
+import 'package:beacon_os/tv/tv.dart'; // 👈 الاستيراد الجديد المباشر
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,16 +15,16 @@ import 'package:system_hardware_api/system_hardware_api.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. ØªØ«Ø¨ÙŠØª Ø§ØªØ¬Ø§Ù‡ Ø§Ù„Ø´Ø§Ø´Ø© Ø£ÙÙ‚ÙŠØ§Ù‹ Ø¯Ø§Ø¦Ù…Ø§Ù‹ Ù„Ù„ØªÙ„ÙØ²ÙŠÙˆÙ†
+  // 1. تثبيت اتجاه الشاشة أفقياً دائماً للتلفزيون
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
 
-  // 2. Ø¥Ø®ÙØ§Ø¡ Ø£Ø´Ø±Ø·Ø© Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ© Ù„Ù„Ø§Ù†Ø¯Ø±ÙˆÙŠØ¯ Ù„Ø´Ø§Ø´Ø§Øª Ø§Ù„ØªÙ„ÙØ²ÙŠÙˆÙ†
+  // 2. إخفاء أشرطة الحالة الافتراضية للاندرويد لشاشات التلفزيون
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // 3. ØªÙ‡ÙŠØ¦Ø© Ø³Ø­Ø§Ø¨Ø© Supabase Ù„Ù…Ø²Ø§Ù…Ù†Ø© ØºØ±ÙØ© Ø§Ù„Ù…Ø¹ÙŠØ´Ø© Ù…Ø¹ Ø§Ù„Ù‡Ø§ØªÙ
+  // 3. تهيئة سحابة Supabase لمزامنة غرفة المعيشة مع الهاتف
   if (ApiConstants.supabaseUrl.isNotEmpty &&
       ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
@@ -38,12 +38,12 @@ Future<void> main() async {
     }
   }
 
-  // 4. ØªØ´ØºÙŠÙ„ Ø§Ù„Ø®Ø²Ù†Ø© Ø§Ù„Ù…Ø­Ù„ÙŠØ© ÙˆÙ…Ø­Ø±ÙƒØ§Øª Ø§Ù„Ø¹ØªØ§Ø¯
+  // 4. تشغيل الخزنة المحلية ومحركات العتاد
   final database = AppDatabase();
   final cloudSync = CloudSyncClient();
   final hardware = HardwareClient();
 
-  // 5. ØªÙ‡ÙŠØ¦Ø© Ø§Ù„Ù…Ø³ØªÙˆØ¯Ø¹Ø§Øª Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠØ© ÙˆØ§Ù„Ù…Ø­Ù„ÙŠØ©
+  // 5. تهيئة المستودعات السحابية والمحلية
   final taskRepo = TaskAgendaRepositoryImpl(
     database: database,
     cloudSync: cloudSync,
@@ -67,11 +67,11 @@ Future<void> main() async {
     cloudSync: cloudSync,
   );
 
-  // ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø§Ø³ØªÙ…Ø§Ø¹ Ø§Ù„Ù„Ø­Ø¸ÙŠ Ù„Ø£ÙˆØ§Ù…Ø± Ø§Ù„Ø·ÙˆØ§Ø±Ø¦ ÙˆØ§Ø³ØªØ¯Ø¹Ø§Ø¡Ø§Øª Alexa+
+  // تفعيل الاستماع اللحظي لأوامر الطوارئ واستدعاءات Alexa+
   commsRepo.initializeRealtimeSync();
   topologyRepo.initializeRealtimeSync();
 
-  // Ø¬Ù„Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®Ø²Ù†Ø©
+  // جلب إعدادات الخزنة
   AppSetting initialSettings;
   try {
     initialSettings = await settingsRepo.getSettings();
@@ -83,7 +83,7 @@ Future<void> main() async {
       speechRate: 0.5,
       hapticsEnabled: true,
       soundCuesEnabled: true,
-      isHighContrast: true, // ØªØ¨Ø§ÙŠÙ† Ø¹Ø§Ù„ÙŠ Ø§ÙØªØ±Ø§Ø¶ÙŠ Ù„Ù„Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„ÙˆØ§Ø¶Ø­Ø© Ù…Ù† Ù…Ø³Ø§ÙØ© 3 Ø£Ù…ØªØ§Ø±
+      isHighContrast: true, // تباين عالي افتراضي للقراءة الواضحة من مسافة 3 أمتار
       defaultPriority: 'medium',
       autoArchiveCompleted: true,
       speakDueDatesAloud: true,
@@ -101,8 +101,9 @@ Future<void> main() async {
     );
   }
 
+  // 🚀 تشغيل TvApp الجديدة بنظام الـ Cubits النظيف
   runApp(
-    FireTvApp(
+    TvApp(
       taskRepository: taskRepo,
       focusAlarmsRepository: focusRepo,
       commsRepository: commsRepo,

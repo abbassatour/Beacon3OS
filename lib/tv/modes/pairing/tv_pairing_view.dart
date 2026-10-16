@@ -1,3 +1,4 @@
+// lib/tv/modes/pairing/tv_pairing_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -102,7 +103,8 @@ class TvPairingView extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(12),
@@ -111,7 +113,8 @@ class TvPairingView extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.mic_rounded, color: colors.secondary, size: 20),
+                      Icon(Icons.mic_rounded,
+                          color: colors.secondary, size: 20),
                       const SizedBox(width: 10),
                       Text(
                         'Voice Command: "Pair $part1 $part2"',
@@ -299,7 +302,8 @@ class TvPairingView extends StatelessWidget {
                   color: isFocused ? colors.primary : colors.outline,
                   width: isFocused ? 2.2 : 1.2,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -307,7 +311,8 @@ class TvPairingView extends StatelessWidget {
               icon: Icon(icon, size: 18),
               label: Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
               onPressed: onPressed,
             ),

@@ -1,8 +1,11 @@
+// lib/tv/shared/widgets/tv_focusable_card.dart
+import 'package:beacon_os/core/audio/sound_controller.dart';
+import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
-class TvCardResponsive extends StatefulWidget {
-  const TvCardResponsive({
+class TvFocusableCard extends StatefulWidget {
+  const TvFocusableCard({
     required this.focusNode,
     required this.title,
     required this.subtitle,
@@ -22,11 +25,23 @@ class TvCardResponsive extends StatefulWidget {
   final VoidCallback? onSelect;
 
   @override
-  State<TvCardResponsive> createState() => _TvCardResponsiveState();
+  State<TvFocusableCard> createState() => _TvFocusableCardState();
 }
 
-class _TvCardResponsiveState extends State<TvCardResponsive> {
+class _TvFocusableCardState extends State<TvFocusableCard> {
   bool _isFocused = false;
+  static DateTime _lastSoundTime = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _onFocusChanged(bool hasFocus) {
+    if (hasFocus) {
+      final now = DateTime.now();
+      if (now.difference(_lastSoundTime).inMilliseconds > 120) {
+        _lastSoundTime = now;
+        SoundController.instance.play(SoundCue.navMove);
+      }
+    }
+    setState(() => _isFocused = hasFocus);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +49,7 @@ class _TvCardResponsiveState extends State<TvCardResponsive> {
 
     return FocusableActionDetector(
       focusNode: widget.focusNode,
-      onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
+      onFocusChange: _onFocusChanged,
       actions: <Type, Action<Intent>>{
         ActivateIntent: CallbackAction<ActivateIntent>(
           onInvoke: (_) => widget.onSelect?.call(),
