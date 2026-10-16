@@ -114,5 +114,3 @@ class VisionTestStep extends StatelessWidget {
     );
   }
 }
-
-typedef BlindVisionStep = VisionTestStep;

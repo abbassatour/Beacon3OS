@@ -95,5 +95,3 @@ class SosSetupStep extends StatelessWidget {
     );
   }
 }
-
-typedef BlindSosStep = SosSetupStep;

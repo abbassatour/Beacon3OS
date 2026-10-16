@@ -319,9 +319,3 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
     }
   }
 }
-
-// 🛡️ أسماء توافقية
-typedef BlindStep = AccessibleStep;
-typedef BlindFlowStatus = AccessibleFlowStatus;
-typedef BlindOnboardingState = AccessibleOnboardingState;
-typedef BlindOnboardingCubit = AccessibleOnboardingCubit;

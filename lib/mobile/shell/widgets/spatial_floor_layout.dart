@@ -88,8 +88,3 @@ class SpatialFloorLayout extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ أسماء توافقية لمنع انكسار الكود القديم
-typedef CoreFloorLayout = SpatialFloorLayout;
-typedef SettingsFloorLayout = SpatialFloorLayout;
-typedef CompassTransitionLayout = SpatialFloorLayout;

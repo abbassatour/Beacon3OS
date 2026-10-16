@@ -126,5 +126,3 @@ class AudioTuningStep extends StatelessWidget {
     );
   }
 }
-
-typedef BlindAudioStep = AudioTuningStep;

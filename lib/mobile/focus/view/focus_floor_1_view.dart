@@ -162,6 +162,3 @@ class FocusFloor1View extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ اسم توافقي لمنع انكسار الكود القديم
-typedef SettingsFocusRoom = FocusFloor1View;

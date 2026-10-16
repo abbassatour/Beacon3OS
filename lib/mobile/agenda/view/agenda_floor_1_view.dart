@@ -197,5 +197,3 @@ class AgendaFloor1View extends StatelessWidget {
     );
   }
 }
-
-typedef SettingsAgendaRoom = AgendaFloor1View;

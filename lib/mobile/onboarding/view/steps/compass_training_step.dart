@@ -137,5 +137,3 @@ class CompassTrainingStep extends StatelessWidget {
     );
   }
 }
-
-typedef BlindCompassStep = CompassTrainingStep;

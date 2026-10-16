@@ -256,6 +256,3 @@ class _GatewayPageState extends State<GatewayPage> {
     );
   }
 }
-
-// 🛡️ اسم توافقي
-typedef OnboardingGatewayPage = GatewayPage;

@@ -126,6 +126,3 @@ class _AccessibleOnboardingScaffold extends StatelessWidget {
     }
   }
 }
-
-// 🛡️ اسم توافقي
-typedef BlindOnboardingPage = AccessibleOnboardingPage;
