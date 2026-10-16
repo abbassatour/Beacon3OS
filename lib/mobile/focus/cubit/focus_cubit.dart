@@ -1,9 +1,9 @@
-// lib/focus/cubit/focus_cubit.dart
+// lib/mobile/focus/cubit/focus_cubit.dart
 import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/focus/cubit/focus_state.dart';
+import 'package:beacon_os/mobile/focus/cubit/focus_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -50,10 +50,6 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     });
   }
 
-  // ===========================================================================
-  // 📱 إدارة دورة حياة التطبيق (Foreground / Background Synchronization)
-  // ===========================================================================
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
@@ -68,10 +64,6 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
       _startPeriodicTicker();
     }
   }
-
-  // ===========================================================================
-  // ⏱️ التحكم بمؤقت التركيز والمذاكرة (Focus Engine)
-  // ===========================================================================
 
   Future<void> selectDuration(int minutes) async {
     if (state.isTimerRunning) return;
@@ -210,10 +202,6 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     );
   }
 
-  // ===========================================================================
-  // ⏰ التحكم بساعة المنبهات (Alarms Engine)
-  // ===========================================================================
-
   Future<void> toggleAlarm(Alarm alarm) async {
     await _haptics.successNotification();
     await _focusRepo.toggleAlarm(alarm);
@@ -296,5 +284,4 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
   }
 }
 
-// 🛡️ اسم توافقي لمنع انكسار الكود القديم
 typedef FocusAlarmsCubit = FocusCubit;

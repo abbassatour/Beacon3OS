@@ -1,20 +1,20 @@
-// lib/spatial_shell/view/spatial_shell_page.dart
+// lib/mobile/shell/view/spatial_shell_page.dart
 import 'dart:async';
 
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/preferences/preferences.dart';
-import 'package:beacon_os/spatial_shell/controllers/spatial_camera_controller.dart';
-import 'package:beacon_os/spatial_shell/cubit/spatial_shell_cubit.dart';
-import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
-import 'package:beacon_os/spatial_shell/widgets/ambient_voice_overlay.dart';
-import 'package:beacon_os/spatial_shell/widgets/corner_swipe_detector.dart';
-import 'package:beacon_os/spatial_shell/widgets/spatial_compass_hud.dart';
-import 'package:beacon_os/spatial_shell/widgets/spatial_floor_layout.dart';
-import 'package:beacon_os/spatial_shell/widgets/spatial_portal_transform.dart';
-import 'package:beacon_os/spatial_shell/widgets/tactile_multi_touch_detector.dart';
+import 'package:beacon_os/mobile/preferences/preferences.dart';
+import 'package:beacon_os/mobile/shell/controllers/spatial_camera_controller.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_cubit.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
+import 'package:beacon_os/mobile/shell/widgets/ambient_voice_overlay.dart';
+import 'package:beacon_os/mobile/shell/widgets/corner_swipe_detector.dart';
+import 'package:beacon_os/mobile/shell/widgets/spatial_compass_hud.dart';
+import 'package:beacon_os/mobile/shell/widgets/spatial_floor_layout.dart';
+import 'package:beacon_os/mobile/shell/widgets/spatial_portal_transform.dart';
+import 'package:beacon_os/mobile/shell/widgets/tactile_multi_touch_detector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -32,8 +32,6 @@ class SpatialShellPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final topology = context.read<SpatialTopology>();
 
-    // 🌟 الغلاف الآن يحقن فقط حالات مستوى نظام التشغيل (OS-Level States)
-    // أي موديول جديد يضاف للنظام يدير حالته داخلياً دون لمس هذا الملف
     return MultiBlocProvider(
       providers: [
         BlocProvider(

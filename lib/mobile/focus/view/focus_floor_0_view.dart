@@ -1,9 +1,8 @@
-// lib/focus/view/focus_floor_0_view.dart
+// lib/mobile/focus/view/focus_floor_0_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/focus/cubit/focus_cubit.dart';
-import 'package:beacon_os/focus/cubit/focus_state.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
-
+import 'package:beacon_os/mobile/focus/cubit/focus_cubit.dart';
+import 'package:beacon_os/mobile/focus/cubit/focus_state.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -533,7 +532,7 @@ class FocusFloor0View extends StatelessWidget {
   }
 }
 
-/// Standalone Wrapper (للتوجيه أو الاختبار المستقل)
+/// Standalone Wrapper
 class FocusFloor0StandaloneView extends StatelessWidget {
   const FocusFloor0StandaloneView({super.key});
 

@@ -1,12 +1,12 @@
-// lib/agenda/view/agenda_floor_0_view.dart
-import 'package:beacon_os/agenda/cubit/agenda_cubit.dart';
-import 'package:beacon_os/agenda/cubit/agenda_state.dart';
-import 'package:beacon_os/agenda/widgets/add_memo_dialog.dart';
-import 'package:beacon_os/agenda/widgets/add_task_dialog.dart';
-import 'package:beacon_os/agenda/widgets/dismissible_memo_card.dart';
-import 'package:beacon_os/agenda/widgets/dismissible_task_card.dart';
+// lib/mobile/agenda/view/agenda_floor_0_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
+import 'package:beacon_os/mobile/agenda/cubit/agenda_cubit.dart';
+import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart';
+import 'package:beacon_os/mobile/agenda/widgets/add_memo_dialog.dart';
+import 'package:beacon_os/mobile/agenda/widgets/add_task_dialog.dart';
+import 'package:beacon_os/mobile/agenda/widgets/dismissible_memo_card.dart';
+import 'package:beacon_os/mobile/agenda/widgets/dismissible_task_card.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -303,7 +303,7 @@ class AgendaFloor0View extends StatelessWidget {
   }
 }
 
-/// Standalone Wrapper (مفيد للاختبارات المعزولة أو التوجيه المستقل)
+/// Standalone Wrapper
 class AgendaFloor0StandaloneView extends StatelessWidget {
   const AgendaFloor0StandaloneView({super.key});
 
@@ -320,6 +320,6 @@ class AgendaFloor0StandaloneView extends StatelessWidget {
   }
 }
 
-// 🛡️ أسماء توافقية لمنع أي تعطل أثناء فترة الترحيل
+// 🛡️ أسماء توافقية
 typedef AgendaView = AgendaFloor0StandaloneView;
 typedef AgendaContentView = AgendaFloor0View;

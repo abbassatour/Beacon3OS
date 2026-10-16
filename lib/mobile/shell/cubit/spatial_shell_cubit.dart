@@ -5,7 +5,7 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/topology/topology.dart';
-import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart'; // 👈 لضمان حل نوع SpatialNode

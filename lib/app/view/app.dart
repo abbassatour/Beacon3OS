@@ -2,22 +2,20 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:beacon_os/auth/cubit/auth_cubit.dart';
+import 'package:beacon_os/app/default_topology.dart';
 import 'package:beacon_os/core/services/permission_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/desktop/desktop.dart';
-import 'package:beacon_os/onboarding/onboarding.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
-import 'package:beacon_os/tv/tv.dart';
+import 'package:beacon_os/mobile/mobile.dart';
+import 'package:beacon_os/tv/tv.dart'; // 👈 تم التصحيح: استيراد موحد لحزمة التلفاز
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
 
-/// مفتاح التنقل العام للمنظومة بالكامل
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class App extends StatefulWidget {
@@ -51,10 +49,8 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
 
-    // 1. تهيئة الطوبولوجيا المكانية الافتراضية
-    _topology = SpatialTopology.defaultTopology();
+    _topology = createDefaultSpatialTopology();
 
-    // 2. الاستماع لتحديثات وتوزيع الغرف من قاعدة البيانات المحلية
     _nodesSubscription = widget._launcherRepository.topology
         .watchNodes()
         .listen((nodes) {
@@ -65,7 +61,6 @@ class _AppState extends State<App> {
       }
     });
 
-    // 3. تهيئة موجه الأوامر الصوتية الثنائي (Fast-Path + Gemini)
     _voiceDispatcher = VoiceCommandDispatcher(
       topology: _topology,
       assistantRepository: widget._launcherRepository.assistant,
@@ -79,7 +74,6 @@ class _AppState extends State<App> {
       ),
     );
 
-    // ⚡ تأخير طلب الأذونات على الهواتف لمدة 1.2 ثانية لاكتمال رسم الإطار الأول وتفادي الشاشة السوداء
     if (!_isDesktop && !_isTv) {
       Future.delayed(const Duration(milliseconds: 1200), () {
         if (mounted) {
@@ -92,21 +86,20 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     _nodesSubscription?.cancel();
-    _topology.dispose(); // 👈 إغلاق قناة بث الطوبولوجيا بأمان
+    _topology.dispose();
     super.dispose();
   }
 
-  /// 🌟 اختيار الشاشة المناسبة للمنصة ونوع الجهاز
   Widget _resolveHomeScreen(bool hasCompletedOnboarding) {
     if (_isDesktop) {
-      return const DesktopShellPage(); // 💻 واجهة سطح المكتب
+      return const DesktopShellPage();
     }
     if (_isTv) {
-      return const TvShellPage(); // 📺 شاشة التلفزيون المحدثة بنظام الـ Cubits النظيف
+      return const TvShellPage();
     }
     return hasCompletedOnboarding
-        ? const SpatialShellPage() // 📱 شاشة الهاتف الأساسية (الفضاء الديكارتي)
-        : const GatewayPage();     // 🚪 بوابة الترحيب واختيار نمط الاستخدام
+        ? const SpatialShellPage()
+        : const GatewayPage();
   }
 
   @override
@@ -163,7 +156,7 @@ class _AppState extends State<App> {
               debugShowCheckedModeBanner: false,
               title: _isDesktop
                   ? 'BeaconOS Command Center'
-                  : (_isTv ? 'BeaconOS TV Canvas' : 'BeaconOS'),
+                  : (_isTv ? 'BeaconOS Fire TV' : 'BeaconOS'),
               theme: (_isTv || themeMode == AppThemeMode.highContrastOled)
                   ? AppTheme.highContrastOledTheme
                   : AppTheme.warmPaperTheme,

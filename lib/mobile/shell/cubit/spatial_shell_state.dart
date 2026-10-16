@@ -1,13 +1,11 @@
-// lib/spatial_shell/cubit/spatial_shell_state.dart
 import 'package:beacon_os/core/topology/spatial_coordinate.dart';
-import 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
-import 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
+import 'package:beacon_os/mobile/shell/models/spatial_direction.dart';
+import 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 import 'package:equatable/equatable.dart';
 
 export 'package:beacon_os/core/topology/spatial_coordinate.dart';
-export 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
-export 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
-
+export 'package:beacon_os/mobile/shell/models/spatial_direction.dart';
+export 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 class SpatialShellState extends Equatable {
   const SpatialShellState({
     this.currentCoordinate = SpatialCoordinate.origin,

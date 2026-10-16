@@ -1,4 +1,4 @@
-// lib/spatial_shell/controllers/spatial_camera_controller.dart
+// lib/mobile/shell/controllers/spatial_camera_controller.dart
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -6,7 +6,7 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/topology/topology.dart';
-import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/widgets.dart';
 
 /// منسق ومحرك فيزياء الكاميرا الفضائية والرادار الصوتي المستمر.
@@ -155,7 +155,6 @@ class SpatialCameraController extends ChangeNotifier {
       }
     }
 
-    // 🛡️ حماية تصفح القوائم الداخلية في أي غرفة (سواء قمرة القيادة أو الأجندة أو التواصل)
     if (isInnerListScrolling) {
       _isInnerScrollingActive = true;
     }
@@ -383,7 +382,6 @@ class SpatialCameraController extends ChangeNotifier {
       return;
     }
 
-    // 🎯 الجاذبية المكانية الذكية
     const distanceThresholdPercent = 0.50;
     const velocityThreshold = 220.0;
 
@@ -434,7 +432,6 @@ class SpatialCameraController extends ChangeNotifier {
         SoundController.instance.playBoundaryBump();
       }
     } else if (_lockedAxis == Axis.vertical) {
-      // 🛡️ إذا كان السحب جزءاً من تصفح قائمة داخلية، نعيد ضبط المحاذاة دون تنقل فضائي أو أصوات ارتطام
       if (_isInnerScrollingActive) {
         snapToCoordinate(state.currentCoordinate, screenSize);
         _lockedAxis = null;

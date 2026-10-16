@@ -1,7 +1,6 @@
-// lib/vision/view/vision_floor_1_view.dart
+// lib/mobile/vision/view/vision_floor_1_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/preferences/preferences.dart'; // 👈 تم التصحيح
-
+import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -238,5 +237,5 @@ class VisionFloor1View extends StatelessWidget {
   }
 }
 
-// 🛡️ توافق عكسي مع الكود القديم
+// 🛡️ توافق عكسي
 typedef SettingsVisionRoom = VisionFloor1View;

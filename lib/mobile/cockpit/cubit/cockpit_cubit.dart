@@ -1,9 +1,9 @@
-// lib/cockpit/cubit/cockpit_cubit.dart
+// lib/mobile/cockpit/cubit/cockpit_cubit.dart
 import 'dart:async';
-import 'package:beacon_os/cockpit/cubit/cockpit_state.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
+import 'package:beacon_os/mobile/cockpit/cubit/cockpit_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -66,7 +66,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     });
   }
 
-  /// تحديث حالة البطارية بأمان مع حماية دورة الحياة
   Future<void> refreshBattery() async {
     if (isClosed) return;
     final status = await _hardwareRepo.getBatteryStatus();
@@ -74,7 +73,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     emit(state.copyWith(batteryStatus: status));
   }
 
-  /// تشغيل أو إيقاف ملخص اليوم الصباحي الشامل
   Future<void> playDailyBriefing() async {
     if (state.isBriefingPlaying) {
       await _assistantRepo.stopSpeaking();
@@ -125,7 +123,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     }
   }
 
-  /// قراءة المهمة صوتياً دون تبديل حالتها
   Future<void> readTaskAloud(Task task) async {
     await _haptics.successNotification();
     final priorityText = 'Priority: ${task.priority}.';
@@ -135,7 +132,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _assistantRepo.speak('${task.title}. $priorityText $dueText');
   }
 
-  /// تبديل حالة المهمة مع إشعار صوتي فوري
   Future<void> toggleTask(Task task) async {
     await _haptics.successNotification();
     await _tasksRepo.toggleTask(task);
@@ -143,7 +139,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _assistantRepo.speak('Task $status: ${task.title}');
   }
 
-  /// تبديل تفعيل المنبه مع تأكيد صوتي
   Future<void> toggleAlarm(Alarm alarm) async {
     await _haptics.successNotification();
     await _focusRepo.toggleAlarm(alarm);
@@ -153,7 +148,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _assistantRepo.speak('Alarm for $hourStr:$minStr $status.');
   }
 
-  /// نطق تفاصيل المنبه القادم
   Future<void> readNextAlarmAloud(Alarm? alarm) async {
     await _haptics.successNotification();
     if (alarm == null) {
@@ -168,7 +162,6 @@ class CockpitCubit extends Cubit<CockpitState> {
     }
   }
 
-  /// قراءة المذكرة الصوتية الأخيرة
   Future<void> readMemoAloud(VoiceMemo memo) async {
     await _haptics.successNotification();
     await _assistantRepo.speak('Note titled: ${memo.title}. Content: ${memo.content}');
@@ -184,5 +177,4 @@ class CockpitCubit extends Cubit<CockpitState> {
   }
 }
 
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
 typedef CockpitDashboardCubit = CockpitCubit;

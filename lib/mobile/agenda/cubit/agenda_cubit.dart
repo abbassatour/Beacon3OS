@@ -1,9 +1,9 @@
-// lib/agenda/cubit/agenda_cubit.dart
+// lib/mobile/agenda/cubit/agenda_cubit.dart
 import 'dart:async';
-import 'package:beacon_os/agenda/cubit/agenda_state.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
+import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -13,7 +13,7 @@ class AgendaCubit extends Cubit<AgendaState> {
   AgendaCubit({
     required TaskAgendaRepository taskRepository,
     required AssistantRepository assistantRepository,
-    required SettingsRepository settingsRepository, // 👈 حقن مستودع الإعدادات
+    required SettingsRepository settingsRepository,
     HapticManager? hapticManager,
     SoundController? soundController,
   })  : _taskRepo = taskRepository,
@@ -54,8 +54,6 @@ class AgendaCubit extends Cubit<AgendaState> {
     final statusWord = task.isCompleted ? 'marked pending' : 'completed';
     await _assistant.speak('Task $statusWord: ${task.title}');
 
-    // ⚡️ تفعيل الأرشفة التلقائية (Auto-Archive):
-    // إذا اكتملت المهمة وكان الخيار مفعلاً، يتم نقلها للأرشيف (soft-delete) بعد 600ms
     if (!task.isCompleted) {
       final settings = await _settings.getSettings();
       if (settings.autoArchiveCompleted) {
@@ -68,12 +66,11 @@ class AgendaCubit extends Cubit<AgendaState> {
   Future<void> addNewTask({
     required String title,
     DateTime? dueDate,
-    String? priority, // اختياري ليأخذ القيمة من الإعدادات تلقائياً
+    String? priority,
   }) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.success);
 
-    // ⚡️ تطبيق الأولوية الافتراضية المحددة في الإعدادات
     final settings = await _settings.getSettings();
     final effectivePriority = priority ?? settings.defaultPriority;
 
@@ -107,7 +104,6 @@ class AgendaCubit extends Cubit<AgendaState> {
     final priorityText = 'Priority: ${task.priority}.';
     final statusText = task.isCompleted ? 'Completed.' : 'Pending.';
 
-    // ⚡️ نطق موعد الاستحقاق فقط إذا كان مفعلاً في الإعدادات
     final settings = await _settings.getSettings();
     String dueText = '';
 

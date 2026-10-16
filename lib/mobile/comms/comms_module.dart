@@ -1,10 +1,10 @@
-// lib/comms/comms_module.dart
-import 'package:beacon_os/comms/intents/comms_intents.dart';
-import 'package:beacon_os/comms/view/comms_floor_0_view.dart';
-import 'package:beacon_os/comms/view/comms_floor_1_view.dart';
+// lib/mobile/comms/comms_module.dart
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/mobile/comms/intents/comms_intents.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/comms/view/comms_floor_0_view.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/comms/view/comms_floor_1_view.dart'; // 👈 مصحح
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -66,7 +66,7 @@ class CommsModule extends SpatialModule {
         SaveContactIntentHandler(),
         DeleteContactIntentHandler(),
         SyncContactsIntentHandler(),
-        PairDeviceIntentHandler(), // 👈 تسجيل معالج الاقتران الصوتي في نواة الغرفة
+        PairDeviceIntentHandler(),
       ];
 
   @override

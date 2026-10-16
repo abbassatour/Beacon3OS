@@ -1,10 +1,9 @@
-// lib/comms/view/comms_floor_0_view.dart
-import 'package:beacon_os/comms/cubit/comms_cubit.dart';
-import 'package:beacon_os/comms/cubit/comms_state.dart';
-import 'package:beacon_os/comms/widgets/add_contact_dialog.dart';
+// lib/mobile/comms/view/comms_floor_0_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
-
+import 'package:beacon_os/mobile/comms/cubit/comms_cubit.dart';
+import 'package:beacon_os/mobile/comms/cubit/comms_state.dart';
+import 'package:beacon_os/mobile/comms/widgets/add_contact_dialog.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';

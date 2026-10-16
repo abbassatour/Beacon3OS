@@ -1,0 +1,13 @@
+// lib/mobile/mobile.dart
+export 'agenda/agenda.dart';
+export 'auth/cubit/auth_cubit.dart';
+export 'auth/cubit/auth_state.dart';
+export 'auth/view/login_page.dart';
+export 'cockpit/cockpit.dart';
+export 'comms/comms.dart';
+export 'focus/focus.dart';
+export 'impact_pool/view/impact_pool_page.dart';
+export 'onboarding/onboarding.dart';
+export 'preferences/preferences.dart';
+export 'shell/spatial_shell.dart';
+export 'vision/vision.dart';

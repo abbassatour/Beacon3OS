@@ -253,13 +253,23 @@ class HardwareClient {
     }
   }
 
-  /// فتح تطبيق خارجي مثبت على النظام
+  /// فتح تطبيق خارجي مثبت على النظام مع حماية كاملة ضد Command Injection على ويندوز
   Future<bool> openApp(String packageName) async {
+    final cleanTarget = packageName.trim();
+    if (cleanTarget.isEmpty) return false;
+
     if (Platform.isWindows) {
+      // 🛡️ حماية ضد Command Injection: رفض أي مدخل يحتوي على محارف التحكم في الـ Shell
+      final dangerousPattern = RegExp(r'[&|;`$<>^%!\n\r]');
+      if (dangerousPattern.hasMatch(cleanTarget)) {
+        log('HardwareClient: [Security Alert] Blocked malicious characters in openApp: $cleanTarget');
+        return false;
+      }
+
       try {
-        // 🪟 تشغيل البرامج على نظام ويندوز عبر shell
-        await Process.run('cmd', ['/c', 'start', packageName]);
-        return true;
+        // نستخدم "" كأول معامل لتفادي اعتبار المسارات المقتبسة كـ Window Title في cmd start
+        final result = await Process.run('cmd', ['/c', 'start', '""', cleanTarget]);
+        return result.exitCode == 0;
       } catch (e) {
         log('HardwareClient: Failed to launch app on Windows: $e');
         return false;
@@ -270,7 +280,7 @@ class HardwareClient {
 
     try {
       final result = await _systemChannel.invokeMethod<bool>('openApp', {
-        'packageName': packageName,
+        'packageName': cleanTarget,
       });
       return result ?? false;
     } catch (e) {

@@ -5,7 +5,7 @@ import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
+import 'package:beacon_os/core/topology/spatial_direction.dart'; // 👈 استيراد مصحح
 import 'package:flutter/widgets.dart';
 
 class SoundController {

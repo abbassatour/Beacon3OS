@@ -1,6 +1,6 @@
 // lib/core/topology/spatial_coordinate.dart
 import 'dart:math' as math;
-import 'package:beacon_os/spatial_shell/models/spatial_direction.dart';
+import 'package:beacon_os/core/topology/spatial_direction.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 

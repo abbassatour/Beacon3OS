@@ -1,8 +1,8 @@
-// lib/vision/view/vision_floor_0_view.dart
+// lib/mobile/vision/view/vision_floor_0_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
-import 'package:beacon_os/vision/cubit/vision_cubit.dart';
-import 'package:beacon_os/vision/cubit/vision_state.dart';
+import 'package:beacon_os/core/topology/spatial_direction.dart';
+import 'package:beacon_os/mobile/vision/cubit/vision_cubit.dart';
+import 'package:beacon_os/mobile/vision/cubit/vision_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -232,7 +232,6 @@ class VisionFloor0View extends StatelessWidget {
                               ),
                             ],
                           ),
-                          // 🌟 شارة التوثيق اللامركزي للرعاية على السلسلة
                           Container(
                             margin: const EdgeInsets.only(top: 4, bottom: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -330,9 +329,9 @@ class VisionFloor0View extends StatelessWidget {
           if (isBusy || isSpeaking)
             BoxShadow(
               color: (isSpeaking ? colors.secondary : colors.primary)
-                  .withValues(alpha: 0.25),
-              blurRadius: 30,
-              spreadRadius: 6,
+                  .withValues(alpha: 0.3),
+              blurRadius: 24,
+              spreadRadius: 4,
             ),
         ],
       ),
@@ -342,7 +341,7 @@ class VisionFloor0View extends StatelessWidget {
               ? Icons.hourglass_top_rounded
               : (isSpeaking
                   ? Icons.volume_up_rounded
-                  : Icons.camera_rounded),
+                  : Icons.camera_alt_rounded),
           color: isSpeaking ? colors.secondary : colors.primary,
           size: isBusy ? 54 : 48,
         ),
@@ -351,17 +350,18 @@ class VisionFloor0View extends StatelessWidget {
   }
 
   String _getStatusTitle(VisionState state) {
-    switch (state.status) {
-      case VisionStatus.capturing:
-        return 'CAPTURING SCENE...';
-      case VisionStatus.analyzing:
-        return 'GEMINI IS INSPECTING...';
-      case VisionStatus.speaking:
-        return 'DESCRIBING SCENE...';
-      case VisionStatus.error:
-        return 'SCAN FAILED';
-      case VisionStatus.idle:
-        return 'READY TO SCAN';
+    if (state.isSpeaking) return 'DESCRIBING SCENE...';
+    if (state.status == VisionStatus.capturing) return 'CAPTURING FRAME...';
+    if (state.status == VisionStatus.analyzing) return 'ANALYZING SCENE...';
+    switch (state.activeMode) {
+      case VisionMode.surroundings:
+        return 'INSPECT SURROUNDINGS';
+      case VisionMode.textReader:
+        return 'READ DOCUMENT';
+      case VisionMode.currency:
+        return 'IDENTIFY CASH';
+      case VisionMode.productExpiry:
+        return 'PRODUCT & EXPIRY';
     }
   }
 }
@@ -383,7 +383,3 @@ class VisionFloor0StandaloneView extends StatelessWidget {
     );
   }
 }
-
-// 🛡️ أسماء توافقية لمنع انكسار الكود
-typedef SpatialVisionView = VisionFloor0StandaloneView;
-typedef SpatialVisionContentView = VisionFloor0View;

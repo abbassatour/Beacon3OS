@@ -1,9 +1,9 @@
-// lib/agenda/view/agenda_floor_1_view.dart
+// lib/mobile/agenda/view/agenda_floor_1_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/preferences/preferences.dart'; // 👈 تم التصحيح
-
+import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 /// واجهة الطابق الأول للأجندة (Floor 1: Agenda Preferences & Behaviors)
 class AgendaFloor1View extends StatelessWidget {
   const AgendaFloor1View({super.key});
@@ -198,5 +198,5 @@ class AgendaFloor1View extends StatelessWidget {
   }
 }
 
-// 🛡️ توافق عكسي مع أي كود قديم
+// 🛡️ توافق عكسي
 typedef SettingsAgendaRoom = AgendaFloor1View;

@@ -1,7 +1,7 @@
-// lib/spatial_shell/widgets/spatial_compass_hud.dart
+// lib/mobile/shell/widgets/spatial_compass_hud.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
-import 'package:beacon_os/spatial_shell/cubit/spatial_shell_state.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -38,7 +38,6 @@ class SpatialCompassHud extends StatelessWidget {
     final canAscend = topology.canAscendFrom(currentFloor);
     final canDescend = topology.canDescendFrom(currentFloor);
 
-    // جلب عنوان الغرفة النظيف المحفوظ في قاعدة البيانات
     final cleanRoomTitle = topology.titleAtCoordinate(activeCoord);
 
     final semanticLabel = isAtCenter
@@ -80,7 +79,6 @@ class SpatialCompassHud extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ⚡️ رادار ديناميكي يعكس التوزيع الفعلي للغرف في الطابق
                       _buildAdaptiveRadarPips(
                         context: context,
                         topology: topology,
@@ -167,7 +165,6 @@ class SpatialCompassHud extends StatelessWidget {
     );
   }
 
-  /// 🛰️ رادار مصغر يعرض مواقع الغرف الحقيقية في مصفوفة الطابق لحظياً
   Widget _buildAdaptiveRadarPips({
     required BuildContext context,
     required SpatialTopology topology,
@@ -222,7 +219,6 @@ class SpatialCompassHud extends StatelessWidget {
     );
   }
 
-  /// 🏷️ قراءة العنوان مباشرة من قاعدة البيانات مع حذف الإحداثيات البرمجية (-1, 0)
   String _getDynamicLabel(
     SpatialTopology topology,
     SpatialCoordinate coord,

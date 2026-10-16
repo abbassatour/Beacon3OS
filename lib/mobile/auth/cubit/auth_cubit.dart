@@ -1,13 +1,12 @@
-// lib/auth/cubit/auth_cubit.dart
+// lib/mobile/auth/cubit/auth_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:beacon_os/auth/cubit/auth_state.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
+import 'package:beacon_os/mobile/auth/cubit/auth_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-// 👈 إخفاء AuthState من حزمة Supabase لمنع التعارض مع كلاس حالة الـ Cubit
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 class AuthCubit extends Cubit<AuthState> {
@@ -36,7 +35,6 @@ class AuthCubit extends Cubit<AuthState> {
     if (user != null) {
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));
 
-      // تشغيل المزامنة بالاتجاهين في الخلفية بسلاسة
       Future.microtask(() async {
         await _repository.restoreVaultFromCloud();
         await _repository.syncPendingOfflineChanges();
@@ -46,8 +44,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// 🌟 الدخول السيادي اللامركزي التلقائي (Hardware-Bound Sovereign DID Login)
-  /// يربط محفظة الهاتف المشفرة (DID) بجلسة سحابية مشفرة برمجياً دون الحاجة لأي لوحة مفاتيح
   Future<void> loginWithSovereignDid() async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
@@ -65,7 +61,6 @@ class AuthCubit extends Cubit<AuthState> {
           password: syntheticPassword,
         );
       } catch (_) {
-        // إذا كان الحساب جديداً لأول مرة، نسجله فوراً في الخلفية
         try {
           res = await _cloud.signUpWithEmail(
             email: syntheticEmail,
@@ -95,7 +90,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// 📺 اقتران غرفة المعيشة والتلفزيون (Living Room & Fire TV Bridge)
   Future<void> pairLivingRoomTv(String pairingCode) async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
@@ -109,7 +103,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// تسجيل الدخول الكلاسيكي (مسار بديل)
   Future<void> signIn({required String email, required String password}) async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
@@ -129,7 +122,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// إنشاء حساب تقليدي
   Future<void> signUp({required String email, required String password}) async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
@@ -148,12 +140,10 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// نقرة الدخول السيادي السريع المربوطة بزر LoginPage
   Future<void> continueAsGuest() async {
     await loginWithSovereignDid();
   }
 
-  /// تسجيل الخروج وإعادة ضبط الجلسة
   Future<void> signOut() async {
     await _cloud.signOut();
     emit(state.copyWith(status: AuthStatus.unauthenticated, user: null));

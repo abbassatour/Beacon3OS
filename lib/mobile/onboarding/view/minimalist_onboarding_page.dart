@@ -1,12 +1,12 @@
-// lib/onboarding/view/minimalist_onboarding_page.dart
+// lib/mobile/onboarding/view/minimalist_onboarding_page.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/core/voice_bus/voice_bus.dart'; // 👈 تم التصحيح
-import 'package:beacon_os/onboarding/cubit/minimalist_onboarding_cubit.dart';
-import 'package:beacon_os/onboarding/view/steps/minimalist_cockpit_step.dart';
-import 'package:beacon_os/onboarding/view/steps/minimalist_focus_step.dart';
-import 'package:beacon_os/onboarding/view/steps/minimalist_launcher_step.dart';
-import 'package:beacon_os/onboarding/view/steps/minimalist_manifesto_step.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/mobile/onboarding/cubit/minimalist_onboarding_cubit.dart';
+import 'package:beacon_os/mobile/onboarding/view/steps/minimalist_cockpit_step.dart';
+import 'package:beacon_os/mobile/onboarding/view/steps/minimalist_focus_step.dart';
+import 'package:beacon_os/mobile/onboarding/view/steps/minimalist_launcher_step.dart';
+import 'package:beacon_os/mobile/onboarding/view/steps/minimalist_manifesto_step.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';

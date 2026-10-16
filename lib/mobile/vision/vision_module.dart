@@ -1,10 +1,10 @@
-// lib/vision/vision_module.dart
+// lib/mobile/vision/vision_module.dart
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/vision/intents/vision_intents.dart';
-import 'package:beacon_os/vision/view/vision_floor_0_view.dart';
-import 'package:beacon_os/vision/view/vision_floor_1_view.dart';
+import 'package:beacon_os/mobile/vision/intents/vision_intents.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/vision/view/vision_floor_0_view.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/vision/view/vision_floor_1_view.dart'; // 👈 مصحح
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';

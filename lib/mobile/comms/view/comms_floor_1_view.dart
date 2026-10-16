@@ -1,9 +1,9 @@
-// lib/comms/view/comms_floor_1_view.dart
+// lib/mobile/comms/view/comms_floor_1_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/preferences/preferences.dart'; // 👈 تم التصحيح
-
+import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 /// واجهة الطابق الأول لغرفة التواصل (Floor 1: Safety & SOS Radar Preferences)
 class CommsFloor1View extends StatelessWidget {
   const CommsFloor1View({super.key});

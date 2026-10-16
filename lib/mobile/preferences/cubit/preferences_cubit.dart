@@ -1,8 +1,8 @@
-// lib/preferences/cubit/preferences_cubit.dart
+// lib/mobile/preferences/cubit/preferences_cubit.dart
 import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/preferences/cubit/preferences_state.dart';
+import 'package:beacon_os/mobile/preferences/cubit/preferences_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:drift/drift.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -49,10 +49,6 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     );
   }
 
-  // ===========================================================================
-  // 🎛️ 1. إعدادات الغرفة المركزية (Cockpit - Floor 1)
-  // ===========================================================================
-
   Future<void> setSpeechRate(double rate) async {
     await _assistantRepo.setSpeechRate(rate);
     await _settingsRepo.updateSettings(
@@ -83,10 +79,6 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     );
   }
 
-  // ===========================================================================
-  // 📅 2. إعدادات الأجندة والمهام (Agenda - Floor 1)
-  // ===========================================================================
-
   Future<void> setDefaultPriority(String priority) async {
     await _settingsRepo.updateSettings(
       AppSettingsCompanion(defaultPriority: Value(priority)),
@@ -106,10 +98,6 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     );
   }
 
-  // ===========================================================================
-  // 🛡️ 3. إعدادات الطوارئ والتواصل (Comms - Floor 1)
-  // ===========================================================================
-
   Future<void> toggleAutoDialEmergency(bool enabled) async {
     await _settingsRepo.updateSettings(
       AppSettingsCompanion(autoDialEmergency: Value(enabled)),
@@ -128,10 +116,6 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     );
   }
 
-  // ===========================================================================
-  // ⏳ 4. إعدادات جلسات التركيز والمنبهات (Focus - Floor 1)
-  // ===========================================================================
-
   Future<void> toggleVoiceChimeHalfway(bool enabled) async {
     await _settingsRepo.updateSettings(
       AppSettingsCompanion(voiceChimeHalfway: Value(enabled)),
@@ -149,10 +133,6 @@ class PreferencesCubit extends Cubit<PreferencesState> {
       AppSettingsCompanion(syncAlarmsWithAndroidClock: Value(enabled)),
     );
   }
-
-  // ===========================================================================
-  // 👁️ 5. إعدادات الرؤية والذكاء الاصطناعي (Vision - Floor 1)
-  // ===========================================================================
 
   Future<void> setVisionInspectionDetail(String detail) async {
     await _settingsRepo.updateSettings(
@@ -180,5 +160,4 @@ class PreferencesCubit extends Cubit<PreferencesState> {
   }
 }
 
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
 typedef SettingsCubit = PreferencesCubit;

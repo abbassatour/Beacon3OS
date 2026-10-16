@@ -1,10 +1,10 @@
-// lib/onboarding/view/gateway_page.dart
+// lib/mobile/onboarding/view/gateway_page.dart
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
-import 'package:beacon_os/onboarding/view/accessible_onboarding_page.dart';
-import 'package:beacon_os/onboarding/view/minimalist_onboarding_page.dart';
+import 'package:beacon_os/mobile/onboarding/view/accessible_onboarding_page.dart';
+import 'package:beacon_os/mobile/onboarding/view/minimalist_onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

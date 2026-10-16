@@ -1,10 +1,10 @@
-// lib/focus/focus_module.dart
+// lib/mobile/focus/focus_module.dart
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/focus/intents/focus_intents.dart';
-import 'package:beacon_os/focus/view/focus_floor_0_view.dart';
-import 'package:beacon_os/focus/view/focus_floor_1_view.dart';
+import 'package:beacon_os/mobile/focus/intents/focus_intents.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/focus/view/focus_floor_0_view.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/focus/view/focus_floor_1_view.dart'; // 👈 مصحح
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';

@@ -1,10 +1,10 @@
-// lib/comms/cubit/comms_cubit.dart
+// lib/mobile/comms/cubit/comms_cubit.dart
 import 'dart:async';
-import 'package:beacon_os/comms/cubit/comms_state.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استيراد خدمة البلوكشين
+import 'package:beacon_os/core/services/web3_service.dart';
+import 'package:beacon_os/mobile/comms/cubit/comms_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
@@ -58,7 +58,6 @@ class CommsCubit extends Cubit<CommsState> {
     );
   }
 
-  /// إجراء مكالمة هاتفية مباشرة عبر عتاد الهاتف
   Future<void> callContact(Contact contact) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.navCenter);
@@ -66,7 +65,6 @@ class CommsCubit extends Cubit<CommsState> {
     await _hardwareRepo.callPhoneNumber(contact.phoneNumber);
   }
 
-  /// نطق تفاصيل جهة الاتصال للمكفوفين
   Future<void> readContactDetailsAloud(Contact contact) async {
     await _haptics.successNotification();
     final relation = contact.relationship != null
@@ -79,7 +77,6 @@ class CommsCubit extends Cubit<CommsState> {
     );
   }
 
-  /// قراءة الرسالة الواردة وتمييزها كمقروءة فوراً
   Future<void> readMessageAloud(MessagesVaultData message) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.processing);
@@ -93,7 +90,6 @@ class CommsCubit extends Cubit<CommsState> {
     emit(state.copyWith(recentMessages: unread));
   }
 
-  /// إضافة جهة اتصال جديدة إلى قاعدة البيانات المحلية والسحابية
   Future<void> addNewContact({
     required String name,
     required String phoneNumber,
@@ -118,7 +114,6 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  /// حذف جهة اتصال مع التأكيد الصوتي
   Future<void> deleteContact(Contact contact) async {
     try {
       await _commsRepo.deleteContact(contact.id);
@@ -130,11 +125,9 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  /// إطلاق رادار الاستغاثة وبث الموقع الحقيقي مع توثيق EVM On-Chain على Arbitrum
   Future<void> triggerEmergencySos() async {
     emit(state.copyWith(isSosBroadcasting: true));
 
-    // 1. تشغيل صفارة الإنذار والنبضات اللمسية فوراً دون أي انتظار (Zero Latency)
     await _sound.play(SoundCue.sosAlarm);
     await _haptics.emergencyAlarmPulse();
 
@@ -142,10 +135,8 @@ class CommsCubit extends Cubit<CommsState> {
       'Emergency SOS broadcast initiated! Broadcasting real GPS coordinates and attesting to Arbitrum ledger.',
     );
 
-    // 2. إطلاق الاستغاثة محلياً وعبر السحابة والاتصال التلقائي بجهة الطوارئ
     await _commsRepo.triggerEmergencySos();
 
-    // 3. توثيق الاستغاثة اللامركزية على السلسلة بشكل غير معطل (Non-blocking Web3 Attestation)
     unawaited(
       _hardwareRepo.getCurrentLocation().then((coords) {
         if (coords != null) {
@@ -154,16 +145,13 @@ class CommsCubit extends Cubit<CommsState> {
             longitude: coords.longitude,
           );
         }
-      }).catchError((Object error) {
-        // حماية: لا نسمح لأي استثناء في البلوكشين بالتأثير على رنين الهاتف
-      }),
+      }).catchError((Object error) {}),
     );
 
     await Future<void>.delayed(const Duration(seconds: 4));
     emit(state.copyWith(isSosBroadcasting: false));
   }
 
-  /// مزامنة جهات اتصال الهاتف وتسويتها تفاضلياً داخل الخزنة مع تغذية صوتية ولمسية
   Future<void> syncDeviceContacts() async {
     if (state.isSyncingContacts) return;
 
@@ -211,5 +199,4 @@ class CommsCubit extends Cubit<CommsState> {
   }
 }
 
-// 🛡️ اسم توافقي لمنع انكسار أي كود قديم
 typedef CommunicationsCubit = CommsCubit;

@@ -1,11 +1,11 @@
-// lib/cockpit/view/cockpit_floor_0_view.dart
+// lib/mobile/cockpit/view/cockpit_floor_0_view.dart
 import 'dart:async';
-import 'package:beacon_os/cockpit/cubit/cockpit_cubit.dart';
-import 'package:beacon_os/cockpit/cubit/cockpit_state.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
-import 'package:beacon_os/impact_pool/view/impact_pool_page.dart'; // 👈 استبدال الـ Paywall بصفحة الأثر اللامركزي
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
+import 'package:beacon_os/mobile/cockpit/cubit/cockpit_cubit.dart';
+import 'package:beacon_os/mobile/cockpit/cubit/cockpit_state.dart';
+import 'package:beacon_os/mobile/impact_pool/view/impact_pool_page.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -79,7 +79,6 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                             ),
                             Row(
                               children: [
-                                // 🌟 زر الأثر المجتمعي اللامركزي (Web3 Social Impact Pool)
                                 TextButton.icon(
                                   style: TextButton.styleFrom(
                                     backgroundColor: colors.surface,

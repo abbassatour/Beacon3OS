@@ -1,15 +1,14 @@
-// lib/cockpit/view/cockpit_floor_1_view.dart
-import 'package:beacon_os/auth/cubit/auth_cubit.dart';
-import 'package:beacon_os/auth/cubit/auth_state.dart';
-import 'package:beacon_os/auth/view/login_page.dart';
+// lib/mobile/cockpit/view/cockpit_floor_1_view.dart
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
-import 'package:beacon_os/impact_pool/view/impact_pool_page.dart';
-import 'package:beacon_os/preferences/preferences.dart';
+import 'package:beacon_os/mobile/auth/cubit/auth_cubit.dart';
+import 'package:beacon_os/mobile/auth/cubit/auth_state.dart';
+import 'package:beacon_os/mobile/auth/view/login_page.dart';
+import 'package:beacon_os/mobile/impact_pool/view/impact_pool_page.dart';
+import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 

@@ -1,7 +1,7 @@
-// lib/onboarding/view/steps/compass_training_step.dart
+// lib/mobile/onboarding/view/steps/compass_training_step.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/onboarding/cubit/accessible_onboarding_cubit.dart';
-import 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
+import 'package:beacon_os/mobile/onboarding/cubit/accessible_onboarding_cubit.dart';
+import 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

@@ -1,10 +1,10 @@
-// lib/auth/view/login_page.dart
-import 'package:beacon_os/auth/cubit/auth_cubit.dart';
-import 'package:beacon_os/auth/cubit/auth_state.dart';
+// lib/mobile/auth/view/login_page.dart
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
-import 'package:beacon_os/spatial_shell/spatial_shell.dart';
+import 'package:beacon_os/mobile/auth/cubit/auth_cubit.dart';
+import 'package:beacon_os/mobile/auth/cubit/auth_state.dart';
+import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -89,7 +89,6 @@ class LoginPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 28),
 
-                    // بطاقة المحفظة المولدة على الجهاز
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -154,7 +153,6 @@ class LoginPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // زر تسجيل الدخول الذاتي بنقرة واحدة (1-Tap Sovereign Login)
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.primary,

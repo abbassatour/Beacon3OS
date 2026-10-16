@@ -1,12 +1,12 @@
-// lib/vision/cubit/vision_cubit.dart
+// lib/mobile/vision/cubit/vision_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/camera_service.dart';
-import 'package:beacon_os/core/services/web3_service.dart'; // 👈 استيراد خدمة البلوكشين
-import 'package:beacon_os/vision/cubit/vision_state.dart';
+import 'package:beacon_os/core/services/web3_service.dart';
+import 'package:beacon_os/mobile/vision/cubit/vision_state.dart'; // 👈 مصحح
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:local_vault_api/local_vault_api.dart';
@@ -175,7 +175,6 @@ class VisionCubit extends Cubit<VisionState> {
         ),
       );
 
-      // ⚡️ توثيق استهلاك فحص الرؤية كـ Proof of Impact على Arbitrum Sepolia
       unawaited(
         Web3Service.instance.logAiImpactOnChain('vision_${state.activeMode.name}'),
       );

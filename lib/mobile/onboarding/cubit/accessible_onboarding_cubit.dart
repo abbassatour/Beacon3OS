@@ -1,10 +1,10 @@
-// lib/onboarding/cubit/accessible_onboarding_cubit.dart
+// lib/mobile/onboarding/cubit/accessible_onboarding_cubit.dart
 import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/camera_service.dart';
-import 'package:beacon_os/spatial_shell/models/spatial_gestures.dart';
+import 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -221,7 +221,6 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
       await _sound.play(SoundCue.success);
       await _assistant.speak(result);
 
-      // 🔊 التوجيه الصوتي المسترجع لمساعدة الكفيف على الانتقال للخطوة التالية
       await Future<void>.delayed(const Duration(seconds: 2));
       await _assistant.speak(
         'AI vision is verified. Double tap anywhere to move to the final Safety step.',
@@ -321,7 +320,7 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
   }
 }
 
-// 🛡️ أسماء توافقية لمنع انكسار الكود القديم
+// 🛡️ أسماء توافقية
 typedef BlindStep = AccessibleStep;
 typedef BlindFlowStatus = AccessibleFlowStatus;
 typedef BlindOnboardingState = AccessibleOnboardingState;
