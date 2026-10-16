@@ -4,16 +4,18 @@ import 'package:beacon_os/mobile/agenda/agenda.dart';
 import 'package:beacon_os/mobile/cockpit/cockpit.dart';
 import 'package:beacon_os/mobile/comms/comms.dart';
 import 'package:beacon_os/mobile/focus/focus.dart';
+import 'package:beacon_os/mobile/perimeter/perimeter.dart'; // 👈 استيراد المحيط الأمني
 import 'package:beacon_os/mobile/vision/vision.dart';
 
 /// باني الطوبولوجيا الافتراضية لمنظومة BeaconOS
 SpatialTopology createDefaultSpatialTopology() {
   final registry = SpatialModuleRegistry.instance;
 
-  // 🌟 تسجيل الموديولات الأساسية الخمسة في السجل المركزي
+  // 🌟 تسجيل الموديولات الأساسية الستة في السجل المركزي
   registry.registerAll([
     CockpitModule.instance,
     FocusModule.instance,
+    PerimeterModule.instance, // 👈 تم التسجيل لمنع إرجاع null
     CommsModule.instance,
     VisionModule.instance,
     AgendaModule.instance,
@@ -21,7 +23,7 @@ SpatialTopology createDefaultSpatialTopology() {
 
   final topology = SpatialTopology();
 
-  // 🏠 الطابق الأرضي (Floor 0): قمرة اليوم والغرف الأساسية
+  // 🏠 الطابق الأرضي (Floor 0)
   topology.registerCoordinate(
     coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 0),
     module: CockpitModule.instance,
@@ -32,6 +34,12 @@ SpatialTopology createDefaultSpatialTopology() {
     coordinate: const SpatialCoordinate(x: 0, y: 1, floor: 0), // North
     module: FocusModule.instance,
     title: 'Focus & Alarms',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: 2, floor: 0), // Far North
+    module: PerimeterModule.instance,
+    title: 'Smart Perimeter & Ring',
     notify: false,
   );
   topology.registerCoordinate(
@@ -53,7 +61,7 @@ SpatialTopology createDefaultSpatialTopology() {
     notify: false,
   );
 
-  // ⚙️ الطابق الأول (Floor 1): إعدادات ومحركات الغرف
+  // ⚙️ الطابق الأول (Floor 1)
   topology.registerCoordinate(
     coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 1),
     module: CockpitModule.instance,
@@ -64,6 +72,12 @@ SpatialTopology createDefaultSpatialTopology() {
     coordinate: const SpatialCoordinate(x: 0, y: 1, floor: 1),
     module: FocusModule.instance,
     title: 'Focus & Alarm Tuning',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: 2, floor: 1),
+    module: PerimeterModule.instance,
+    title: 'Perimeter Camera Tuning',
     notify: false,
   );
   topology.registerCoordinate(

@@ -7,14 +7,17 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/tv/shell/cubit/tv_shell_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
+import 'package:local_vault_api/local_vault_api.dart'; // 👈 استيراد RingEventEntry
 
 class TvShellCubit extends Cubit<TvShellState> {
   TvShellCubit({
     required CommsRepository commsRepository,
     required AssistantRepository assistantRepository,
+    required RingRepository ringRepository, // 👈 حقن مستودع Ring
     SoundController? soundController,
   })  : _commsRepo = commsRepository,
         _assistant = assistantRepository,
+        _ringRepo = ringRepository,
         _sound = soundController ?? SoundController.instance,
         super(TvShellState(currentTime: DateTime.now())) {
     _initEngine();
@@ -22,6 +25,7 @@ class TvShellCubit extends Cubit<TvShellState> {
 
   final CommsRepository _commsRepo;
   final AssistantRepository _assistant;
+  final RingRepository _ringRepo;
   final SoundController _sound;
 
   Timer? _clockTimer;
@@ -31,6 +35,7 @@ class TvShellCubit extends Cubit<TvShellState> {
   StreamSubscription<SyncTransportMode>? _transportSub;
   StreamSubscription<String?>? _pairingAuthSub;
   StreamSubscription<RemoteActionEvent>? _remoteActionsSub;
+  StreamSubscription<List<RingEventEntry>>? _ringEventsSub; // 👈 اشتراك الكاميرات
 
   static const Duration _screensaverTimeout = Duration(seconds: 75);
   static const Duration _alertDismissDuration = Duration(seconds: 20);
@@ -39,6 +44,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     _startClockTicker();
     _resetScreensaverTimer();
     _listenToRemoteActions();
+    _listenToRingEvents(); // 👈 بدء الاستماع للكاميرات
 
     await _initHybridTransport();
   }
@@ -197,6 +203,48 @@ class TvShellCubit extends Cubit<TvShellState> {
     });
   }
 
+  // ===========================================================================
+  // 🔔 4. كاميرات المراقبة المحيطية والأحداث (Ring Integration)
+  // ===========================================================================
+
+  void _listenToRingEvents() {
+    _ringEventsSub?.cancel();
+    _ringEventsSub = _ringRepo.watchRecentEvents(limit: 1).listen((events) {
+      if (events.isEmpty || isClosed) return;
+
+      final latest = events.first;
+      final now = DateTime.now();
+
+      // إظهار التنبيه إذا كان الحدث جديداً (أقل من 15 ثانية) ولم يقرأ بعد
+      if (!latest.isRead && now.difference(latest.timestamp).inSeconds < 15) {
+        wakeFromAmbient();
+        _sound.play(SoundCue.wake);
+
+        // إرسال تنبيه مخصص للراية (Banner) كـ Payload
+        emit(state.copyWith(
+          activeAlert: RemoteActionEvent(
+            id: latest.id,
+            actionType: RemoteActionType.unknown,
+            payload: {
+              'is_ring': true,
+              'device_label': latest.deviceLabel,
+              'description': latest.aiSceneDescription ??
+                  'Activity detected at ${latest.deviceLabel}',
+            },
+          ),
+        ));
+
+        // تعليمه كمقروء حتى لا يظهر التنبيه مجدداً
+        _ringRepo.markEventAsRead(latest.id);
+
+        _alertDismissTimer?.cancel();
+        _alertDismissTimer = Timer(_alertDismissDuration, () {
+          dismissActiveAlert();
+        });
+      }
+    });
+  }
+
   void dismissActiveAlert() {
     _alertDismissTimer?.cancel();
     _sound.stopAll();
@@ -227,6 +275,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     _transportSub?.cancel();
     _pairingAuthSub?.cancel();
     _remoteActionsSub?.cancel();
+    _ringEventsSub?.cancel(); // 👈 لا ننسى تحرير الموارد
     return super.close();
   }
 }

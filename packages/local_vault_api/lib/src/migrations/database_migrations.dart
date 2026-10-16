@@ -8,11 +8,19 @@ class DatabaseMigrations {
   static MigrationStrategy createStrategy(AppDatabase db) {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
+        // 1. إنشاء كافة الجداول المعرفة في AppDatabase
         await m.createAll();
+
+        // 2. غرس الإعدادات الافتراضية
         await db.into(db.appSettings).insert(
           AppSettingsCompanion.insert(id: defaultSettingsId),
         );
+
+        // 3. غرس خريطة الفضاء والغرف الأساسية بما فيها غرفة المحيط الأمني (Perimeter)
         await seedDefaultSpatialNodes(db);
+
+        // 4. غرس كاميرات Ring الافتراضية الأربع
+        await seedDefaultRingDevices(db);
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 5) {
@@ -43,22 +51,35 @@ class DatabaseMigrations {
             'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
           );
         }
+        // 🚀 ترقية الإصدار 10: دمج منظومة كاميرات Ring والغرفة المحيطية
+        if (from < 10) {
+          await m.createTable(db.ringDevices);
+          await m.createTable(db.ringEvents);
+          await seedDefaultRingDevices(db);
+          await seedPerimeterSpatialNodes(db);
+        }
       },
       beforeOpen: (details) async {
-        // تأمين وجود الجداول دائماً
+        // تأمين وجود الجداول المخصصة ومفاتيح السيادة دائماً
         await db.customStatement(
           'CREATE TABLE IF NOT EXISTS sovereign_keys (id TEXT PRIMARY KEY, key_hex TEXT);',
         );
         await db.customStatement(
           'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
         );
+
+        // تأمين اكتمال العناوين والكاميرات وغرفة المحيط الأمني في أي قاعدة بيانات مفتوحة
         await backfillDefaultTitles(db);
+        await seedPerimeterSpatialNodes(db);
+        await seedDefaultRingDevices(db);
       },
     );
   }
 
+  /// غرس الغرف الأساسية الخمس + غرفة المحيط الأمني (Perimeter) في الطابقين 0 و 1
   static Future<void> seedDefaultSpatialNodes(AppDatabase db) async {
     final defaultNodes = <SpatialNodesCompanion>[
+      // --- الطابق الأرضي (Floor 0) ---
       const SpatialNodesCompanion(
         id: Value('cockpit_f0'),
         moduleId: Value('cockpit'),
@@ -74,6 +95,14 @@ class DatabaseMigrations {
         x: Value(0),
         y: Value(1),
         customTitle: Value('Focus & Alarms'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f0'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(0),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Smart Perimeter & Ring'),
       ),
       const SpatialNodesCompanion(
         id: Value('comms_f0'),
@@ -99,6 +128,8 @@ class DatabaseMigrations {
         y: Value(0),
         customTitle: Value('Agenda & Tasks'),
       ),
+
+      // --- الطابق الأول (Floor 1: Preferences & Tuning) ---
       const SpatialNodesCompanion(
         id: Value('cockpit_f1'),
         moduleId: Value('cockpit'),
@@ -114,6 +145,14 @@ class DatabaseMigrations {
         x: Value(0),
         y: Value(1),
         customTitle: Value('Focus & Alarm Tuning'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f1'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(1),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Perimeter Camera Tuning'),
       ),
       const SpatialNodesCompanion(
         id: Value('comms_f1'),
@@ -146,15 +185,102 @@ class DatabaseMigrations {
     }
   }
 
+  /// غرس غرف المحيط الأمني بشكل مستقل لضمان التوافق مع التحديثات المباشرة دون مسح التعديلات
+  static Future<void> seedPerimeterSpatialNodes(AppDatabase db) async {
+    final perimeterNodes = <SpatialNodesCompanion>[
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f0'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(0),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Smart Perimeter & Ring'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f1'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(1),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Perimeter Camera Tuning'),
+      ),
+    ];
+
+    for (final node in perimeterNodes) {
+      await db.into(db.spatialNodes).insert(node, mode: InsertMode.insertOrIgnore);
+    }
+  }
+
+  /// غرس أجهزة كاميرات Ring الأربعة لتكون جاهزة للمعاينة فور تشغيل التطبيق أمام الحكام
+  static Future<void> seedDefaultRingDevices(AppDatabase db) async {
+    final defaultCameras = <RingDevicesCompanion>[
+      const RingDevicesCompanion(
+        id: Value('ring_cam_front_door'),
+        label: Value('Front Door'),
+        deviceType: Value('doorbell'),
+        location: Value('frontDoor'),
+        spatialX: Value(0),
+        spatialY: Value(2),
+        spatialFloor: Value(0),
+        batteryLevel: Value(92),
+        isOnline: Value(true),
+        isMotionEnabled: Value(true),
+      ),
+      const RingDevicesCompanion(
+        id: Value('ring_cam_backyard'),
+        label: Value('Backyard'),
+        deviceType: Value('floodlightCam'),
+        location: Value('backyard'),
+        spatialX: Value(0),
+        spatialY: Value(-2),
+        spatialFloor: Value(0),
+        batteryLevel: Value(100),
+        isOnline: Value(true),
+        isMotionEnabled: Value(true),
+      ),
+      const RingDevicesCompanion(
+        id: Value('ring_cam_nursery'),
+        label: Value('Nursery'),
+        deviceType: Value('indoorCam'),
+        location: Value('nursery'),
+        spatialX: Value(2),
+        spatialY: Value(0),
+        spatialFloor: Value(0),
+        batteryLevel: Value(88),
+        isOnline: Value(true),
+        isMotionEnabled: Value(true),
+      ),
+      const RingDevicesCompanion(
+        id: Value('ring_cam_garage'),
+        label: Value('Garage Driveway'),
+        deviceType: Value('stickUpCam'),
+        location: Value('garage'),
+        spatialX: Value(-2),
+        spatialY: Value(0),
+        spatialFloor: Value(0),
+        batteryLevel: Value(79),
+        isOnline: Value(true),
+        isMotionEnabled: Value(true),
+      ),
+    ];
+
+    for (final cam in defaultCameras) {
+      await db.into(db.ringDevices).insert(cam, mode: InsertMode.insertOrIgnore);
+    }
+  }
+
+  /// استكمال وتحديث العناوين التلقائية للغرف
   static Future<void> backfillDefaultTitles(AppDatabase db) async {
     const titles = {
       'cockpit_f0': 'Today Cockpit',
       'focus_f0': 'Focus & Alarms',
+      'perimeter_f0': 'Smart Perimeter & Ring',
       'comms_f0': 'Communications',
       'vision_f0': 'AI Vision Studio',
       'agenda_f0': 'Agenda & Tasks',
       'cockpit_f1': 'Core Engine & Preferences',
       'focus_f1': 'Focus & Alarm Tuning',
+      'perimeter_f1': 'Perimeter Camera Tuning',
       'comms_f1': 'Safety & SOS Preferences',
       'vision_f1': 'AI Vision Tuning',
       'agenda_f1': 'Agenda Preferences',

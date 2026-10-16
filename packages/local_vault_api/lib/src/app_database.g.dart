@@ -6965,6 +6965,1403 @@ class SpatialNodesCompanion extends UpdateCompanion<SpatialNode> {
   }
 }
 
+class $RingDevicesTable extends RingDevices
+    with TableInfo<$RingDevicesTable, RingDeviceEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RingDevicesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceTypeMeta = const VerificationMeta(
+    'deviceType',
+  );
+  @override
+  late final GeneratedColumn<String> deviceType = GeneratedColumn<String>(
+    'device_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _locationMeta = const VerificationMeta(
+    'location',
+  );
+  @override
+  late final GeneratedColumn<String> location = GeneratedColumn<String>(
+    'location',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _spatialXMeta = const VerificationMeta(
+    'spatialX',
+  );
+  @override
+  late final GeneratedColumn<int> spatialX = GeneratedColumn<int>(
+    'spatial_x',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _spatialYMeta = const VerificationMeta(
+    'spatialY',
+  );
+  @override
+  late final GeneratedColumn<int> spatialY = GeneratedColumn<int>(
+    'spatial_y',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(2),
+  );
+  static const VerificationMeta _spatialFloorMeta = const VerificationMeta(
+    'spatialFloor',
+  );
+  @override
+  late final GeneratedColumn<int> spatialFloor = GeneratedColumn<int>(
+    'spatial_floor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _batteryLevelMeta = const VerificationMeta(
+    'batteryLevel',
+  );
+  @override
+  late final GeneratedColumn<int> batteryLevel = GeneratedColumn<int>(
+    'battery_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(100),
+  );
+  static const VerificationMeta _isOnlineMeta = const VerificationMeta(
+    'isOnline',
+  );
+  @override
+  late final GeneratedColumn<bool> isOnline = GeneratedColumn<bool>(
+    'is_online',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_online" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _isMotionEnabledMeta = const VerificationMeta(
+    'isMotionEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> isMotionEnabled = GeneratedColumn<bool>(
+    'is_motion_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_motion_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastDingAtMeta = const VerificationMeta(
+    'lastDingAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastDingAt = GeneratedColumn<DateTime>(
+    'last_ding_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastMotionAtMeta = const VerificationMeta(
+    'lastMotionAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastMotionAt = GeneratedColumn<DateTime>(
+    'last_motion_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    label,
+    deviceType,
+    location,
+    spatialX,
+    spatialY,
+    spatialFloor,
+    batteryLevel,
+    isOnline,
+    isMotionEnabled,
+    lastDingAt,
+    lastMotionAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ring_devices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RingDeviceEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('device_type')) {
+      context.handle(
+        _deviceTypeMeta,
+        deviceType.isAcceptableOrUnknown(data['device_type']!, _deviceTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceTypeMeta);
+    }
+    if (data.containsKey('location')) {
+      context.handle(
+        _locationMeta,
+        location.isAcceptableOrUnknown(data['location']!, _locationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_locationMeta);
+    }
+    if (data.containsKey('spatial_x')) {
+      context.handle(
+        _spatialXMeta,
+        spatialX.isAcceptableOrUnknown(data['spatial_x']!, _spatialXMeta),
+      );
+    }
+    if (data.containsKey('spatial_y')) {
+      context.handle(
+        _spatialYMeta,
+        spatialY.isAcceptableOrUnknown(data['spatial_y']!, _spatialYMeta),
+      );
+    }
+    if (data.containsKey('spatial_floor')) {
+      context.handle(
+        _spatialFloorMeta,
+        spatialFloor.isAcceptableOrUnknown(
+          data['spatial_floor']!,
+          _spatialFloorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('battery_level')) {
+      context.handle(
+        _batteryLevelMeta,
+        batteryLevel.isAcceptableOrUnknown(
+          data['battery_level']!,
+          _batteryLevelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_online')) {
+      context.handle(
+        _isOnlineMeta,
+        isOnline.isAcceptableOrUnknown(data['is_online']!, _isOnlineMeta),
+      );
+    }
+    if (data.containsKey('is_motion_enabled')) {
+      context.handle(
+        _isMotionEnabledMeta,
+        isMotionEnabled.isAcceptableOrUnknown(
+          data['is_motion_enabled']!,
+          _isMotionEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_ding_at')) {
+      context.handle(
+        _lastDingAtMeta,
+        lastDingAt.isAcceptableOrUnknown(
+          data['last_ding_at']!,
+          _lastDingAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_motion_at')) {
+      context.handle(
+        _lastMotionAtMeta,
+        lastMotionAt.isAcceptableOrUnknown(
+          data['last_motion_at']!,
+          _lastMotionAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RingDeviceEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RingDeviceEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      deviceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_type'],
+      )!,
+      location: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location'],
+      )!,
+      spatialX: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spatial_x'],
+      )!,
+      spatialY: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spatial_y'],
+      )!,
+      spatialFloor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spatial_floor'],
+      )!,
+      batteryLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}battery_level'],
+      )!,
+      isOnline: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_online'],
+      )!,
+      isMotionEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_motion_enabled'],
+      )!,
+      lastDingAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_ding_at'],
+      ),
+      lastMotionAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_motion_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $RingDevicesTable createAlias(String alias) {
+    return $RingDevicesTable(attachedDatabase, alias);
+  }
+}
+
+class RingDeviceEntry extends DataClass implements Insertable<RingDeviceEntry> {
+  final String id;
+  final String label;
+  final String deviceType;
+  final String location;
+  final int spatialX;
+  final int spatialY;
+  final int spatialFloor;
+  final int batteryLevel;
+  final bool isOnline;
+  final bool isMotionEnabled;
+  final DateTime? lastDingAt;
+  final DateTime? lastMotionAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const RingDeviceEntry({
+    required this.id,
+    required this.label,
+    required this.deviceType,
+    required this.location,
+    required this.spatialX,
+    required this.spatialY,
+    required this.spatialFloor,
+    required this.batteryLevel,
+    required this.isOnline,
+    required this.isMotionEnabled,
+    this.lastDingAt,
+    this.lastMotionAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['label'] = Variable<String>(label);
+    map['device_type'] = Variable<String>(deviceType);
+    map['location'] = Variable<String>(location);
+    map['spatial_x'] = Variable<int>(spatialX);
+    map['spatial_y'] = Variable<int>(spatialY);
+    map['spatial_floor'] = Variable<int>(spatialFloor);
+    map['battery_level'] = Variable<int>(batteryLevel);
+    map['is_online'] = Variable<bool>(isOnline);
+    map['is_motion_enabled'] = Variable<bool>(isMotionEnabled);
+    if (!nullToAbsent || lastDingAt != null) {
+      map['last_ding_at'] = Variable<DateTime>(lastDingAt);
+    }
+    if (!nullToAbsent || lastMotionAt != null) {
+      map['last_motion_at'] = Variable<DateTime>(lastMotionAt);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  RingDevicesCompanion toCompanion(bool nullToAbsent) {
+    return RingDevicesCompanion(
+      id: Value(id),
+      label: Value(label),
+      deviceType: Value(deviceType),
+      location: Value(location),
+      spatialX: Value(spatialX),
+      spatialY: Value(spatialY),
+      spatialFloor: Value(spatialFloor),
+      batteryLevel: Value(batteryLevel),
+      isOnline: Value(isOnline),
+      isMotionEnabled: Value(isMotionEnabled),
+      lastDingAt: lastDingAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDingAt),
+      lastMotionAt: lastMotionAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMotionAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory RingDeviceEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RingDeviceEntry(
+      id: serializer.fromJson<String>(json['id']),
+      label: serializer.fromJson<String>(json['label']),
+      deviceType: serializer.fromJson<String>(json['deviceType']),
+      location: serializer.fromJson<String>(json['location']),
+      spatialX: serializer.fromJson<int>(json['spatialX']),
+      spatialY: serializer.fromJson<int>(json['spatialY']),
+      spatialFloor: serializer.fromJson<int>(json['spatialFloor']),
+      batteryLevel: serializer.fromJson<int>(json['batteryLevel']),
+      isOnline: serializer.fromJson<bool>(json['isOnline']),
+      isMotionEnabled: serializer.fromJson<bool>(json['isMotionEnabled']),
+      lastDingAt: serializer.fromJson<DateTime?>(json['lastDingAt']),
+      lastMotionAt: serializer.fromJson<DateTime?>(json['lastMotionAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'label': serializer.toJson<String>(label),
+      'deviceType': serializer.toJson<String>(deviceType),
+      'location': serializer.toJson<String>(location),
+      'spatialX': serializer.toJson<int>(spatialX),
+      'spatialY': serializer.toJson<int>(spatialY),
+      'spatialFloor': serializer.toJson<int>(spatialFloor),
+      'batteryLevel': serializer.toJson<int>(batteryLevel),
+      'isOnline': serializer.toJson<bool>(isOnline),
+      'isMotionEnabled': serializer.toJson<bool>(isMotionEnabled),
+      'lastDingAt': serializer.toJson<DateTime?>(lastDingAt),
+      'lastMotionAt': serializer.toJson<DateTime?>(lastMotionAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  RingDeviceEntry copyWith({
+    String? id,
+    String? label,
+    String? deviceType,
+    String? location,
+    int? spatialX,
+    int? spatialY,
+    int? spatialFloor,
+    int? batteryLevel,
+    bool? isOnline,
+    bool? isMotionEnabled,
+    Value<DateTime?> lastDingAt = const Value.absent(),
+    Value<DateTime?> lastMotionAt = const Value.absent(),
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => RingDeviceEntry(
+    id: id ?? this.id,
+    label: label ?? this.label,
+    deviceType: deviceType ?? this.deviceType,
+    location: location ?? this.location,
+    spatialX: spatialX ?? this.spatialX,
+    spatialY: spatialY ?? this.spatialY,
+    spatialFloor: spatialFloor ?? this.spatialFloor,
+    batteryLevel: batteryLevel ?? this.batteryLevel,
+    isOnline: isOnline ?? this.isOnline,
+    isMotionEnabled: isMotionEnabled ?? this.isMotionEnabled,
+    lastDingAt: lastDingAt.present ? lastDingAt.value : this.lastDingAt,
+    lastMotionAt: lastMotionAt.present ? lastMotionAt.value : this.lastMotionAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  RingDeviceEntry copyWithCompanion(RingDevicesCompanion data) {
+    return RingDeviceEntry(
+      id: data.id.present ? data.id.value : this.id,
+      label: data.label.present ? data.label.value : this.label,
+      deviceType: data.deviceType.present
+          ? data.deviceType.value
+          : this.deviceType,
+      location: data.location.present ? data.location.value : this.location,
+      spatialX: data.spatialX.present ? data.spatialX.value : this.spatialX,
+      spatialY: data.spatialY.present ? data.spatialY.value : this.spatialY,
+      spatialFloor: data.spatialFloor.present
+          ? data.spatialFloor.value
+          : this.spatialFloor,
+      batteryLevel: data.batteryLevel.present
+          ? data.batteryLevel.value
+          : this.batteryLevel,
+      isOnline: data.isOnline.present ? data.isOnline.value : this.isOnline,
+      isMotionEnabled: data.isMotionEnabled.present
+          ? data.isMotionEnabled.value
+          : this.isMotionEnabled,
+      lastDingAt: data.lastDingAt.present
+          ? data.lastDingAt.value
+          : this.lastDingAt,
+      lastMotionAt: data.lastMotionAt.present
+          ? data.lastMotionAt.value
+          : this.lastMotionAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RingDeviceEntry(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('deviceType: $deviceType, ')
+          ..write('location: $location, ')
+          ..write('spatialX: $spatialX, ')
+          ..write('spatialY: $spatialY, ')
+          ..write('spatialFloor: $spatialFloor, ')
+          ..write('batteryLevel: $batteryLevel, ')
+          ..write('isOnline: $isOnline, ')
+          ..write('isMotionEnabled: $isMotionEnabled, ')
+          ..write('lastDingAt: $lastDingAt, ')
+          ..write('lastMotionAt: $lastMotionAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    label,
+    deviceType,
+    location,
+    spatialX,
+    spatialY,
+    spatialFloor,
+    batteryLevel,
+    isOnline,
+    isMotionEnabled,
+    lastDingAt,
+    lastMotionAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RingDeviceEntry &&
+          other.id == this.id &&
+          other.label == this.label &&
+          other.deviceType == this.deviceType &&
+          other.location == this.location &&
+          other.spatialX == this.spatialX &&
+          other.spatialY == this.spatialY &&
+          other.spatialFloor == this.spatialFloor &&
+          other.batteryLevel == this.batteryLevel &&
+          other.isOnline == this.isOnline &&
+          other.isMotionEnabled == this.isMotionEnabled &&
+          other.lastDingAt == this.lastDingAt &&
+          other.lastMotionAt == this.lastMotionAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class RingDevicesCompanion extends UpdateCompanion<RingDeviceEntry> {
+  final Value<String> id;
+  final Value<String> label;
+  final Value<String> deviceType;
+  final Value<String> location;
+  final Value<int> spatialX;
+  final Value<int> spatialY;
+  final Value<int> spatialFloor;
+  final Value<int> batteryLevel;
+  final Value<bool> isOnline;
+  final Value<bool> isMotionEnabled;
+  final Value<DateTime?> lastDingAt;
+  final Value<DateTime?> lastMotionAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const RingDevicesCompanion({
+    this.id = const Value.absent(),
+    this.label = const Value.absent(),
+    this.deviceType = const Value.absent(),
+    this.location = const Value.absent(),
+    this.spatialX = const Value.absent(),
+    this.spatialY = const Value.absent(),
+    this.spatialFloor = const Value.absent(),
+    this.batteryLevel = const Value.absent(),
+    this.isOnline = const Value.absent(),
+    this.isMotionEnabled = const Value.absent(),
+    this.lastDingAt = const Value.absent(),
+    this.lastMotionAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RingDevicesCompanion.insert({
+    required String id,
+    required String label,
+    required String deviceType,
+    required String location,
+    this.spatialX = const Value.absent(),
+    this.spatialY = const Value.absent(),
+    this.spatialFloor = const Value.absent(),
+    this.batteryLevel = const Value.absent(),
+    this.isOnline = const Value.absent(),
+    this.isMotionEnabled = const Value.absent(),
+    this.lastDingAt = const Value.absent(),
+    this.lastMotionAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       label = Value(label),
+       deviceType = Value(deviceType),
+       location = Value(location);
+  static Insertable<RingDeviceEntry> custom({
+    Expression<String>? id,
+    Expression<String>? label,
+    Expression<String>? deviceType,
+    Expression<String>? location,
+    Expression<int>? spatialX,
+    Expression<int>? spatialY,
+    Expression<int>? spatialFloor,
+    Expression<int>? batteryLevel,
+    Expression<bool>? isOnline,
+    Expression<bool>? isMotionEnabled,
+    Expression<DateTime>? lastDingAt,
+    Expression<DateTime>? lastMotionAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (label != null) 'label': label,
+      if (deviceType != null) 'device_type': deviceType,
+      if (location != null) 'location': location,
+      if (spatialX != null) 'spatial_x': spatialX,
+      if (spatialY != null) 'spatial_y': spatialY,
+      if (spatialFloor != null) 'spatial_floor': spatialFloor,
+      if (batteryLevel != null) 'battery_level': batteryLevel,
+      if (isOnline != null) 'is_online': isOnline,
+      if (isMotionEnabled != null) 'is_motion_enabled': isMotionEnabled,
+      if (lastDingAt != null) 'last_ding_at': lastDingAt,
+      if (lastMotionAt != null) 'last_motion_at': lastMotionAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RingDevicesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? label,
+    Value<String>? deviceType,
+    Value<String>? location,
+    Value<int>? spatialX,
+    Value<int>? spatialY,
+    Value<int>? spatialFloor,
+    Value<int>? batteryLevel,
+    Value<bool>? isOnline,
+    Value<bool>? isMotionEnabled,
+    Value<DateTime?>? lastDingAt,
+    Value<DateTime?>? lastMotionAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return RingDevicesCompanion(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      deviceType: deviceType ?? this.deviceType,
+      location: location ?? this.location,
+      spatialX: spatialX ?? this.spatialX,
+      spatialY: spatialY ?? this.spatialY,
+      spatialFloor: spatialFloor ?? this.spatialFloor,
+      batteryLevel: batteryLevel ?? this.batteryLevel,
+      isOnline: isOnline ?? this.isOnline,
+      isMotionEnabled: isMotionEnabled ?? this.isMotionEnabled,
+      lastDingAt: lastDingAt ?? this.lastDingAt,
+      lastMotionAt: lastMotionAt ?? this.lastMotionAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (deviceType.present) {
+      map['device_type'] = Variable<String>(deviceType.value);
+    }
+    if (location.present) {
+      map['location'] = Variable<String>(location.value);
+    }
+    if (spatialX.present) {
+      map['spatial_x'] = Variable<int>(spatialX.value);
+    }
+    if (spatialY.present) {
+      map['spatial_y'] = Variable<int>(spatialY.value);
+    }
+    if (spatialFloor.present) {
+      map['spatial_floor'] = Variable<int>(spatialFloor.value);
+    }
+    if (batteryLevel.present) {
+      map['battery_level'] = Variable<int>(batteryLevel.value);
+    }
+    if (isOnline.present) {
+      map['is_online'] = Variable<bool>(isOnline.value);
+    }
+    if (isMotionEnabled.present) {
+      map['is_motion_enabled'] = Variable<bool>(isMotionEnabled.value);
+    }
+    if (lastDingAt.present) {
+      map['last_ding_at'] = Variable<DateTime>(lastDingAt.value);
+    }
+    if (lastMotionAt.present) {
+      map['last_motion_at'] = Variable<DateTime>(lastMotionAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RingDevicesCompanion(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('deviceType: $deviceType, ')
+          ..write('location: $location, ')
+          ..write('spatialX: $spatialX, ')
+          ..write('spatialY: $spatialY, ')
+          ..write('spatialFloor: $spatialFloor, ')
+          ..write('batteryLevel: $batteryLevel, ')
+          ..write('isOnline: $isOnline, ')
+          ..write('isMotionEnabled: $isMotionEnabled, ')
+          ..write('lastDingAt: $lastDingAt, ')
+          ..write('lastMotionAt: $lastMotionAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RingEventsTable extends RingEvents
+    with TableInfo<$RingEventsTable, RingEventEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RingEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceLabelMeta = const VerificationMeta(
+    'deviceLabel',
+  );
+  @override
+  late final GeneratedColumn<String> deviceLabel = GeneratedColumn<String>(
+    'device_label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _snapshotPathMeta = const VerificationMeta(
+    'snapshotPath',
+  );
+  @override
+  late final GeneratedColumn<String> snapshotPath = GeneratedColumn<String>(
+    'snapshot_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _aiSceneDescriptionMeta =
+      const VerificationMeta('aiSceneDescription');
+  @override
+  late final GeneratedColumn<String> aiSceneDescription =
+      GeneratedColumn<String>(
+        'ai_scene_description',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _isReadMeta = const VerificationMeta('isRead');
+  @override
+  late final GeneratedColumn<bool> isRead = GeneratedColumn<bool>(
+    'is_read',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_read" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    deviceId,
+    deviceLabel,
+    eventType,
+    timestamp,
+    snapshotPath,
+    aiSceneDescription,
+    isRead,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ring_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RingEventEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('device_label')) {
+      context.handle(
+        _deviceLabelMeta,
+        deviceLabel.isAcceptableOrUnknown(
+          data['device_label']!,
+          _deviceLabelMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceLabelMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    }
+    if (data.containsKey('snapshot_path')) {
+      context.handle(
+        _snapshotPathMeta,
+        snapshotPath.isAcceptableOrUnknown(
+          data['snapshot_path']!,
+          _snapshotPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ai_scene_description')) {
+      context.handle(
+        _aiSceneDescriptionMeta,
+        aiSceneDescription.isAcceptableOrUnknown(
+          data['ai_scene_description']!,
+          _aiSceneDescriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_read')) {
+      context.handle(
+        _isReadMeta,
+        isRead.isAcceptableOrUnknown(data['is_read']!, _isReadMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RingEventEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RingEventEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      deviceLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_label'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}timestamp'],
+      )!,
+      snapshotPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot_path'],
+      ),
+      aiSceneDescription: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ai_scene_description'],
+      ),
+      isRead: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_read'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RingEventsTable createAlias(String alias) {
+    return $RingEventsTable(attachedDatabase, alias);
+  }
+}
+
+class RingEventEntry extends DataClass implements Insertable<RingEventEntry> {
+  final String id;
+  final String deviceId;
+  final String deviceLabel;
+  final String eventType;
+  final DateTime timestamp;
+  final String? snapshotPath;
+  final String? aiSceneDescription;
+  final bool isRead;
+  final DateTime createdAt;
+  const RingEventEntry({
+    required this.id,
+    required this.deviceId,
+    required this.deviceLabel,
+    required this.eventType,
+    required this.timestamp,
+    this.snapshotPath,
+    this.aiSceneDescription,
+    required this.isRead,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['device_id'] = Variable<String>(deviceId);
+    map['device_label'] = Variable<String>(deviceLabel);
+    map['event_type'] = Variable<String>(eventType);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    if (!nullToAbsent || snapshotPath != null) {
+      map['snapshot_path'] = Variable<String>(snapshotPath);
+    }
+    if (!nullToAbsent || aiSceneDescription != null) {
+      map['ai_scene_description'] = Variable<String>(aiSceneDescription);
+    }
+    map['is_read'] = Variable<bool>(isRead);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  RingEventsCompanion toCompanion(bool nullToAbsent) {
+    return RingEventsCompanion(
+      id: Value(id),
+      deviceId: Value(deviceId),
+      deviceLabel: Value(deviceLabel),
+      eventType: Value(eventType),
+      timestamp: Value(timestamp),
+      snapshotPath: snapshotPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snapshotPath),
+      aiSceneDescription: aiSceneDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiSceneDescription),
+      isRead: Value(isRead),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory RingEventEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RingEventEntry(
+      id: serializer.fromJson<String>(json['id']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      deviceLabel: serializer.fromJson<String>(json['deviceLabel']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      snapshotPath: serializer.fromJson<String?>(json['snapshotPath']),
+      aiSceneDescription: serializer.fromJson<String?>(
+        json['aiSceneDescription'],
+      ),
+      isRead: serializer.fromJson<bool>(json['isRead']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'deviceLabel': serializer.toJson<String>(deviceLabel),
+      'eventType': serializer.toJson<String>(eventType),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'snapshotPath': serializer.toJson<String?>(snapshotPath),
+      'aiSceneDescription': serializer.toJson<String?>(aiSceneDescription),
+      'isRead': serializer.toJson<bool>(isRead),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  RingEventEntry copyWith({
+    String? id,
+    String? deviceId,
+    String? deviceLabel,
+    String? eventType,
+    DateTime? timestamp,
+    Value<String?> snapshotPath = const Value.absent(),
+    Value<String?> aiSceneDescription = const Value.absent(),
+    bool? isRead,
+    DateTime? createdAt,
+  }) => RingEventEntry(
+    id: id ?? this.id,
+    deviceId: deviceId ?? this.deviceId,
+    deviceLabel: deviceLabel ?? this.deviceLabel,
+    eventType: eventType ?? this.eventType,
+    timestamp: timestamp ?? this.timestamp,
+    snapshotPath: snapshotPath.present ? snapshotPath.value : this.snapshotPath,
+    aiSceneDescription: aiSceneDescription.present
+        ? aiSceneDescription.value
+        : this.aiSceneDescription,
+    isRead: isRead ?? this.isRead,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  RingEventEntry copyWithCompanion(RingEventsCompanion data) {
+    return RingEventEntry(
+      id: data.id.present ? data.id.value : this.id,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      deviceLabel: data.deviceLabel.present
+          ? data.deviceLabel.value
+          : this.deviceLabel,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      snapshotPath: data.snapshotPath.present
+          ? data.snapshotPath.value
+          : this.snapshotPath,
+      aiSceneDescription: data.aiSceneDescription.present
+          ? data.aiSceneDescription.value
+          : this.aiSceneDescription,
+      isRead: data.isRead.present ? data.isRead.value : this.isRead,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RingEventEntry(')
+          ..write('id: $id, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('deviceLabel: $deviceLabel, ')
+          ..write('eventType: $eventType, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('snapshotPath: $snapshotPath, ')
+          ..write('aiSceneDescription: $aiSceneDescription, ')
+          ..write('isRead: $isRead, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    deviceId,
+    deviceLabel,
+    eventType,
+    timestamp,
+    snapshotPath,
+    aiSceneDescription,
+    isRead,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RingEventEntry &&
+          other.id == this.id &&
+          other.deviceId == this.deviceId &&
+          other.deviceLabel == this.deviceLabel &&
+          other.eventType == this.eventType &&
+          other.timestamp == this.timestamp &&
+          other.snapshotPath == this.snapshotPath &&
+          other.aiSceneDescription == this.aiSceneDescription &&
+          other.isRead == this.isRead &&
+          other.createdAt == this.createdAt);
+}
+
+class RingEventsCompanion extends UpdateCompanion<RingEventEntry> {
+  final Value<String> id;
+  final Value<String> deviceId;
+  final Value<String> deviceLabel;
+  final Value<String> eventType;
+  final Value<DateTime> timestamp;
+  final Value<String?> snapshotPath;
+  final Value<String?> aiSceneDescription;
+  final Value<bool> isRead;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const RingEventsCompanion({
+    this.id = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.deviceLabel = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.snapshotPath = const Value.absent(),
+    this.aiSceneDescription = const Value.absent(),
+    this.isRead = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RingEventsCompanion.insert({
+    required String id,
+    required String deviceId,
+    required String deviceLabel,
+    required String eventType,
+    this.timestamp = const Value.absent(),
+    this.snapshotPath = const Value.absent(),
+    this.aiSceneDescription = const Value.absent(),
+    this.isRead = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       deviceId = Value(deviceId),
+       deviceLabel = Value(deviceLabel),
+       eventType = Value(eventType);
+  static Insertable<RingEventEntry> custom({
+    Expression<String>? id,
+    Expression<String>? deviceId,
+    Expression<String>? deviceLabel,
+    Expression<String>? eventType,
+    Expression<DateTime>? timestamp,
+    Expression<String>? snapshotPath,
+    Expression<String>? aiSceneDescription,
+    Expression<bool>? isRead,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (deviceId != null) 'device_id': deviceId,
+      if (deviceLabel != null) 'device_label': deviceLabel,
+      if (eventType != null) 'event_type': eventType,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (snapshotPath != null) 'snapshot_path': snapshotPath,
+      if (aiSceneDescription != null)
+        'ai_scene_description': aiSceneDescription,
+      if (isRead != null) 'is_read': isRead,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RingEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? deviceId,
+    Value<String>? deviceLabel,
+    Value<String>? eventType,
+    Value<DateTime>? timestamp,
+    Value<String?>? snapshotPath,
+    Value<String?>? aiSceneDescription,
+    Value<bool>? isRead,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return RingEventsCompanion(
+      id: id ?? this.id,
+      deviceId: deviceId ?? this.deviceId,
+      deviceLabel: deviceLabel ?? this.deviceLabel,
+      eventType: eventType ?? this.eventType,
+      timestamp: timestamp ?? this.timestamp,
+      snapshotPath: snapshotPath ?? this.snapshotPath,
+      aiSceneDescription: aiSceneDescription ?? this.aiSceneDescription,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (deviceLabel.present) {
+      map['device_label'] = Variable<String>(deviceLabel.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (snapshotPath.present) {
+      map['snapshot_path'] = Variable<String>(snapshotPath.value);
+    }
+    if (aiSceneDescription.present) {
+      map['ai_scene_description'] = Variable<String>(aiSceneDescription.value);
+    }
+    if (isRead.present) {
+      map['is_read'] = Variable<bool>(isRead.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RingEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('deviceLabel: $deviceLabel, ')
+          ..write('eventType: $eventType, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('snapshotPath: $snapshotPath, ')
+          ..write('aiSceneDescription: $aiSceneDescription, ')
+          ..write('isRead: $isRead, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6980,6 +8377,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SosAlertsTable sosAlerts = $SosAlertsTable(this);
   late final $VisionScansTable visionScans = $VisionScansTable(this);
   late final $SpatialNodesTable spatialNodes = $SpatialNodesTable(this);
+  late final $RingDevicesTable ringDevices = $RingDevicesTable(this);
+  late final $RingEventsTable ringEvents = $RingEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6996,6 +8395,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sosAlerts,
     visionScans,
     spatialNodes,
+    ringDevices,
+    ringEvents,
   ];
 }
 
@@ -10446,6 +11847,689 @@ typedef $$SpatialNodesTableProcessedTableManager =
       SpatialNode,
       PrefetchHooks Function()
     >;
+typedef $$RingDevicesTableCreateCompanionBuilder =
+    RingDevicesCompanion Function({
+      required String id,
+      required String label,
+      required String deviceType,
+      required String location,
+      Value<int> spatialX,
+      Value<int> spatialY,
+      Value<int> spatialFloor,
+      Value<int> batteryLevel,
+      Value<bool> isOnline,
+      Value<bool> isMotionEnabled,
+      Value<DateTime?> lastDingAt,
+      Value<DateTime?> lastMotionAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$RingDevicesTableUpdateCompanionBuilder =
+    RingDevicesCompanion Function({
+      Value<String> id,
+      Value<String> label,
+      Value<String> deviceType,
+      Value<String> location,
+      Value<int> spatialX,
+      Value<int> spatialY,
+      Value<int> spatialFloor,
+      Value<int> batteryLevel,
+      Value<bool> isOnline,
+      Value<bool> isMotionEnabled,
+      Value<DateTime?> lastDingAt,
+      Value<DateTime?> lastMotionAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$RingDevicesTableFilterComposer
+    extends Composer<_$AppDatabase, $RingDevicesTable> {
+  $$RingDevicesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceType => $composableBuilder(
+    column: $table.deviceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get spatialX => $composableBuilder(
+    column: $table.spatialX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get spatialY => $composableBuilder(
+    column: $table.spatialY,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get spatialFloor => $composableBuilder(
+    column: $table.spatialFloor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get batteryLevel => $composableBuilder(
+    column: $table.batteryLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isOnline => $composableBuilder(
+    column: $table.isOnline,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isMotionEnabled => $composableBuilder(
+    column: $table.isMotionEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastDingAt => $composableBuilder(
+    column: $table.lastDingAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastMotionAt => $composableBuilder(
+    column: $table.lastMotionAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RingDevicesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RingDevicesTable> {
+  $$RingDevicesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceType => $composableBuilder(
+    column: $table.deviceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get spatialX => $composableBuilder(
+    column: $table.spatialX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get spatialY => $composableBuilder(
+    column: $table.spatialY,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get spatialFloor => $composableBuilder(
+    column: $table.spatialFloor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get batteryLevel => $composableBuilder(
+    column: $table.batteryLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isOnline => $composableBuilder(
+    column: $table.isOnline,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isMotionEnabled => $composableBuilder(
+    column: $table.isMotionEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastDingAt => $composableBuilder(
+    column: $table.lastDingAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastMotionAt => $composableBuilder(
+    column: $table.lastMotionAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RingDevicesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RingDevicesTable> {
+  $$RingDevicesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceType => $composableBuilder(
+    column: $table.deviceType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get location =>
+      $composableBuilder(column: $table.location, builder: (column) => column);
+
+  GeneratedColumn<int> get spatialX =>
+      $composableBuilder(column: $table.spatialX, builder: (column) => column);
+
+  GeneratedColumn<int> get spatialY =>
+      $composableBuilder(column: $table.spatialY, builder: (column) => column);
+
+  GeneratedColumn<int> get spatialFloor => $composableBuilder(
+    column: $table.spatialFloor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get batteryLevel => $composableBuilder(
+    column: $table.batteryLevel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isOnline =>
+      $composableBuilder(column: $table.isOnline, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMotionEnabled => $composableBuilder(
+    column: $table.isMotionEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastDingAt => $composableBuilder(
+    column: $table.lastDingAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastMotionAt => $composableBuilder(
+    column: $table.lastMotionAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$RingDevicesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RingDevicesTable,
+          RingDeviceEntry,
+          $$RingDevicesTableFilterComposer,
+          $$RingDevicesTableOrderingComposer,
+          $$RingDevicesTableAnnotationComposer,
+          $$RingDevicesTableCreateCompanionBuilder,
+          $$RingDevicesTableUpdateCompanionBuilder,
+          (
+            RingDeviceEntry,
+            BaseReferences<_$AppDatabase, $RingDevicesTable, RingDeviceEntry>,
+          ),
+          RingDeviceEntry,
+          PrefetchHooks Function()
+        > {
+  $$RingDevicesTableTableManager(_$AppDatabase db, $RingDevicesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RingDevicesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RingDevicesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RingDevicesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<String> deviceType = const Value.absent(),
+                Value<String> location = const Value.absent(),
+                Value<int> spatialX = const Value.absent(),
+                Value<int> spatialY = const Value.absent(),
+                Value<int> spatialFloor = const Value.absent(),
+                Value<int> batteryLevel = const Value.absent(),
+                Value<bool> isOnline = const Value.absent(),
+                Value<bool> isMotionEnabled = const Value.absent(),
+                Value<DateTime?> lastDingAt = const Value.absent(),
+                Value<DateTime?> lastMotionAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RingDevicesCompanion(
+                id: id,
+                label: label,
+                deviceType: deviceType,
+                location: location,
+                spatialX: spatialX,
+                spatialY: spatialY,
+                spatialFloor: spatialFloor,
+                batteryLevel: batteryLevel,
+                isOnline: isOnline,
+                isMotionEnabled: isMotionEnabled,
+                lastDingAt: lastDingAt,
+                lastMotionAt: lastMotionAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String label,
+                required String deviceType,
+                required String location,
+                Value<int> spatialX = const Value.absent(),
+                Value<int> spatialY = const Value.absent(),
+                Value<int> spatialFloor = const Value.absent(),
+                Value<int> batteryLevel = const Value.absent(),
+                Value<bool> isOnline = const Value.absent(),
+                Value<bool> isMotionEnabled = const Value.absent(),
+                Value<DateTime?> lastDingAt = const Value.absent(),
+                Value<DateTime?> lastMotionAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RingDevicesCompanion.insert(
+                id: id,
+                label: label,
+                deviceType: deviceType,
+                location: location,
+                spatialX: spatialX,
+                spatialY: spatialY,
+                spatialFloor: spatialFloor,
+                batteryLevel: batteryLevel,
+                isOnline: isOnline,
+                isMotionEnabled: isMotionEnabled,
+                lastDingAt: lastDingAt,
+                lastMotionAt: lastMotionAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RingDevicesTable, RingDeviceEntry>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $RingDevicesTable,
+                    RingDeviceEntry
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RingDevicesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RingDevicesTable,
+      RingDeviceEntry,
+      $$RingDevicesTableFilterComposer,
+      $$RingDevicesTableOrderingComposer,
+      $$RingDevicesTableAnnotationComposer,
+      $$RingDevicesTableCreateCompanionBuilder,
+      $$RingDevicesTableUpdateCompanionBuilder,
+      (
+        RingDeviceEntry,
+        BaseReferences<_$AppDatabase, $RingDevicesTable, RingDeviceEntry>,
+      ),
+      RingDeviceEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$RingEventsTableCreateCompanionBuilder =
+    RingEventsCompanion Function({
+      required String id,
+      required String deviceId,
+      required String deviceLabel,
+      required String eventType,
+      Value<DateTime> timestamp,
+      Value<String?> snapshotPath,
+      Value<String?> aiSceneDescription,
+      Value<bool> isRead,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$RingEventsTableUpdateCompanionBuilder =
+    RingEventsCompanion Function({
+      Value<String> id,
+      Value<String> deviceId,
+      Value<String> deviceLabel,
+      Value<String> eventType,
+      Value<DateTime> timestamp,
+      Value<String?> snapshotPath,
+      Value<String?> aiSceneDescription,
+      Value<bool> isRead,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$RingEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $RingEventsTable> {
+  $$RingEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceLabel => $composableBuilder(
+    column: $table.deviceLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get snapshotPath => $composableBuilder(
+    column: $table.snapshotPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get aiSceneDescription => $composableBuilder(
+    column: $table.aiSceneDescription,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RingEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RingEventsTable> {
+  $$RingEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceLabel => $composableBuilder(
+    column: $table.deviceLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get snapshotPath => $composableBuilder(
+    column: $table.snapshotPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get aiSceneDescription => $composableBuilder(
+    column: $table.aiSceneDescription,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RingEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RingEventsTable> {
+  $$RingEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceLabel => $composableBuilder(
+    column: $table.deviceLabel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshotPath => $composableBuilder(
+    column: $table.snapshotPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get aiSceneDescription => $composableBuilder(
+    column: $table.aiSceneDescription,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isRead =>
+      $composableBuilder(column: $table.isRead, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$RingEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RingEventsTable,
+          RingEventEntry,
+          $$RingEventsTableFilterComposer,
+          $$RingEventsTableOrderingComposer,
+          $$RingEventsTableAnnotationComposer,
+          $$RingEventsTableCreateCompanionBuilder,
+          $$RingEventsTableUpdateCompanionBuilder,
+          (
+            RingEventEntry,
+            BaseReferences<_$AppDatabase, $RingEventsTable, RingEventEntry>,
+          ),
+          RingEventEntry,
+          PrefetchHooks Function()
+        > {
+  $$RingEventsTableTableManager(_$AppDatabase db, $RingEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RingEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RingEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RingEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> deviceLabel = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<DateTime> timestamp = const Value.absent(),
+                Value<String?> snapshotPath = const Value.absent(),
+                Value<String?> aiSceneDescription = const Value.absent(),
+                Value<bool> isRead = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RingEventsCompanion(
+                id: id,
+                deviceId: deviceId,
+                deviceLabel: deviceLabel,
+                eventType: eventType,
+                timestamp: timestamp,
+                snapshotPath: snapshotPath,
+                aiSceneDescription: aiSceneDescription,
+                isRead: isRead,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String deviceId,
+                required String deviceLabel,
+                required String eventType,
+                Value<DateTime> timestamp = const Value.absent(),
+                Value<String?> snapshotPath = const Value.absent(),
+                Value<String?> aiSceneDescription = const Value.absent(),
+                Value<bool> isRead = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RingEventsCompanion.insert(
+                id: id,
+                deviceId: deviceId,
+                deviceLabel: deviceLabel,
+                eventType: eventType,
+                timestamp: timestamp,
+                snapshotPath: snapshotPath,
+                aiSceneDescription: aiSceneDescription,
+                isRead: isRead,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RingEventsTable, RingEventEntry>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $RingEventsTable,
+                    RingEventEntry
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RingEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RingEventsTable,
+      RingEventEntry,
+      $$RingEventsTableFilterComposer,
+      $$RingEventsTableOrderingComposer,
+      $$RingEventsTableAnnotationComposer,
+      $$RingEventsTableCreateCompanionBuilder,
+      $$RingEventsTableUpdateCompanionBuilder,
+      (
+        RingEventEntry,
+        BaseReferences<_$AppDatabase, $RingEventsTable, RingEventEntry>,
+      ),
+      RingEventEntry,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10472,4 +12556,8 @@ class $AppDatabaseManager {
       $$VisionScansTableTableManager(_db, _db.visionScans);
   $$SpatialNodesTableTableManager get spatialNodes =>
       $$SpatialNodesTableTableManager(_db, _db.spatialNodes);
+  $$RingDevicesTableTableManager get ringDevices =>
+      $$RingDevicesTableTableManager(_db, _db.ringDevices);
+  $$RingEventsTableTableManager get ringEvents =>
+      $$RingEventsTableTableManager(_db, _db.ringEvents);
 }

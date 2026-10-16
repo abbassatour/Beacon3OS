@@ -2,12 +2,14 @@
 import 'dart:developer';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:local_vault_api/local_vault_api.dart';
+import 'package:ring_integration_api/ring_integration_api.dart';
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:voice_ai_api/voice_ai_api.dart';
 
 import 'domains/assistant_repository.dart';
 import 'domains/comms_repository.dart';
 import 'domains/focus_alarms_repository.dart';
+import 'domains/ring_repository.dart';
 import 'domains/settings_repository.dart';
 import 'domains/system_hardware_repository.dart';
 import 'domains/task_agenda_repository.dart';
@@ -16,11 +18,12 @@ import 'domains/topology_repository.dart';
 export 'domains/assistant_repository.dart';
 export 'domains/comms_repository.dart';
 export 'domains/focus_alarms_repository.dart';
+export 'domains/ring_repository.dart';
 export 'domains/settings_repository.dart';
 export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
 export 'domains/topology_repository.dart';
-export 'models/remote_action_event.dart'; // 👈 تصدير النموذج الجديد
+export 'models/remote_action_event.dart';
 
 class LauncherCommandResult {
   const LauncherCommandResult({
@@ -43,6 +46,7 @@ class LauncherRepository {
     SpeechEngine? speechEngine,
     TtsEngine? ttsEngine,
     LlmAgent? llmAgent,
+    RingClientInterface? ringClient,
     SettingsRepository? settingsRepository,
     TaskAgendaRepository? taskAgendaRepository,
     FocusAlarmsRepository? focusAlarmsRepository,
@@ -50,6 +54,7 @@ class LauncherRepository {
     CommsRepository? commsRepository,
     AssistantRepository? assistantRepository,
     TopologyRepository? topologyRepository,
+    RingRepository? ringRepository,
   }) {
     final db = database ?? AppDatabase();
     final cloud = cloudSyncClient ?? CloudSyncClient();
@@ -63,12 +68,22 @@ class LauncherRepository {
     assistant = assistantRepository ?? AssistantRepositoryImpl(speechEngine: speechEngine, ttsEngine: ttsEngine, llmAgent: llmAgent);
     topology = topologyRepository ?? TopologyRepositoryImpl(database: db, cloudSync: cloud);
 
+    // 🔔 تهيئة منظومة كاميرات Ring مع محاكي السيناريوهات الجاهز للحكام
+    final ringCl = ringClient ?? RingSimulatorClient();
+    ring = ringRepository ??
+        RingRepositoryImpl(
+          database: db,
+          ringClient: ringCl,
+          assistantRepository: assistant,
+          cloudSync: cloud,
+        );
+
     // 🛰️ تفعيل الاستماع اللحظي للرادار والطوبولوجيا
     comms.initializeRealtimeSync();
     topology.initializeRealtimeSync();
   }
 
-  // --- الوصول المباشر للمستودعات السبعة المتخصصة ---
+  // --- الوصول المباشر للمستودعات الثمانية المتخصصة ---
   late final SettingsRepository settings;
   late final TaskAgendaRepository tasks;
   late final FocusAlarmsRepository focusAlarms;
@@ -76,6 +91,7 @@ class LauncherRepository {
   late final CommsRepository comms;
   late final AssistantRepository assistant;
   late final TopologyRepository topology;
+  late final RingRepository ring;
 
   Future<LauncherCommandResult> Function(String userQuery, {String? base64Image})? _customVoiceDispatcher;
 
@@ -118,5 +134,6 @@ class LauncherRepository {
   void dispose() {
     comms.dispose();
     topology.dispose();
+    ring.dispose();
   }
 }

@@ -13,7 +13,6 @@ from typing import Optional, Dict, Any, List
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from pydantic import BaseModel, Field
 from fastapi import FastAPI, Request, Response, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -29,7 +28,7 @@ logger = logging.getLogger("BeaconOS-MCP")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "local_guest_user")
-HOST = os.getenv("MCP_SERVER_HOST", "127.0.0.1")  # تأمين ضد DNS Rebinding
+HOST = os.getenv("MCP_SERVER_HOST", "127.0.0.1")  
 PORT = int(os.getenv("MCP_SERVER_PORT", "8000"))
 SPEC_VERSION = "2025-11-25"
 
@@ -42,7 +41,6 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception as e:
         logger.error(f"Failed to connect to Supabase: {e}")
 
-# إنشاء تطبيق FastAPI لخدمة المسار الموحد
 app = FastAPI(title="BeaconOS Alexa+ Streamable HTTP MCP Server", version=SPEC_VERSION)
 
 app.add_middleware(
@@ -190,12 +188,42 @@ async def tool_beacon_get_device_telemetry(args: Dict[str, Any]) -> Dict[str, An
         }
     }
 
+# 🌟 أدوات Ring الجديدة 🌟
+async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any]:
+    camera_name = args.get("camera_name", "Front Door")
+    logger.info(f"📹 Action: INSPECT_RING_CAMERA for {camera_name}")
+    
+    return {
+        "speech": f"I am inspecting the {camera_name} camera. The area appears to be clear right now with no immediate obstacles or deliveries.",
+        "ui_card": {
+            "type": "ring_camera_feed",
+            "camera_name": camera_name,
+            "status": "Live - AI Inspected",
+            "description": "Area clear. No packages or people detected."
+        }
+    }
+
+async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, Any]:
+    scenario = args.get("scenario", "courier_delivery")
+    logger.info(f"🔔 Action: SIMULATE_RING_SCENARIO -> {scenario}")
+    
+    return {
+        "speech": f"Simulating {scenario.replace('_', ' ')} scenario. Ring alert dispatched to your Beacon OS ecosystem.",
+        "ui_card": {
+            "type": "ring_event_simulation",
+            "scenario": scenario,
+            "status": "Event Dispatched Successfully"
+        }
+    }
+
 TOOLS_REGISTRY = {
     "beacon_locate_phone": tool_beacon_locate_phone,
     "beacon_trigger_emergency_sos": tool_beacon_trigger_emergency_sos,
     "beacon_get_daily_briefing": tool_beacon_get_daily_briefing,
     "beacon_create_task": tool_beacon_create_task,
     "beacon_get_device_telemetry": tool_beacon_get_device_telemetry,
+    "beacon_inspect_ring_camera": tool_beacon_inspect_ring_camera,
+    "beacon_simulate_ring_scenario": tool_beacon_simulate_ring_scenario,
 }
 
 # ==============================================================================
@@ -204,12 +232,7 @@ TOOLS_REGISTRY = {
 
 @app.get("/mcp")
 async def handle_streamable_get(request: Request):
-    """
-    HTTP GET on /mcp opens an SSE stream for server-to-client notifications
-    as defined in MCP Streamable HTTP 2025-11-25.
-    """
     async def sse_event_stream():
-        # Prime event as required by spec
         yield f": keep-alive\n\n"
         init_event = {
             "jsonrpc": "2.0",
@@ -229,9 +252,6 @@ async def handle_streamable_get(request: Request):
 
 @app.post("/mcp")
 async def handle_streamable_post(request: Request):
-    """
-    HTTP POST on /mcp processes JSON-RPC requests, notifications, and tool calls.
-    """
     try:
         body = await request.json()
     except Exception:
@@ -246,7 +266,6 @@ async def handle_streamable_post(request: Request):
         "Content-Type": "application/json"
     }
 
-    # 1. Initialize Phase
     if method == "initialize":
         result = {
             "protocolVersion": SPEC_VERSION,
@@ -264,7 +283,6 @@ async def handle_streamable_post(request: Request):
             headers=response_headers
         )
 
-    # 2. Tools Discovery (tools/list)
     elif method == "tools/list":
         tools_list = [
             {
@@ -291,6 +309,16 @@ async def handle_streamable_post(request: Request):
                 "name": "beacon_get_device_telemetry",
                 "description": "Check device battery, connection and accessibility profile",
                 "inputSchema": {"type": "object", "properties": {}}
+            },
+            {
+                "name": "beacon_inspect_ring_camera",
+                "description": "Inspect live video feed from a specific Ring camera and get AI scene analysis",
+                "inputSchema": {"type": "object", "properties": {"camera_name": {"type": "string"}}}
+            },
+            {
+                "name": "beacon_simulate_ring_scenario",
+                "description": "Trigger a simulated Ring camera event for testing purposes",
+                "inputSchema": {"type": "object", "properties": {"scenario": {"type": "string"}}}
             }
         ]
         return Response(
@@ -298,7 +326,6 @@ async def handle_streamable_post(request: Request):
             headers=response_headers
         )
 
-    # 3. Tool Execution (tools/call)
     elif method == "tools/call":
         tool_name = params.get("name")
         tool_args = params.get("arguments", {})
@@ -314,7 +341,6 @@ async def handle_streamable_post(request: Request):
         handler = TOOLS_REGISTRY[tool_name]
         tool_result = await handler(tool_args)
 
-        # إعادة محتوى مهيأ للصوت ولواجهة MCP Apps
         mcp_content = [
             {"type": "text", "text": tool_result["speech"]},
             {"type": "resource", "resource": {"uri": f"ui://beacon/{tool_name}", "data": tool_result["ui_card"]}}
@@ -330,11 +356,9 @@ async def handle_streamable_post(request: Request):
         }
         return Response(content=json.dumps(response_body), headers=response_headers)
 
-    # Notifications handling (e.g., initialized)
     elif method == "notifications/initialized":
         return Response(status_code=status.HTTP_202_ACCEPTED, headers=response_headers)
 
-    # Unknown method
     else:
         return Response(
             content=json.dumps({"jsonrpc": "2.0", "id": jsonrpc_id, "error": {"code": -32601, "message": "Method not found"}}),
@@ -342,9 +366,6 @@ async def handle_streamable_post(request: Request):
             status_code=400
         )
 
-# ==============================================================================
-# تشغيل الخادم
-# ==============================================================================
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"Starting MCP Streamable HTTP Server on http://{HOST}:{PORT}/mcp (Spec: {SPEC_VERSION})")

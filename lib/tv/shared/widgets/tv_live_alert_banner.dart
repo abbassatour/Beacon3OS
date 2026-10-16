@@ -16,8 +16,36 @@ class TvLiveAlertBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    
     final isSos = alert.actionType == RemoteActionType.triggerSos;
-    final bannerColor = isSos ? colors.error : colors.primary;
+    final isLocate = alert.actionType == RemoteActionType.locateDevice;
+    final isRing = alert.payload['is_ring'] == true;
+
+    Color bannerColor = colors.surface;
+    IconData icon = Icons.notifications_rounded;
+    String title = 'SYSTEM ALERT';
+    String subtitle = 'Incoming notification...';
+
+    if (isSos) {
+      bannerColor = colors.error;
+      icon = Icons.warning_rounded;
+      title = '🚨 EMERGENCY SOS ACTIVE • ON-CHAIN ATTESTED';
+      subtitle = 'Distress radar broadcasting live coordinates to Arbitrum ledger and family devices.';
+    } else if (isLocate) {
+      bannerColor = colors.primary;
+      icon = Icons.cell_tower_rounded;
+      title = '📍 ACOUSTIC PING DISPATCHED';
+      subtitle = 'Living room voice query triggered hardware siren & flashlight strobe on phone.';
+    } else if (isRing) {
+      bannerColor = colors.secondary; // لون مميز للكاميرات (أصفر أو برتقالي حسب الثيم)
+      icon = Icons.doorbell_rounded;
+      final deviceLabel = alert.payload['device_label']?.toString().toUpperCase() ?? 'CAMERA';
+      title = '🔔 RING ALERT: $deviceLabel';
+      subtitle = alert.payload['description']?.toString() ?? 'Activity detected at the camera.';
+    }
+
+    // تحديد لون النص بناءً على لون الخلفية لضمان التباين
+    final contentColor = isRing ? colors.surface : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -35,9 +63,9 @@ class TvLiveAlertBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isSos ? Icons.warning_rounded : Icons.cell_tower_rounded,
-            color: Colors.white,
-            size: 38, // 👈 أيقونة واضحة وكبيرة
+            icon,
+            color: contentColor,
+            size: 38,
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -46,24 +74,20 @@ class TvLiveAlertBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isSos
-                      ? '🚨 EMERGENCY SOS ACTIVE • ON-CHAIN ATTESTED'
-                      : '📍 ACOUSTIC PING DISPATCHED',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  title,
+                  style: TextStyle(
+                    color: contentColor,
                     fontWeight: FontWeight.w900,
-                    fontSize: 18.5, // 👈 عنوان التنبيه بارز جداً
+                    fontSize: 18.5,
                     letterSpacing: 1.1,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isSos
-                      ? 'Distress radar broadcasting live coordinates to Arbitrum ledger and family devices.'
-                      : 'Living room voice query triggered hardware siren & flashlight strobe on phone.',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15, // 👈 قراءة مريحة
+                  subtitle,
+                  style: TextStyle(
+                    color: contentColor,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -73,8 +97,8 @@ class TvLiveAlertBanner extends StatelessWidget {
           const SizedBox(width: 16),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
+              backgroundColor: contentColor,
+              foregroundColor: bannerColor, // لون زر معكوس
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),

@@ -4,6 +4,7 @@ import 'connection.dart';
 import 'daos/app_settings_dao.dart';
 import 'daos/contacts_dao.dart';
 import 'daos/focus_dao.dart';
+import 'daos/ring_dao.dart';
 import 'daos/safety_dao.dart';
 import 'daos/spatial_nodes_dao.dart';
 import 'daos/tasks_dao.dart';
@@ -14,6 +15,8 @@ import 'tables/contacts_table.dart';
 import 'tables/focus_sessions_table.dart';
 import 'tables/messages_vault_table.dart';
 import 'tables/notifications_table.dart';
+import 'tables/ring_devices_table.dart';
+import 'tables/ring_events_table.dart';
 import 'tables/sos_alerts_table.dart';
 import 'tables/spatial_nodes_table.dart';
 import 'tables/tasks_table.dart';
@@ -35,19 +38,21 @@ part 'app_database.g.dart';
     SosAlerts,
     VisionScans,
     SpatialNodes,
+    RingDevices,
+    RingEvents,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 9; // 👈 تم التحديث إلى 9
+  int get schemaVersion => 10; // 👈 ترقية إلى الإصدار 10 لدعم منظومة Ring
 
   @override
   MigrationStrategy get migration => DatabaseMigrations.createStrategy(this);
 
   // ===========================================================================
-  // 🧩 Domain DAOs (Data Access Objects)
+  // 🧩 Domain DAOs
   // ===========================================================================
   late final SpatialNodesDao spatialNodesDao = SpatialNodesDao(this);
   late final AppSettingsDao settingsDao = AppSettingsDao(this);
@@ -55,6 +60,7 @@ class AppDatabase extends _$AppDatabase {
   late final ContactsDao contactsDao = ContactsDao(this);
   late final FocusDao focusDao = FocusDao(this);
   late final SafetyDao safetyDao = SafetyDao(this);
+  late final RingDao ringDao = RingDao(this);
 
   // ===========================================================================
   // 🛡️ Forwarding Facade API
@@ -258,10 +264,7 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<VisionScan>> watchRecentVisionScans({int limit = 20}) =>
       safetyDao.watchRecentVisionScans(limit: limit);
 
-  // ===========================================================================
-  // 🌟 7. الدوال المضافة: المفاتيح السيادية واقتران الأجهزة (تم حل الخطأ هنا)
-  // ===========================================================================
-
+  // 7. Sovereign Keys & Pairing Meta
   Future<String?> getSovereignKey(String id) async {
     try {
       final rows = await customSelect(
@@ -314,4 +317,31 @@ class AppDatabase extends _$AppDatabase {
       );
     } catch (_) {}
   }
+
+  // 8. Ring Multi-Camera Ecosystem Facade API
+  Stream<List<RingDeviceEntry>> watchAllRingDevices() =>
+      ringDao.watchAllDevices();
+  Future<List<RingDeviceEntry>> getAllRingDevices() =>
+      ringDao.getAllDevices();
+  Future<RingDeviceEntry?> getRingDeviceById(String id) =>
+      ringDao.getDeviceById(id);
+  Future<void> upsertRingDevice(RingDevicesCompanion device) =>
+      ringDao.upsertDevice(device);
+  Future<void> updateRingDeviceActivity({
+    required String id,
+    DateTime? lastDingAt,
+    DateTime? lastMotionAt,
+  }) =>
+      ringDao.updateDeviceActivity(
+        id: id,
+        lastDingAt: lastDingAt,
+        lastMotionAt: lastMotionAt,
+      );
+
+  Stream<List<RingEventEntry>> watchRecentRingEvents({int limit = 30}) =>
+      ringDao.watchRecentEvents(limit: limit);
+  Future<void> insertRingEvent(RingEventsCompanion event) =>
+      ringDao.insertEvent(event);
+  Future<void> markRingEventAsRead(String eventId) =>
+      ringDao.markEventAsRead(eventId);
 }
