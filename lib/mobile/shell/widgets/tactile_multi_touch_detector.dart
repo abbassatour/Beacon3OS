@@ -1,10 +1,16 @@
-// lib/spatial_shell/widgets/tactile_multi_touch_detector.dart
+// lib/mobile/shell/widgets/tactile_multi_touch_detector.dart
 import 'dart:async';
 
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:flutter/widgets.dart';
 
-/// ملتقط اللمسات المتعددة الحسي والمخصص لإيماءات المكفوفين والطوارئ.
+/// ملتقط اللمسات المتعددة الحسي المخصص لإيماءات المكفوفين ونظام الطوارئ.
+///
+/// يدير بأمان:
+/// - ثلاث نقرات سريعة: نداء استغاثة الطوارئ SOS.
+/// - ضغط مطول بإصبع واحد (> 650ms): استدعاء المساعد الصوتي دون اعتراض نقرات القوائم.
+/// - نقرتان بإصبعين: إعلان الموقع والمستوى الحالي (Orientation Ping).
+/// - سحب بثلاثة أصابع: مصعد الطوابق السريع (اختياري).
 class TactileMultiTouchDetector extends StatefulWidget {
   const TactileMultiTouchDetector({
     required this.child,
@@ -15,7 +21,6 @@ class TactileMultiTouchDetector extends StatefulWidget {
     this.onHoldToSpeakStart,
     this.onHoldToSpeakEnd,
     this.onHoldToSpeakCancel,
-    this.onInnerScrollChanged,
     super.key,
   });
 
@@ -27,7 +32,6 @@ class TactileMultiTouchDetector extends StatefulWidget {
   final VoidCallback? onHoldToSpeakStart;
   final VoidCallback? onHoldToSpeakEnd;
   final VoidCallback? onHoldToSpeakCancel;
-  final ValueChanged<bool>? onInnerScrollChanged;
 
   @override
   State<TactileMultiTouchDetector> createState() =>
@@ -35,6 +39,12 @@ class TactileMultiTouchDetector extends StatefulWidget {
 }
 
 class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
+  // ⏱️ معايير التوقيت الصناعية لفك التداخل
+  static const Duration _holdToSpeakTimeout = Duration(milliseconds: 650);
+  static const Duration _singleTapMaxInterval = Duration(milliseconds: 420);
+  static const Duration _twoFingerTapMaxInterval = Duration(milliseconds: 450);
+  static const double _holdCancelSlop = 8.5; // إلغاء فوري عند بدء تمرير القوائم
+
   int _activePointers = 0;
   final Map<int, double> _threeFingerStartPointers = {};
   bool _threeFingerActionFired = false;
@@ -80,14 +90,15 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
     } else if (_activePointers == 1) {
       final now = DateTime.now();
       if (_lastSingleTapTime == null ||
-          now.difference(_lastSingleTapTime!).inMilliseconds > 450) {
+          now.difference(_lastSingleTapTime!).inMilliseconds >
+              _singleTapMaxInterval.inMilliseconds) {
         _singleTapCount = 1;
       } else {
         _singleTapCount++;
       }
       _lastSingleTapTime = now;
 
-      // رصد ثلاث نقرات سريعة لنداء الطوارئ SOS
+      // 🚨 1. رصد ثلاث نقرات سريعة لنداء الطوارئ SOS
       if (_singleTapCount == 3) {
         _holdToSpeakTimer?.cancel();
         _isHoldingToSpeak = false;
@@ -97,9 +108,9 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
         return;
       }
 
-      // ضغط مطول للتحدث بالميكروفون (400ms)
+      // 🎙️ 2. ضغط مطول بإصبع واحد للتحدث بالمساعد الذكي (650ms)
       _holdToSpeakTimer?.cancel();
-      _holdToSpeakTimer = Timer(const Duration(milliseconds: 400), () {
+      _holdToSpeakTimer = Timer(_holdToSpeakTimeout, () {
         if (_activePointers == 1) {
           _isHoldingToSpeak = true;
           SoundController.instance.stopSpatialRadar();
@@ -113,6 +124,7 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
   }
 
   void _onPointerMove(PointerMoveEvent event) {
+    // معالجة إيماءات الثلاثة أصابع
     if (_activePointers == 3 && !_threeFingerActionFired) {
       final startY = _threeFingerStartPointers[event.pointer];
       if (startY != null) {
@@ -129,13 +141,15 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
       }
     }
 
-    if (_activePointers >= 2 && event.delta.distance > 2.5) {
+    // إذا تحرك الإصبعان أكثر من 3.5 بكسل، فهو سحب فضائي للتنقل -> إلغاء النقر المزدوج
+    if (_activePointers >= 2 && event.delta.distance > 3.5) {
       _hasTwoFingerMoved = true;
     }
 
+    // إلغاء مؤقت المساعد الصوتي فوراً إذا تحرك الإصبع للتمرير أو السحب
     if (!_isHoldingToSpeak && _pointerDownPos != null) {
       final moved = (event.position - _pointerDownPos!).distance;
-      if (moved > 14.0) {
+      if (moved > _holdCancelSlop) {
         _holdToSpeakTimer?.cancel();
       }
     }
@@ -150,10 +164,12 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
       widget.onHoldToSpeakEnd?.call();
     } else if (_activePointers == 2 && _twoFingerTapStartTime != null) {
       final tapDuration = DateTime.now().difference(_twoFingerTapStartTime!);
+      // شرط الحماية: يجب ألا يكون الإصبعان قد تحركا كسحب فضائي
       if (!_hasTwoFingerMoved && tapDuration.inMilliseconds < 350) {
         final now = DateTime.now();
         if (_lastTwoFingerTapTime == null ||
-            now.difference(_lastTwoFingerTapTime!).inMilliseconds > 450) {
+            now.difference(_lastTwoFingerTapTime!).inMilliseconds >
+                _twoFingerTapMaxInterval.inMilliseconds) {
           _twoFingerTapCount = 1;
         } else {
           _twoFingerTapCount++;
@@ -192,22 +208,13 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollStartNotification) {
-          widget.onInnerScrollChanged?.call(true);
-        } else if (notification is ScrollEndNotification) {
-          widget.onInnerScrollChanged?.call(false);
-        }
-        return false;
-      },
-      child: Listener(
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: widget.child,
-      ),
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      child: widget.child,
     );
   }
 }

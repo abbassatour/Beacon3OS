@@ -5,9 +5,13 @@ import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
-import 'package:beacon_os/core/topology/spatial_direction.dart'; // 👈 استيراد مصحح
+import 'package:beacon_os/core/topology/spatial_direction.dart';
 import 'package:flutter/widgets.dart';
 
+/// وحدة التحكم المركزية بالهندسة الصوتية المكانية لنظام BeaconOS.
+///
+/// تم ضبطها بمعايير التردد الحسي النفسي (Psychoacoustics) لتوفير
+/// استجابة مكانية دقيقة دون إجهاد قنوات المنصة (MethodChannel).
 class SoundController {
   SoundController._() {
     _primaryPlayer = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
@@ -31,10 +35,13 @@ class SoundController {
   double _lastVolume = 0.0;
   DateTime _lastThrottledUpdate = DateTime.fromMillisecondsSinceEpoch(0);
 
-  static const double _balanceEpsilon = 0.025;
-  static const double _rateEpsilon = 0.030;
-  static const double _volumeEpsilon = 0.020;
-  static const Duration _throttleInterval = Duration(milliseconds: 16);
+  // 🎛️ عتبات التكميم الصوتي (Perceptual Deadband Filter)
+  static const double _balanceEpsilon = 0.055; // 5.5% عتبة تغير الستيريو
+  static const double _rateEpsilon = 0.050; // 5.0% عتبة تغير النغمة/التردد
+  static const double _volumeEpsilon = 0.040; // 4.0% عتبة تغير العلو
+
+  // ⏱️ زمن التحديث الأمثل (~24Hz): نعومة تامة للأذن مع استقرار إطارات الشاشة
+  static const Duration _throttleInterval = Duration(milliseconds: 42);
 
   Future<void> play(
     SoundCue cue, {
@@ -152,6 +159,7 @@ class SoundController {
     if (!isEnabled || !_isRadarActive) return;
 
     final now = DateTime.now();
+    // فحص الخنق الزمني لحماية Platform Thread
     if (now.difference(_lastThrottledUpdate) < _throttleInterval) {
       return;
     }
@@ -163,26 +171,31 @@ class SoundController {
 
     final targetBalance = nx;
     final floorPitchOffset = floorLevel * 0.12;
-    final targetRate = (1.0 + (ny * 0.32) + floorPitchOffset).clamp(0.65, 1.85);
+    final targetRate =
+        (1.0 + (ny * 0.32) + floorPitchOffset).clamp(0.65, 1.85);
     final targetVolume = (0.12 + (r * 0.28)).clamp(0.08, 0.45);
 
     try {
+      // إرسال الستيريو فقط إذا تجاوز عتبة التمييز الإدراكي
       if ((targetBalance - _lastBalance).abs() > _balanceEpsilon) {
         _lastBalance = targetBalance;
         unawaited(_radarPlayer.setBalance(targetBalance));
       }
 
+      // إرسال التردد فقط إذا تجاوز عتبة التمييز
       if ((targetRate - _lastPlaybackRate).abs() > _rateEpsilon) {
         _lastPlaybackRate = targetRate;
         unawaited(_radarPlayer.setPlaybackRate(targetRate));
       }
 
+      // إرسال علو الصوت فقط إذا تجاوز عتبة التمييز
       if ((targetVolume - _lastVolume).abs() > _volumeEpsilon) {
         _lastVolume = targetVolume;
         unawaited(_radarPlayer.setVolume(targetVolume));
       }
     } catch (_) {}
 
+    // الانتقال السلس لمنطقة المركز ونغمة القلب
     if (r < 0.15 && !_isInCoreZone) {
       _isInCoreZone = true;
       unawaited(playCoreChime());

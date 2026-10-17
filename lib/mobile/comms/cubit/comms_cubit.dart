@@ -144,7 +144,7 @@ class CommsCubit extends Cubit<CommsState> {
             longitude: coords.longitude,
           );
         }
-      }).catchError((Object error) {}),
+      }).catchError((Object error) => null),
     );
 
     await Future<void>.delayed(const Duration(seconds: 4));

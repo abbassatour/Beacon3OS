@@ -9,10 +9,8 @@ import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/widgets.dart';
 
-/// معالج فيزياء السحب والتنقل الديكارتي بين الغرف (XY-Axis Pan & Audio Radar).
-///
-/// يدير قفل المحاور، واصطدام الجدران المطاطي، وتحديثات الرادار الصوتي المستمر،
-/// ونطق اسم الغرفة القادمة بالهمس الصوتي (TTS Scrubbing).
+/// معالج فيزياء السحب والتنقل الديكارتي بإصبعين بين الغرف (XY-Axis 2-Finger Pan & Audio Radar).
+/// يدعم التوجيه الزاوي المرن، كسر القفل الحركي (Hysteresis Breakout)، والتحرير عند المركز.
 class SpatialPanHandler {
   SpatialPanHandler({
     SoundController? soundController,
@@ -24,7 +22,6 @@ class SpatialPanHandler {
   final HapticManager _haptics;
 
   Axis? _lockedAxis;
-  bool _isInnerScrollingActive = false;
 
   double _startXAtGesture = 0.0;
   double _startYAtGesture = 0.0;
@@ -37,17 +34,21 @@ class SpatialPanHandler {
   Timer? _scrubbingDebounceTimer;
   SpatialDirection? _lastScrubbedDirection;
 
-  Axis? get lockedAxis => _lockedAxis;
-  bool get isInnerScrollingActive => _isInnerScrollingActive;
+  // 🎯 عتبات التوجيه الزاوي وكسر القفل
+  static const double _initialTouchSlop = 9.0;
+  static const double _breakoutThreshold = 22.0;
+  static const double _originResetThreshold = 6.0;
+  static const double _dominanceRatio = 1.35;
 
-  /// تهيئة الجلسة عند بداية لمس الإصبع الأحادي
+  Axis? get lockedAxis => _lockedAxis;
+
+  /// تهيئة الجلسة عند بدء السحب بإصبعين
   void onScaleStart({
     required double startPanX,
     required double startPanY,
     required int floorLevel,
   }) {
     _lockedAxis = null;
-    _isInnerScrollingActive = false;
     _startXAtGesture = startPanX;
     _startYAtGesture = startPanY;
     _accumulatedDeltaX = 0.0;
@@ -60,7 +61,7 @@ class SpatialPanHandler {
     _sound.startSpatialRadar(floorLevel: floorLevel);
   }
 
-  /// معالجة حركة السحب اللحظية وحساب إزاحات PanX أو PanY
+  /// معالجة حركة السحب اللحظية بإصبعين مع القفل الديناميكي ودعم التراجع والكسر
   ({double? newPanX, double? newPanY}) handlePanUpdate({
     required Offset focalPointDelta,
     required double currentPanX,
@@ -68,38 +69,75 @@ class SpatialPanHandler {
     required SpatialShellState state,
     required SpatialTopology topology,
     required Size screenSize,
-    required bool isInnerListScrolling,
     required ValueChanged<SpatialDirection> onWhisperDirection,
     required bool isWhisperEnabled,
   }) {
     _accumulatedDeltaX += focalPointDelta.dx;
     _accumulatedDeltaY += focalPointDelta.dy;
 
-    const touchSlopThreshold = 8.0;
+    final absX = _accumulatedDeltaX.abs();
+    final absY = _accumulatedDeltaY.abs();
+
+    // 🔄 1. ميزة التحرير التلقائي: إذا عاد المستخدم قريباً من نقطة البداية، يُفك القفل
+    if (_lockedAxis != null) {
+      final currentDistFromOrigin = math.sqrt(
+        _accumulatedDeltaX * _accumulatedDeltaX +
+            _accumulatedDeltaY * _accumulatedDeltaY,
+      );
+      if (currentDistFromOrigin < _originResetThreshold) {
+        _lockedAxis = null;
+        _boundaryBumpFired = false;
+        _hapticDetentFired = false;
+      }
+    }
+
+    // ⚡ 2. ميزة كسر القفل (Breakout Hysteresis): تصحيح المسار المتعمد بحركة قوية في المحور الآخر
+    if (_lockedAxis == Axis.horizontal) {
+      if (absY > _breakoutThreshold && absY > absX * 1.5) {
+        _lockedAxis = Axis.vertical;
+        _boundaryBumpFired = false;
+        _hapticDetentFired = false;
+        _haptics.selectionClick(); // إشعار حسي بالانتقال للمحور الجديد
+      }
+    } else if (_lockedAxis == Axis.vertical) {
+      if (absX > _breakoutThreshold && absX > absY * 1.5) {
+        _lockedAxis = Axis.horizontal;
+        _boundaryBumpFired = false;
+        _hapticDetentFired = false;
+        _haptics.selectionClick(); // إشعار حسي بالانتقال للمحور الجديد
+      }
+    }
+
+    // 🧭 3. تحديد المحور الأولي إذا كان القفل غير محسوم (Initial Lock Decision)
     if (_lockedAxis == null) {
-      if (_accumulatedDeltaX.abs() > touchSlopThreshold ||
-          _accumulatedDeltaY.abs() > touchSlopThreshold) {
-        _lockedAxis = _accumulatedDeltaX.abs() > _accumulatedDeltaY.abs()
-            ? Axis.horizontal
-            : Axis.vertical;
+      if (absX >= _initialTouchSlop || absY >= _initialTouchSlop) {
+        if (absY > absX * _dominanceRatio) {
+          _lockedAxis = Axis.vertical;
+        } else if (absX > absY * _dominanceRatio) {
+          _lockedAxis = Axis.horizontal;
+        } else if (absX >= _initialTouchSlop * 1.6 ||
+            absY >= _initialTouchSlop * 1.6) {
+          // حركة واضحة قطرياً: اختيار المحور الأكبر نسبياً
+          _lockedAxis = absY > absX ? Axis.vertical : Axis.horizontal;
+        } else {
+          // لا يزال في المنطقة المحايدة (Ambiguous Cone) -> لا نحرك بعد
+          return (newPanX: null, newPanY: null);
+        }
       } else {
         return (newPanX: null, newPanY: null);
       }
     }
 
-    if (isInnerListScrolling) {
-      _isInnerScrollingActive = true;
-    }
-
-    if (_lockedAxis == Axis.vertical && isInnerListScrolling) {
-      return (newPanX: null, newPanY: null);
-    }
-
     double? updatedPanX;
     double? updatedPanY;
 
-    // 1. حساب السحب الأفقي (شرق / غرب)
+    // -------------------------------------------------------------------------
+    // 4. تنفيذ السحب الأفقي (شرق / غرب)
+    // -------------------------------------------------------------------------
     if (_lockedAxis == Axis.horizontal) {
+      // تثبيت المحور الرأسي المعاكس على نقطة الأصل لمنع الانحراف
+      updatedPanY = _startYAtGesture;
+
       final rawVal = _startXAtGesture + _accumulatedDeltaX;
       final currentTargetX = -state.currentCoordinate.x * screenSize.width;
 
@@ -162,8 +200,13 @@ class SpatialPanHandler {
         _hapticDetentFired = false;
       }
     }
-    // 2. حساب السحب الرأسي (شمال / جنوب)
+    // -------------------------------------------------------------------------
+    // 5. تنفيذ السحب الرأسي (شمال / جنوب)
+    // -------------------------------------------------------------------------
     else if (_lockedAxis == Axis.vertical) {
+      // تثبيت المحور الأفقي المعاكس على نقطة الأصل لمنع الانحراف
+      updatedPanX = _startXAtGesture;
+
       final rawVal = _startYAtGesture + _accumulatedDeltaY;
       final currentTargetY = state.currentCoordinate.y * screenSize.height;
 
@@ -227,7 +270,9 @@ class SpatialPanHandler {
       }
     }
 
-    // 3. تحديث نغمات الرادار الصوتي المتصل
+    // -------------------------------------------------------------------------
+    // 6. تحديث نغمات الرادار الصوتي المتصل وميزة الهمس
+    // -------------------------------------------------------------------------
     final currentTargetX = -state.currentCoordinate.x * screenSize.width;
     final currentTargetY = state.currentCoordinate.y * screenSize.height;
     final effectivePanX = updatedPanX ?? currentPanX;
@@ -242,7 +287,6 @@ class SpatialPanHandler {
       floorLevel: state.currentFloor,
     );
 
-    // 4. معالجة الهمس الصوتي (TTS Scrubbing) إذا كان مفعلاً
     _handleWhisperScrubbing(
       normalizedX: normalizedX,
       normalizedY: normalizedY,
@@ -288,7 +332,7 @@ class SpatialPanHandler {
     }
   }
 
-  /// تحديد الغرفة المستهدفة النهائية وحسابات القصور الذاتي عند رفع الإصبع
+  /// تحديد الغرفة المستهدفة النهائية وحسابات القصور الذاتي عند رفع الإصبعين
   ({
     SpatialCoordinate destination,
     double velocityX,
@@ -320,7 +364,8 @@ class SpatialPanHandler {
           origin: state.currentCoordinate,
           direction: SpatialDirection.east,
         );
-      } else if (deltaFromTarget > screenSize.width * distanceThresholdPercent ||
+      } else if (deltaFromTarget >
+              screenSize.width * distanceThresholdPercent ||
           vx > velocityThreshold) {
         targetCoord = topology.findNextOccupiedInDirection(
           origin: state.currentCoordinate,
@@ -330,7 +375,8 @@ class SpatialPanHandler {
 
       final destination = targetCoord ?? state.currentCoordinate;
       if (targetCoord == null &&
-          (deltaFromTarget.abs() > screenSize.width * 0.20 || vx.abs() > 140)) {
+          (deltaFromTarget.abs() > screenSize.width * 0.20 ||
+              vx.abs() > 140)) {
         shouldBump = true;
       }
 
@@ -353,7 +399,8 @@ class SpatialPanHandler {
           origin: state.currentCoordinate,
           direction: SpatialDirection.north,
         );
-      } else if (deltaFromTarget < -screenSize.height * distanceThresholdPercent ||
+      } else if (deltaFromTarget <
+              -screenSize.height * distanceThresholdPercent ||
           vy < -velocityThreshold) {
         targetCoord = topology.findNextOccupiedInDirection(
           origin: state.currentCoordinate,
@@ -363,7 +410,8 @@ class SpatialPanHandler {
 
       final destination = targetCoord ?? state.currentCoordinate;
       if (targetCoord == null &&
-          (deltaFromTarget.abs() > screenSize.height * 0.20 || vy.abs() > 140)) {
+          (deltaFromTarget.abs() > screenSize.height * 0.20 ||
+              vy.abs() > 140)) {
         shouldBump = true;
       }
 
@@ -394,7 +442,6 @@ class SpatialPanHandler {
   void reset() {
     stopRadarAndWhisper();
     _lockedAxis = null;
-    _isInnerScrollingActive = false;
   }
 
   /// التخلص من الموارد

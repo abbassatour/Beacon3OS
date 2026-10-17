@@ -2,9 +2,9 @@
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/mobile/agenda/intents/agenda_intents.dart'; // 👈 مصحح
-import 'package:beacon_os/mobile/agenda/view/agenda_floor_0_view.dart'; // 👈 مصحح
-import 'package:beacon_os/mobile/agenda/view/agenda_floor_1_view.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/agenda/intents/agenda_intents.dart';
+import 'package:beacon_os/mobile/agenda/view/agenda_floor_0_view.dart';
+import 'package:beacon_os/mobile/agenda/view/agenda_floor_1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -31,6 +31,9 @@ class AgendaModule extends SpatialModule {
   @override
   SpatialCoordinate get defaultCoordinate =>
       const SpatialCoordinate(x: -1, y: 0, floor: 0);
+
+  @override
+  bool get isVerticallyScrollable => true;
 
   @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;

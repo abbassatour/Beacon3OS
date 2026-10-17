@@ -185,6 +185,21 @@ class SpatialTopology {
     }
   }
 
+  /// 🧭 فحص هل تمتلك النقطة الإحداثية الحالية أي جيران على المحور العمودي (شمالاً أو جنوباً)
+  bool hasVerticalNeighbors(SpatialCoordinate origin) {
+    final hasNorth = findNextOccupiedInDirection(
+          origin: origin,
+          direction: SpatialDirection.north,
+        ) != null;
+
+    final hasSouth = findNextOccupiedInDirection(
+          origin: origin,
+          direction: SpatialDirection.south,
+        ) != null;
+
+    return hasNorth || hasSouth;
+  }
+
   /// جلب الإحداثي الدقيق لموديول معين على طابق ما
   SpatialCoordinate? coordinateOf(int floor, String moduleId) {
     for (final entry in _coordinateGrid.entries) {

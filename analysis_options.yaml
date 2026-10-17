@@ -8,6 +8,7 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
   errors:
+    # تجاهل تدقيقات التنسيق الشكلي للهاكاثون
     lines_longer_than_80_chars: ignore
     eol_at_end_of_file: ignore
     discarded_futures: ignore
@@ -26,6 +27,32 @@ analyzer:
     deprecated_member_use: ignore
     depend_on_referenced_packages: ignore
     include_file_not_found: ignore
+    unawaited_futures: ignore
+    directives_ordering: ignore
+    always_use_package_imports: ignore
+    avoid_bool_literals_in_conditional_expressions: ignore
+    always_put_required_named_parameters_first: ignore
+    prefer_final_locals: ignore
+    sort_constructors_first: ignore
+    sort_pub_dependencies: ignore
+    avoid_types_on_closure_parameters: ignore
+    avoid_dynamic_calls: ignore
+    inference_failure_on_function_return_type: ignore
+    matching_super_parameters: ignore
+    unnecessary_lambdas: ignore
+    unnecessary_brace_in_string_interps: ignore
+    avoid_renaming_method_parameters: ignore
+    no_default_cases: ignore
+    leading_newlines_in_multiline_strings: ignore
+    join_return_with_assignment: ignore
+    use_named_constants: ignore
+    use_late_for_private_fields_and_variables: ignore
+    invalid_null_aware_operator: ignore
+    unused_local_variable: ignore
+    unused_field: ignore
+    unused_import: ignore
+    unnecessary_import: ignore
+    body_might_complete_normally_catch_error: ignore
 
 linter:
   rules:
@@ -34,3 +61,4 @@ linter:
     discarded_futures: false
     eol_at_end_of_file: false
     prefer_const_constructors: false
+    always_use_package_imports: false

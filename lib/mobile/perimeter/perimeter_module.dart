@@ -34,6 +34,9 @@ class PerimeterModule extends SpatialModule {
       const SpatialCoordinate(x: 0, y: 2, floor: 0);
 
   @override
+  bool get isVerticallyScrollable => true;
+
+  @override
   bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
 
   @override

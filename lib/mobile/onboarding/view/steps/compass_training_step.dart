@@ -5,8 +5,15 @@ import 'package:beacon_os/mobile/shell/models/spatial_gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class CompassTrainingStep extends StatelessWidget {
+class CompassTrainingStep extends StatefulWidget {
   const CompassTrainingStep({super.key});
+
+  @override
+  State<CompassTrainingStep> createState() => _CompassTrainingStepState();
+}
+
+class _CompassTrainingStepState extends State<CompassTrainingStep> {
+  Offset _accumulatedDelta = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -16,23 +23,31 @@ class CompassTrainingStep extends StatelessWidget {
       builder: (context, state) {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onScaleStart: (_) {
+            _accumulatedDelta = Offset.zero;
+          },
           onScaleUpdate: (details) {
-            if (details.pointerCount >= 2 && details.scale > 1.15) {
-              cubit.handleTrainingPinch();
+            // التدريب مخصص لإيماءات الإصبعين فما فوق
+            if (details.pointerCount >= 2) {
+              final scaleDelta = (details.scale - 1.0).abs();
+
+              // 🏢 فحص إيماءة المباعدة (Elevator Pinch / Spread)
+              if (scaleDelta > 0.15) {
+                cubit.handleTrainingPinch();
+              } else {
+                _accumulatedDelta += details.focalPointDelta;
+              }
             }
           },
           onScaleEnd: (details) {
-            if (details.pointerCount >= 2) {
-              cubit.handleTrainingPinch();
-            }
-          },
-          onVerticalDragEnd: (details) {
-            final vy = details.primaryVelocity ?? 0;
-            if (vy < -250) {
+            // 🧭 فحص السحب بإصبعين للأعلى أو للأسفل
+            final vy = details.velocity.pixelsPerSecond.dy;
+            if (_accumulatedDelta.dy < -50 || vy < -200) {
               cubit.handleTrainingSwipeUp();
-            } else if (vy > 250) {
+            } else if (_accumulatedDelta.dy > 50 || vy > 200) {
               cubit.handleTrainingSwipeDown();
             }
+            _accumulatedDelta = Offset.zero;
           },
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -82,7 +97,7 @@ class CompassTrainingStep extends StatelessWidget {
                     child: Text(
                       state.hasMasteredNorthSwipe
                           ? 'Next: Test Camera Eyes ➡️'
-                          : 'Swipe UP to practice',
+                          : 'Swipe UP with 2 fingers to practice',
                       style: const TextStyle(
                           fontWeight: FontWeight.w900, fontSize: 16),
                     ),

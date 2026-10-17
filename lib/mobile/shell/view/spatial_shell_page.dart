@@ -15,6 +15,7 @@ import 'package:beacon_os/mobile/shell/widgets/spatial_compass_hud.dart';
 import 'package:beacon_os/mobile/shell/widgets/spatial_floor_layout.dart';
 import 'package:beacon_os/mobile/shell/widgets/spatial_portal_transform.dart';
 import 'package:beacon_os/mobile/shell/widgets/tactile_multi_touch_detector.dart';
+import 'package:beacon_os/mobile/shell/widgets/two_finger_gesture_detector.dart'; // 👈 استيراد الملتقط الجديد
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -74,7 +75,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     with TickerProviderStateMixin {
   late final SpatialCameraController _cameraController;
   StreamSubscription<void>? _topologySubscription;
-  bool _isInnerListScrolling = false;
 
   @override
   void initState() {
@@ -147,17 +147,13 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
               onHoldToSpeakStart: voiceCubit.startSession,
               onHoldToSpeakEnd: () => voiceCubit.stopAndExecute(context: context),
               onHoldToSpeakCancel: voiceCubit.closeSession,
-              onInnerScrollChanged: (isScrolling) {
-                _isInnerListScrolling = isScrolling;
-              },
-              child: GestureDetector(
+              child: TwoFingerGestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onScaleStart: (details) => _cameraController.onScaleStart(
                   details,
                   floorLevel: shellCubit.state.currentFloor,
                 ),
                 onScaleUpdate: (details) {
-                  // 🌟 قراءة حالة الإعداد اللحظية من PreferencesCubit
                   final isWhisper =
                       context.read<PreferencesCubit>().state.spatialWhisperEnabled;
 
@@ -166,9 +162,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                     state: shellCubit.state,
                     topology: topology,
                     screenSize: screenSize,
-                    isInnerListScrolling: _isInnerListScrolling,
                     onWhisperDirection: shellCubit.whisperRoomScrubbing,
-                    isWhisperEnabled: isWhisper, // 👈 تمرير الإعداد
+                    isWhisperEnabled: isWhisper,
                   );
                 },
                 onScaleEnd: (details) => _cameraController.onScaleEnd(

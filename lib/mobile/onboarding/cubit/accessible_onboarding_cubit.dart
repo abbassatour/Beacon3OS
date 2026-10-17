@@ -131,7 +131,7 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
     await _haptics.successNotification();
     emit(state.copyWith(hasMasteredNorthSwipe: true));
     await _assistant.speak(
-      'Excellent. That is the North Focus & Alarms chime. Now, swipe down to discover Communications.',
+      'Excellent. That is the North Focus & Alarms chime. Now, swipe down with two fingers to discover Communications.',
     );
   }
 
@@ -141,7 +141,7 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
     emit(state.copyWith(hasMasteredSouthSwipe: true));
     await _assistant.speak(
       'Great job! That is the South Communications chime. '
-      'Now spread your fingers apart to test the elevator, or tap continue to proceed.',
+      'Now spread two fingers apart to test the elevator, or tap continue to proceed.',
     );
   }
 
@@ -276,7 +276,7 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
       case AccessibleStep.compassTraining:
         await _assistant.speak(
           'Step 2: Spatial Navigation Training. '
-          'Swipe up now to hear the North Focus chime.',
+          'Swipe up now with two fingers to hear the North Focus chime.',
         );
         break;
       case AccessibleStep.visionTest:
@@ -296,7 +296,6 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
   Future<void> finishAccessibleOnboarding() async {
     emit(state.copyWith(status: AccessibleFlowStatus.completing));
     try {
-      // 🌟 ميزة الهمس الصوتي مفعلة تلقائياً للمكفوفين لتوجيههم عبر البوصلة
       await _settings.completeOnboarding(
         persona: 'blind_accessible',
         isHighContrast: true,

@@ -25,6 +25,10 @@ abstract class SpatialModule {
   SpatialCoordinate get defaultCoordinate =>
       const SpatialCoordinate(x: 0, y: 0, floor: 0);
 
+  /// 📜 يحدد هل تحتوي الغرفة على محتوى قابل للتمرير رأسياً (افتراضياً: false)
+  /// إذا كانت القيمة true، سيتم تفعيل شرط حماية السحب في الثلث العلوي عند وجود غرف عمودية
+  bool get isVerticallyScrollable => false;
+
   /// قائمة الأوامر الصوتية التي يجيد هذا الموديول معالجتها
   List<VoiceIntentHandler> get voiceIntents => const [];
 

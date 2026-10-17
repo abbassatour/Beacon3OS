@@ -46,7 +46,7 @@ extension SpatialDirectionX on SpatialDirection {
     }
   }
 
-  /// 🎯 التلميح الحركي المستقر للعودة للمركز دون إملاء اتجاه سحب متضارب
+  /// 🎯 التلميح الحركي المستقر للعودة للمركز المعتمد على إيماءة الإصبعين
   String get returnGestureHint {
     switch (this) {
       case SpatialDirection.center:
@@ -55,7 +55,7 @@ extension SpatialDirectionX on SpatialDirection {
       case SpatialDirection.south:
       case SpatialDirection.east:
       case SpatialDirection.west:
-        return 'Use HUD';
+        return '2-Finger swipe or tap HUD';
     }
   }
 }

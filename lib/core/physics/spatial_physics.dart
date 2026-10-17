@@ -26,7 +26,7 @@ class SpatialPhysics {
     damping: 32.0,
   );
 
-  /// دالة تحقق رياضية من نسبة التخميد:
+  /// دالة تحقق رياضية من نسبة التخميد
   static double calculateDampingRatio(SpringDescription spring) {
     return spring.damping / (2.0 * math.sqrt(spring.mass * spring.stiffness));
   }

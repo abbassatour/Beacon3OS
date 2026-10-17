@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 /// واجهة الطابق الأرضي لقمرة القيادة (Floor 0: Today Cockpit Canvas)
 class CockpitFloor0View extends StatefulWidget {
@@ -305,7 +304,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                           border: Border.all(color: colors.outline),
                         ),
                         child: Text(
-                          'Your day is completely clear. Swipe ${CompassDirection.west.arrowSymbol} to view the full agenda.',
+                          'Your day is completely clear. Swipe 2 fingers ${CompassDirection.west.arrowSymbol} to view full agenda.',
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 13,
@@ -387,11 +386,9 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
     );
   }
 
-  // ... داخل الكلاس _CockpitFloor0ViewState استبدل دالة الإنذار:
-
   Widget _buildNextAlarmCard(
     BuildContext context,
-    AlarmEntity? alarm, // ✅ الكيان النقي
+    AlarmEntity? alarm,
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
@@ -405,7 +402,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
           border: Border.all(color: colors.outline),
         ),
         child: Text(
-          'No scheduled alarms for today. Swipe ${CompassDirection.north.arrowSymbol} for Focus & Alarms.',
+          'No scheduled alarms for today. Swipe 2 fingers ${CompassDirection.north.arrowSymbol} for Focus & Alarms.',
           style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
         ),
       );
@@ -478,11 +475,9 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
     );
   }
 
-  // ... داخل الكلاس _CockpitFloor0ViewState استبدل الدالتين التاليتين:
-
   Widget _buildPriorityTaskTile(
     BuildContext context,
-    TaskEntity task, // ✅ الكيان النقي
+    TaskEntity task,
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
@@ -569,7 +564,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
 
   Widget _buildMemoSnippetCard(
     BuildContext context,
-    VoiceMemoEntity memo, // ✅ الكيان النقي
+    VoiceMemoEntity memo,
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
@@ -658,7 +653,7 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'SPATIAL COCKPIT GESTURES',
+            'SPATIAL COCKPIT GESTURES (2 FINGERS)',
             style: TextStyle(
               color: colors.onSurfaceVariant,
               fontSize: 11,
@@ -704,13 +699,22 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            SpatialGesture.ascendToSettings.visualHint,
+            '✌️ 2 Fingers to Navigate Rooms • ☝️ 1 Finger for Tasks & Lists',
             style: TextStyle(
               fontSize: 11,
               color: colors.primary,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            SpatialGesture.ascendToSettings.visualHint,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
