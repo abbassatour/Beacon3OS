@@ -1,3 +1,4 @@
+// packages/ring_integration_api/lib/src/client/ring_simulator_client.dart
 import 'dart:async';
 import 'package:ring_integration_api/src/client/ring_client_interface.dart';
 import 'package:ring_integration_api/src/models/ring_device.dart';
@@ -9,7 +10,7 @@ class RingSimulatorClient implements RingClientInterface {
 
   final Uuid _uuid;
 
-  // صورة اختبارية 1x1 شفافة صالحة كـ Base64 لضمان عدم حدوث Crash
+  // صورة اختبارية صالحة كـ Base64 لضمان عدم حدوث Crash عند تحليل الإطارات
   static const String dummyImageBase64 =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
@@ -56,10 +57,25 @@ class RingSimulatorClient implements RingClientInterface {
     ),
   ];
 
+  // أوصاف افتراضية واقعية للمشهد لكل كاميرا عند الفحص الحي
+  final Map<String, String> _deviceBaselineDescriptions = {
+    'ring_cam_front_door':
+        'Front porch is well-lit and clear. Pathway to the door is unobstructed.',
+    'ring_cam_backyard':
+        'Backyard lawn and perimeter fence are visible. Area is quiet and secure.',
+    'ring_cam_nursery':
+        'Nursery crib is visible in calm lighting. The room is quiet.',
+    'ring_cam_garage':
+        'Garage driveway is clear. Vehicle parked safely and floodlights active.',
+  };
+
   final StreamController<List<RingDevice>> _devicesController =
       StreamController<List<RingDevice>>.broadcast();
   final StreamController<RingEvent> _eventsController =
       StreamController<RingEvent>.broadcast();
+
+  String? getBaselineDescription(String deviceId) =>
+      _deviceBaselineDescriptions[deviceId];
 
   @override
   Stream<List<RingDevice>> get devicesStream => _devicesController.stream;
@@ -82,7 +98,6 @@ class RingSimulatorClient implements RingClientInterface {
 
   @override
   Future<String?> captureSnapshotBase64(String deviceId) async {
-    // محاكاة التقاط إطار حي
     return dummyImageBase64;
   }
 
@@ -105,21 +120,21 @@ class RingSimulatorClient implements RingClientInterface {
         targetLabel = 'Front Door';
         eventType = RingEventType.ding;
         initialDescription =
-            'Amazon delivery courier standing at your porch placing a cardboard package.';
+            'Amazon courier standing at porch placing a cardboard package.';
         break;
       case RingScenarioPreset.nightProwler:
         targetDeviceId = 'ring_cam_backyard';
         targetLabel = 'Backyard';
         eventType = RingEventType.motion;
         initialDescription =
-            'Motion detected near backyard fence: A small stray cat moving across the lawn.';
+            'Motion detected near backyard fence: A small stray cat moving across lawn.';
         break;
       case RingScenarioPreset.babyCrying:
         targetDeviceId = 'ring_cam_nursery';
         targetLabel = 'Nursery';
         eventType = RingEventType.motion;
         initialDescription =
-            'Movement in nursery: Baby is stirring and sitting up in the crib.';
+            'Movement in nursery: Baby is stirring and sitting up in crib.';
         break;
       case RingScenarioPreset.carArriving:
         targetDeviceId = 'ring_cam_garage';
@@ -136,6 +151,9 @@ class RingSimulatorClient implements RingClientInterface {
             'Your neighbor Sarah is at the front door waving and smiling.';
         break;
     }
+
+    // تحديث الوصف النشط للكاميرا المستهدفة
+    _deviceBaselineDescriptions[targetDeviceId] = initialDescription;
 
     // تحديث توقيت الجهاز المستهدف
     final index = _devices.indexWhere((d) => d.id == targetDeviceId);

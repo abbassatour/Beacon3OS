@@ -6,6 +6,7 @@ enum RemoteActionType {
   locateDevice,
   triggerSos,
   vaultMutation,
+  ringAlert,
   unknown,
 }
 
@@ -34,8 +35,16 @@ class RemoteActionEvent {
       case 'VAULT_MUTATION':
         type = RemoteActionType.vaultMutation;
         break;
+      case 'RING_ALERT':
+        type = RemoteActionType.ringAlert;
+        break;
       default:
-        type = RemoteActionType.unknown;
+        if (map['payload'] is Map<String, dynamic> &&
+            map['payload']['is_ring'] == true) {
+          type = RemoteActionType.ringAlert;
+        } else {
+          type = RemoteActionType.unknown;
+        }
     }
 
     return RemoteActionEvent(
@@ -60,7 +69,11 @@ class RemoteActionEvent {
         type = RemoteActionType.vaultMutation;
         break;
       default:
-        type = RemoteActionType.unknown;
+        if (message.payload['is_ring'] == true) {
+          type = RemoteActionType.ringAlert;
+        } else {
+          type = RemoteActionType.unknown;
+        }
     }
 
     return RemoteActionEvent(

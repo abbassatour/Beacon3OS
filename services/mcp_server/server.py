@@ -72,7 +72,6 @@ def _resolve_target_user_id(explicit_id: Optional[str]) -> Optional[str]:
 
     if supabase:
         try:
-            # محاولة جلب المستخدم من جدول الإعدادات
             settings_res = supabase.table("app_settings").select("user_id").limit(1).execute()
             if settings_res.data and settings_res.data[0].get("user_id"):
                 return settings_res.data[0]["user_id"]
@@ -141,7 +140,6 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
     if supabase:
         try:
-            # 1. إدراج استغاثة في جدول sos_alerts
             sos_record = {
                 "status": "active",
                 "latitude": default_lat,
@@ -155,7 +153,6 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
             supabase.table("sos_alerts").insert(sos_record).execute()
 
-            # 2. إرسال أمر تنبيه فوري للهاتف وسائر شاشات المنزل
             action_record = {
                 "action_type": "TRIGGER_SOS",
                 "payload": {
@@ -284,12 +281,10 @@ async def tool_beacon_get_device_telemetry(args: Dict[str, Any]) -> Dict[str, An
 
     if supabase:
         try:
-            # محاولة قراءة البطارية الحقيقية من آخر سجل استغاثة أو نشاط
             sos_res = supabase.table("sos_alerts").select("battery_level").order("triggered_at", desc=True).limit(1).execute()
             if sos_res.data and sos_res.data[0].get("battery_level"):
                 battery_level = int(sos_res.data[0]["battery_level"])
 
-            # قراءة نمط الهوية النشط
             settings_res = supabase.table("app_settings").select("user_persona, is_high_contrast").limit(1).execute()
             if settings_res.data:
                 persona = settings_res.data[0].get("user_persona", "blind_accessible")
@@ -317,7 +312,7 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
 
     speech = (
         f"I am inspecting the {camera_name} camera feed. "
-        "The porch is well lit, no moving obstacles detected, and pathway is completely clear."
+        "The area is well lit, no moving obstacles detected, and pathway is completely clear."
     )
     return {
         "speech": speech,
@@ -332,16 +327,63 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
 
 async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, Any]:
     scenario = args.get("scenario", "courier_delivery").strip()
-    logger.info(f"🔔 Action: SIMULATE_RING_SCENARIO -> {scenario}")
+    raw_user_id = args.get("user_id")
+    target_user_id = _resolve_target_user_id(raw_user_id)
+    logger.info(f"🔔 Action: SIMULATE_RING_SCENARIO -> {scenario} for target: {target_user_id or 'BROADCAST'}")
+
+    target_label = "Front Door"
+    scenario_description = "Activity detected at front door."
+
+    if scenario == "courier_delivery":
+        target_label = "Front Door"
+        scenario_description = "Amazon delivery courier placing a cardboard parcel at the porch."
+    elif scenario == "night_prowler":
+        target_label = "Backyard"
+        scenario_description = "Motion detected near backyard fence: A small stray cat moving across the lawn."
+    elif scenario == "baby_crying":
+        target_label = "Nursery"
+        scenario_description = "Movement in nursery: Baby is stirring and sitting up in the crib."
+    elif scenario == "car_arriving":
+        target_label = "Garage Driveway"
+        scenario_description = "Vehicle entering driveway: Silver sedan parking in front of garage."
+    elif scenario == "friendly_neighbor":
+        target_label = "Front Door"
+        scenario_description = "Neighbor Sarah is at the front door waving and smiling."
 
     clean_name = scenario.replace("_", " ")
+
+    # 🚀 إدراج السجل في remote_actions لبثه فورياً للهاتف والتلفاز
+    if supabase:
+        try:
+            action_payload = {
+                "action_type": "RING_ALERT",
+                "payload": {
+                    "is_ring": True,
+                    "scenario": scenario,
+                    "device_label": target_label,
+                    "description": scenario_description,
+                    "triggered_from": "alexa_mcp"
+                },
+                "status": "pending",
+                "created_at": datetime.utcnow().isoformat()
+            }
+            if target_user_id:
+                action_payload["user_id"] = target_user_id
+
+            supabase.table("remote_actions").insert(action_payload).execute()
+            logger.info(f"✅ RING_ALERT dispatched to remote_actions for {target_label} ({clean_name})")
+        except Exception as e:
+            logger.error(f"Failed to dispatch RING_ALERT to Supabase: {e}")
+
     speech = f"Simulating {clean_name} scenario. Ring alert dispatched across BeaconOS living room screens."
     return {
         "speech": speech,
         "ui_card": {
             "type": "ring_event_simulation",
             "scenario": scenario,
-            "status": "Event Dispatched Successfully"
+            "device_label": target_label,
+            "description": scenario_description,
+            "status": "Dispatched across Living Room Screens"
         }
     }
 

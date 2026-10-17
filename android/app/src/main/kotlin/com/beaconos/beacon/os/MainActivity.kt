@@ -23,7 +23,7 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                // 🌟 فحص تلقائي: هل هذا الجهاز تلفزيون (Android TV / Fire TV)؟
+                // 🌟 فحص تلفزيون (Android TV / Fire TV)
                 "isTv" -> {
                     val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
                     val isTv = (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) ||
@@ -32,7 +32,7 @@ class MainActivity : FlutterActivity() {
                     result.success(isTv)
                 }
 
-                // 1. ضبط منبه حقيقي في نظام أندرويد دون فتح شاشة الساعة
+                // 1. ضبط منبه حقيقي في نظام أندرويد
                 "setAlarm" -> {
                     val hour = call.argument<Int>("hour") ?: 8
                     val minute = call.argument<Int>("minute") ?: 0
@@ -42,14 +42,19 @@ class MainActivity : FlutterActivity() {
                     result.success(success)
                 }
 
-                // 2. تشغيل أو إطفاء فلاش الكشاف مع حماية من انهيار المحاكي
+                // 2. تشغيل أو إطفاء فلاش الكشاف مع حماية من الأجهزة الخالية من الفلاش والمحاكيات
                 "toggleFlashlight" -> {
                     val enable = call.argument<Boolean>("enable") ?: !isTorchOn
                     val success = setFlashlight(enable)
                     result.success(success)
                 }
 
-                // 3. فتح أي تطبيق مثبت على الهاتف بالاسم أو الحزمة (Package Name)
+                // الاستعلام عن حالة الكشاف الحالية لفك التعارض مع الكاميرا
+                "isFlashlightOn" -> {
+                    result.success(isTorchOn)
+                }
+
+                // 3. فتح أي تطبيق مثبت على الهاتف بالاسم أو الحزمة
                 "openApp" -> {
                     val packageName = call.argument<String>("packageName")
                     if (!packageName.isNullOrBlank()) {
@@ -102,15 +107,24 @@ class MainActivity : FlutterActivity() {
 
     private fun setFlashlight(enable: Boolean): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val cameraManager = getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return false
             try {
                 val cameraIds = cameraManager.cameraIdList
                 if (cameraIds.isEmpty()) return false
 
+                // 🛡️ البحث الصارم عن كاميرا تمتلك وحدة فلاش حقيقية
                 val cameraIdWithFlash = cameraIds.firstOrNull { id ->
-                    val chars = cameraManager.getCameraCharacteristics(id)
-                    chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-                } ?: cameraIds[0]
+                    try {
+                        val chars = cameraManager.getCameraCharacteristics(id)
+                        chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                    } catch (_: Exception) {
+                        false
+                    }
+                } ?: run {
+                    // الجهاز أو المحاكي لا يمتلك فلاشاً، نخرج بأمان دون Crash
+                    isTorchOn = false
+                    return false
+                }
 
                 cameraManager.setTorchMode(cameraIdWithFlash, enable)
                 isTorchOn = enable

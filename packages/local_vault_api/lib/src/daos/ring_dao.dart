@@ -44,6 +44,32 @@ class RingDao extends DatabaseAccessor<AppDatabase> with _$RingDaoMixin {
     );
   }
 
+  /// 🔔 تفعيل أو تعطيل مستشعر الحركة للكاميرا وحفظها في الخزنة
+  Future<void> toggleDeviceMotion({
+    required String id,
+    required bool isMotionEnabled,
+  }) {
+    return (update(ringDevices)..where((d) => d.id.equals(id))).write(
+      RingDevicesCompanion(
+        isMotionEnabled: Value(isMotionEnabled),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// 🌐 تحديث حالة اتصال الكاميرا (أونلاين / أوفلاين)
+  Future<void> toggleDeviceOnlineStatus({
+    required String id,
+    required bool isOnline,
+  }) {
+    return (update(ringDevices)..where((d) => d.id.equals(id))).write(
+      RingDevicesCompanion(
+        isOnline: Value(isOnline),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   // --- Events ---
   Stream<List<RingEventEntry>> watchRecentEvents({int limit = 30}) =>
       (select(ringEvents)

@@ -1,6 +1,7 @@
 // lib/mobile/vision/cubit/vision_cubit.dart
 import 'dart:async';
 import 'dart:developer';
+
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
@@ -174,6 +175,16 @@ class VisionCubit extends Cubit<VisionState> {
         ),
       );
 
+      // 💾 1. توثيق وحفظ الفحص في الخزنة المحلية ومزامنته سحابياً
+      unawaited(
+        _settingsRepo.recordVisionScan(
+          mode: state.activeMode.name,
+          prompt: prompt,
+          description: spokenResult,
+        ),
+      );
+
+      // 🌐 2. إثبات الأثر اللامركزي على شبكة Arbitrum L2
       unawaited(
         Web3Service.instance.logAiImpactOnChain('vision_${state.activeMode.name}'),
       );

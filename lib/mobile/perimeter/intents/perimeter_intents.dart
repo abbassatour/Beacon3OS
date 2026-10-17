@@ -86,16 +86,16 @@ class InspectCameraIntentHandler extends VoiceIntentHandler {
       }
     }
 
-    // إذا لم يتطابق أي اسم، نختار الكاميرا الأولى المسجلة
     targetDevice ??= devices.first;
 
-    // 2. فحص الكاميرا فوراً وتحليل الإطار صوتياً
+    // 2. فحص الكاميرا فورياً وتحليل الإطار
     final customQuery = params['query'] as String?;
     final analysis = await ringRepo.inspectCameraLive(
       deviceId: targetDevice.id,
       customQuery: customQuery,
     );
 
+    // 🌟 يرجع الرد ليتولى VoiceCommandDispatcher نطقه مرة واحدة فقط وبلا أي تكرار
     return LauncherCommandResult(
       intent: intentId,
       spokenResponse:

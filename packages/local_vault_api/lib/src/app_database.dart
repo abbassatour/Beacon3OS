@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 11; // 👈 ترقية إلى الإصدار 11 لدعم ميزة الهمس الصوتي
+  int get schemaVersion => 11; // 👈 الإصدار 11 المستقر
 
   @override
   MigrationStrategy get migration => DatabaseMigrations.createStrategy(this);
@@ -168,7 +168,7 @@ class AppDatabase extends _$AppDatabase {
     String? relationship,
     bool isEmergency = false,
     String? id,
-  }) =>
+  }) async =>
       contactsDao.insertContact(
         name: name,
         phoneNumber: phoneNumber,
@@ -265,6 +265,8 @@ class AppDatabase extends _$AppDatabase {
       );
   Stream<List<VisionScan>> watchRecentVisionScans({int limit = 20}) =>
       safetyDao.watchRecentVisionScans(limit: limit);
+  Future<List<VisionScan>> getRecentVisionScans({int limit = 20}) =>
+      safetyDao.getRecentVisionScans(limit: limit);
 
   // 7. Sovereign Keys & Pairing Meta
   Future<String?> getSovereignKey(String id) async {
@@ -338,6 +340,22 @@ class AppDatabase extends _$AppDatabase {
         id: id,
         lastDingAt: lastDingAt,
         lastMotionAt: lastMotionAt,
+      );
+  Future<void> toggleRingDeviceMotion({
+    required String id,
+    required bool isMotionEnabled,
+  }) =>
+      ringDao.toggleDeviceMotion(
+        id: id,
+        isMotionEnabled: isMotionEnabled,
+      );
+  Future<void> toggleRingDeviceOnlineStatus({
+    required String id,
+    required bool isOnline,
+  }) =>
+      ringDao.toggleDeviceOnlineStatus(
+        id: id,
+        isOnline: isOnline,
       );
 
   Stream<List<RingEventEntry>> watchRecentRingEvents({int limit = 30}) =>

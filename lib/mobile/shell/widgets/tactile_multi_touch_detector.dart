@@ -77,9 +77,12 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
 
     if (_activePointers == 3) {
       _holdToSpeakTimer?.cancel();
+      _singleTapCount = 0; // 👈 تصفير
       SoundController.instance.stopSpatialRadar();
       _threeFingerActionFired = false;
-    } else if (_activePointers == 2) {
+    } else if (_activePointers >= 2) {
+      // 🛡️ فور وجود إصبعين فأكثر، نقوم بتصفير عداد نقرات الـ SOS لمنع الإنذار الكاذب!
+      _singleTapCount = 0;
       _holdToSpeakTimer?.cancel();
       if (_isHoldingToSpeak) {
         _isHoldingToSpeak = false;
@@ -98,7 +101,7 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
       }
       _lastSingleTapTime = now;
 
-      // 🚨 1. رصد ثلاث نقرات سريعة لنداء الطوارئ SOS
+      // 🚨 رصد ثلاث نقرات سريعة لنداء الطوارئ SOS
       if (_singleTapCount == 3) {
         _holdToSpeakTimer?.cancel();
         _isHoldingToSpeak = false;
@@ -108,7 +111,7 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
         return;
       }
 
-      // 🎙️ 2. ضغط مطول بإصبع واحد للتحدث بالمساعد الذكي (650ms)
+      // ضغط مطول للمساعد الصوتي
       _holdToSpeakTimer?.cancel();
       _holdToSpeakTimer = Timer(_holdToSpeakTimeout, () {
         if (_activePointers == 1) {
@@ -117,9 +120,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
           widget.onHoldToSpeakStart?.call();
         }
       });
-    } else {
-      _holdToSpeakTimer?.cancel();
-      _isHoldingToSpeak = false;
     }
   }
 

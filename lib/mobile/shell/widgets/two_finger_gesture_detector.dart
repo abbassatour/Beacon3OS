@@ -1,52 +1,58 @@
 // lib/mobile/shell/widgets/two_finger_gesture_detector.dart
+import 'dart:developer';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
-/// ملتقط إيماءات مخصص يرفض المنافسة بإصبع واحد لترك القوائم تعمل بحرية،
-/// ويقبل المنافسة فقط عندما يلمس الشاشة إصبعان أو أكثر.
+/// ملتقط إيماءات مخصص يضمن فوز إيماءات الإصبعين فور هبوطهما معاً
+/// ويترك اللمس بإصبع واحد للقوائم والتمرير الداخلي بسلاسة تامة.
 class TwoFingerScaleGestureRecognizer extends ScaleGestureRecognizer {
   TwoFingerScaleGestureRecognizer({
     super.debugOwner,
     super.supportedDevices,
+    super.allowedButtonsFilter,
   });
 
-  final Map<int, Offset> _pointers = <int, Offset>{};
+  final Set<int> _activePointers = <int>{};
+  bool _claimedVictory = false;
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
-    _pointers[event.pointer] = event.position;
+    _activePointers.add(event.pointer);
     super.addAllowedPointer(event);
+
+    // ⚡ فور هبوط إصبعين على الشاشة، ننتزع الفوز فوراً ونمنع القوائم من سرقة الإيماءة
+    if (_activePointers.length >= 2) {
+      _claimedVictory = true;
+      log('TwoFingerDetector: ✌️ 2 Pointers down! Claiming victory.');
+      for (final p in _activePointers) {
+        resolvePointer(p, GestureDisposition.accepted);
+      }
+    }
   }
 
   @override
   void handleEvent(PointerEvent event) {
-    if (event is PointerMoveEvent) {
-      _pointers[event.pointer] = event.position;
-    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _pointers.remove(event.pointer);
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _activePointers.remove(event.pointer);
+      if (_activePointers.isEmpty) {
+        _claimedVictory = false;
+      }
     }
-
-    // 🛡️ شرط حلبة الإيماءات الصارم:
-    // إذا كان هناك أقل من إصبعين على الشاشة، لا تسمح للملتقط بالفوز أو حجز اللمس
-    if (_pointers.length < 2) {
-      stopTrackingIfPointerNoLongerDown(event);
-      return;
-    }
-
     super.handleEvent(event);
   }
 
   @override
   void acceptGesture(int pointer) {
-    // نقبل الإيماءة فقط إذا كان هناك إصبعان على الأقل
-    if (_pointers.length >= 2) {
+    // نقبل الإيماءة إذا كان هناك إصبعان أو تم الفوز مسبقاً
+    if (_activePointers.length >= 2 || _claimedVictory) {
       super.acceptGesture(pointer);
     }
+    // 🛡️ لا نقوم بعمل rejectGesture هنا حتى لا نقتل الإصبع الأول قبل وصول الثاني!
   }
 
   @override
   void rejectGesture(int pointer) {
-    _pointers.remove(pointer);
+    _activePointers.remove(pointer);
     super.rejectGesture(pointer);
   }
 }
@@ -78,7 +84,8 @@ class TwoFingerGestureDetector extends StatelessWidget {
           instance
             ..onStart = onScaleStart
             ..onUpdate = onScaleUpdate
-            ..onEnd = onScaleEnd;
+            ..onEnd = onScaleEnd
+            ..dragStartBehavior = DragStartBehavior.down;
         },
       ),
     };

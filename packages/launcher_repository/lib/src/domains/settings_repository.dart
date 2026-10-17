@@ -5,8 +5,8 @@ import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
 import 'package:local_vault_api/local_vault_api.dart' as db;
 
-import '../models/app_setting_entity.dart';
 import '../mappers/app_setting_mapper.dart';
+import '../models/app_setting_entity.dart';
 
 /// العقد النطاقي المخصص لإدارة إعدادات النظام وهوية المستخدم
 abstract class SettingsRepository {
@@ -28,6 +28,13 @@ abstract class SettingsRepository {
     required bool isHighContrast,
     required double speechRate,
     bool? spatialWhisperEnabled,
+  });
+
+  /// توثيق وحفظ فحص بصري جديد في الخزنة المحلية ومزامنته سحابياً
+  Future<void> recordVisionScan({
+    required String mode,
+    required String prompt,
+    required String description,
   });
 
   /// استعادة تفضيلات المستخدم من Supabase إلى قاعدة البيانات المحلية
@@ -94,6 +101,34 @@ class SettingsRepositoryImpl implements SettingsRepository {
     });
 
     log('SettingsRepository: Onboarding completed for persona: $persona (whisper: ${current.spatialWhisperEnabled})');
+  }
+
+  @override
+  Future<void> recordVisionScan({
+    required String mode,
+    required String prompt,
+    required String description,
+  }) async {
+    try {
+      final id = await _db.insertVisionScan(
+        mode: mode,
+        prompt: prompt,
+        description: description,
+      );
+      _cloud
+          .syncVisionScan(
+            id: id,
+            mode: mode,
+            prompt: prompt,
+            description: description,
+          )
+          .catchError((Object error) {
+        log('SettingsRepository: Cloud vision scan sync deferred [$id]: $error');
+      });
+      log('SettingsRepository: 👁️ Vision scan recorded in local vault (ID: $id)');
+    } catch (e) {
+      log('SettingsRepository: Error recording vision scan: $e');
+    }
   }
 
   @override

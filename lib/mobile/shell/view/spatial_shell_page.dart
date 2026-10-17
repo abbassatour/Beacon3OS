@@ -15,7 +15,7 @@ import 'package:beacon_os/mobile/shell/widgets/spatial_compass_hud.dart';
 import 'package:beacon_os/mobile/shell/widgets/spatial_floor_layout.dart';
 import 'package:beacon_os/mobile/shell/widgets/spatial_portal_transform.dart';
 import 'package:beacon_os/mobile/shell/widgets/tactile_multi_touch_detector.dart';
-import 'package:beacon_os/mobile/shell/widgets/two_finger_gesture_detector.dart'; // 👈 استيراد الملتقط الجديد
+import 'package:beacon_os/mobile/shell/widgets/two_finger_gesture_detector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -129,8 +129,12 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           previous.currentCoordinate != current.currentCoordinate ||
           previous.currentFloor != current.currentFloor,
       listener: (context, state) {
+        // 🔒 لا نقاطع محاكاة الانزلاق الجارية بفعل إيماءة الأصابع
         if (!_cameraController.isGestureActive) {
-          _cameraController.snapToCoordinate(state.currentCoordinate, screenSize);
+          _cameraController.snapToCoordinate(
+            state.currentCoordinate,
+            screenSize,
+          );
           _cameraController.animateToFloor(state.currentFloor);
         }
       },
@@ -145,7 +149,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
               onThreeFingerSwipeUp: shellCubit.ascend,
               onThreeFingerSwipeDown: shellCubit.descend,
               onHoldToSpeakStart: voiceCubit.startSession,
-              onHoldToSpeakEnd: () => voiceCubit.stopAndExecute(context: context),
+              onHoldToSpeakEnd: () =>
+                  voiceCubit.stopAndExecute(context: context),
               onHoldToSpeakCancel: voiceCubit.closeSession,
               child: TwoFingerGestureDetector(
                 behavior: HitTestBehavior.translucent,
@@ -154,8 +159,10 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                   floorLevel: shellCubit.state.currentFloor,
                 ),
                 onScaleUpdate: (details) {
-                  final isWhisper =
-                      context.read<PreferencesCubit>().state.spatialWhisperEnabled;
+                  final isWhisper = context
+                      .read<PreferencesCubit>()
+                      .state
+                      .spatialWhisperEnabled;
 
                   _cameraController.onScaleUpdate(
                     details: details,
@@ -183,15 +190,18 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                         final maxF = topology.maxFloor;
                         final currentZ = _cameraController.currentZ;
 
-                        final lowerFloor = currentZ.floor().clamp(minF, maxF);
-                        final upperFloor = currentZ.ceil().clamp(minF, maxF);
+                        final lowerFloor =
+                            currentZ.floor().clamp(minF, maxF);
+                        final upperFloor =
+                            currentZ.ceil().clamp(minF, maxF);
 
                         final visibleFloors = <int>{lowerFloor, upperFloor}
                             .where(topology.hasFloor)
                             .toList()
                           ..sort((a, b) => b.compareTo(a));
 
-                        final activeFloor = currentZ.round().clamp(minF, maxF);
+                        final activeFloor =
+                            currentZ.round().clamp(minF, maxF);
 
                         return Stack(
                           children: [
@@ -201,7 +211,9 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                                 currentZ: currentZ,
                                 isActive: floor == activeFloor,
                                 child: SpatialFloorLayout(
-                                  key: ValueKey('spatial_floor_layout_$floor'),
+                                  key: ValueKey(
+                                    'spatial_floor_layout_$floor',
+                                  ),
                                   currentCoordinate: state.currentCoordinate,
                                   floorLevel: floor,
                                   panOffset: _cameraController.panOffset,

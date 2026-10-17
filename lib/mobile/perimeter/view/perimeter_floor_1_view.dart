@@ -6,12 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// واجهة الطابق الأول لغرفة المحيط الأمني (Floor 1: Perimeter Camera Tuning)
-class PerimeterFloor1View extends StatelessWidget {
+class PerimeterFloor1View extends StatefulWidget {
   const PerimeterFloor1View({super.key});
+
+  @override
+  State<PerimeterFloor1View> createState() => _PerimeterFloor1ViewState();
+}
+
+class _PerimeterFloor1ViewState extends State<PerimeterFloor1View> {
+  bool _aiAnalysisOnRing = true;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final cubit = context.read<PerimeterCubit>();
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -81,8 +89,10 @@ class PerimeterFloor1View extends StatelessWidget {
                             ),
                           ),
                           activeColor: colors.primary,
-                          value: true, // افتراضي للتجربة
-                          onChanged: (val) {},
+                          value: _aiAnalysisOnRing,
+                          onChanged: (val) {
+                            setState(() => _aiAnalysisOnRing = val);
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -108,35 +118,54 @@ class PerimeterFloor1View extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            ...state.devices.map((device) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: SwitchListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    device.label,
-                                    style: TextStyle(
-                                      color: colors.onSurface,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            if (state.devices.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'No cameras registered in vault.',
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontSize: 12,
                                   ),
-                                  subtitle: Text(
-                                    device.isOnline ? 'Online • Motion Active' : 'Offline',
-                                    style: TextStyle(
-                                      color: device.isOnline ? Colors.green : colors.error,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  activeColor: colors.primary,
-                                  value: device.isMotionEnabled,
-                                  onChanged: (val) {
-                                    // مكان تنفيذ تحديث حالة الكاميرا في الخزنة
-                                  },
                                 ),
-                              );
-                            }),
+                              )
+                            else
+                              ...state.devices.map((device) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: SwitchListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text(
+                                      device.label,
+                                      style: TextStyle(
+                                        color: colors.onSurface,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      device.isOnline
+                                          ? (device.isMotionEnabled
+                                              ? 'Online • Motion Active'
+                                              : 'Online • Motion Muted')
+                                          : 'Offline',
+                                      style: TextStyle(
+                                        color: device.isOnline
+                                            ? (device.isMotionEnabled ? Colors.green : colors.secondary)
+                                            : colors.error,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    activeColor: colors.primary,
+                                    value: device.isMotionEnabled,
+                                    onChanged: (val) {
+                                      // ⚡️ حفظ الحالة فورياً في الخزنة ونطق التغيير
+                                      cubit.toggleDeviceMotion(device.id, val);
+                                    },
+                                  ),
+                                );
+                              }),
                           ],
                         ),
                       ),

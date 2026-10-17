@@ -141,12 +141,16 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                                 letterSpacing: -1,
                               ),
                             ),
-                            Text(
-                              fullDate,
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                fullDate,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -662,8 +666,11 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          // 👈 استخدام Wrap مرن يلغي تماماً خطأ الـ 37 بكسل
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 6,
             children: [
               Text(
                 '${CompassDirection.north.arrowSymbol} ${northRoom?.shortTitle ?? 'Focus'}',
@@ -702,6 +709,7 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '✌️ 2 Fingers to Navigate Rooms • ☝️ 1 Finger for Tasks & Lists',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
               color: colors.primary,
@@ -711,6 +719,7 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             SpatialGesture.ascendToSettings.visualHint,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 10.5,
               color: colors.onSurfaceVariant,

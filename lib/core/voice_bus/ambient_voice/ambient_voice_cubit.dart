@@ -215,7 +215,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
             ),
         _tasksRepo.watchMemos().first.timeout(timeout, onTimeout: () => []),
         _commsRepo != null
-            ? _commsRepo!.watchContacts().first.timeout(timeout, onTimeout: () => [])
+            ? _commsRepo.watchContacts().first.timeout(timeout, onTimeout: () => [])
             : Future.value(<ContactEntity>[]),
       ]);
 

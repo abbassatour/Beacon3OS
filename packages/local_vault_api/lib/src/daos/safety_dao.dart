@@ -54,4 +54,11 @@ class SafetyDao extends DatabaseAccessor<AppDatabase> {
             ..orderBy([(v) => OrderingTerm.desc(v.createdAt)])
             ..limit(limit))
           .watch();
+
+  Future<List<VisionScan>> getRecentVisionScans({int limit = 20}) =>
+      (select(attachedDatabase.visionScans)
+            ..where((v) => v.deletedAt.isNull())
+            ..orderBy([(v) => OrderingTerm.desc(v.createdAt)])
+            ..limit(limit))
+          .get();
 }

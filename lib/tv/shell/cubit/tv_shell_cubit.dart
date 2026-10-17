@@ -193,6 +193,9 @@ class TvShellCubit extends Cubit<TvShellState> {
         _sound.play(SoundCue.sosAlarm);
       } else if (event.actionType == RemoteActionType.locateDevice) {
         _sound.play(SoundCue.wake);
+      } else if (event.actionType == RemoteActionType.ringAlert ||
+          event.payload['is_ring'] == true) {
+        _sound.play(SoundCue.wake);
       }
 
       _alertDismissTimer?.cancel();
@@ -222,7 +225,7 @@ class TvShellCubit extends Cubit<TvShellState> {
         emit(state.copyWith(
           activeAlert: RemoteActionEvent(
             id: latest.id,
-            actionType: RemoteActionType.unknown,
+            actionType: RemoteActionType.ringAlert,
             payload: {
               'is_ring': true,
               'device_label': latest.deviceLabel,

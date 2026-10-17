@@ -73,7 +73,7 @@ class PerimeterCubit extends Cubit<PerimeterState> {
       },
     );
 
-    // 3. الاستماع المباشر للأحداث الواردة في اللحظة نفسها لتشغيل الاهتزاز والنغمات
+    // 3. الاستماع المباشر للأحداث الواردة لتشغيل الاهتزاز والنغمات
     _liveEventSub = _ringRepo.liveEventsStream.listen(
       (event) async {
         await _haptics.successNotification();
@@ -105,7 +105,7 @@ class PerimeterCubit extends Cubit<PerimeterState> {
     }
   }
 
-  /// فحص مباشر للكاميرا المحددة عبر Gemini 2.0 Flash ونطق المشهد صوتياً
+  /// فحص مباشر للكاميرا المحددة عبر Gemini 2.0 Flash ونطق المشهد صوتياً لمرة واحدة
   Future<void> inspectCamera({
     String? deviceId,
     String? customQuery,
@@ -144,6 +144,11 @@ class PerimeterCubit extends Cubit<PerimeterState> {
           liveInspectionText: description,
         ),
       );
+
+      // 🔊 النطق الصوتي الأحادي لمرة واحدة هنا لمنع النطق المزدوج
+      if (description != null && description.isNotEmpty) {
+        await _assistant.speak(description);
+      }
     } catch (e) {
       _haptics.stopListeningPulse();
       await _sound.play(SoundCue.error);
@@ -177,10 +182,16 @@ class PerimeterCubit extends Cubit<PerimeterState> {
     );
 
     await _ringRepo.answerDoorbell(deviceId);
+    await _assistant.speak('Two-way audio connected to $label. You can speak now.');
   }
 
-  /// إنهاء قناة المحادثة الصوتية
+  /// إنهاء قناة المحادثة الصوتية وتحرير مورد العتاد
   Future<void> stopTwoWayAudio() async {
+    final activeId = state.activeAudioDeviceId;
+    if (activeId != null) {
+      await _ringRepo.stopTwoWayAudio(activeId);
+    }
+
     await _sound.play(SoundCue.navCenter);
     _haptics.selectionClick();
 
@@ -193,6 +204,28 @@ class PerimeterCubit extends Cubit<PerimeterState> {
     );
 
     await _assistant.speak('Two-way audio disconnected.');
+  }
+
+  /// تفعيل أو تعطيل استشعار الحركة وحفظ التفضيل في الخزنة
+  Future<void> toggleDeviceMotion(String deviceId, bool isMotionEnabled) async {
+    _haptics.selectionClick();
+    await _ringRepo.toggleDeviceMotion(id: deviceId, isMotionEnabled: isMotionEnabled);
+
+    final device = state.devices.where((d) => d.id == deviceId).firstOrNull;
+    final label = device?.label ?? 'Camera';
+    final status = isMotionEnabled ? 'enabled' : 'disabled';
+    await _assistant.speak('Motion detection for $label $status.');
+  }
+
+  /// تغيير حالة الاتصال للكاميرا (أونلاين / أوفلاين)
+  Future<void> toggleDeviceOnlineStatus(String deviceId, bool isOnline) async {
+    _haptics.selectionClick();
+    await _ringRepo.toggleDeviceOnlineStatus(id: deviceId, isOnline: isOnline);
+
+    final device = state.devices.where((d) => d.id == deviceId).firstOrNull;
+    final label = device?.label ?? 'Camera';
+    final status = isOnline ? 'online' : 'offline';
+    await _assistant.speak('$label set to $status.');
   }
 
   /// إطلاق سيناريو محاكاة اختباري للمحكمين
