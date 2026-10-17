@@ -4,35 +4,29 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
 /// محرك الفيزياء الحركية الفضائية (Spatial Motion Physics Engine)
-/// يعتمد على نوابض Runge-Kutta بالتخميد الحرج ζ = 1.0 لمنع الاهتزاز للكفيف.
 class SpatialPhysics {
   SpatialPhysics._();
 
   // ===========================================================================
-  // 📐 1. تكوينات النوابض اللارنينية الحرجة (Critically Damped Springs ζ = 1.0)
+  // 📐 1. تكوينات النوابض اللارنينية المضبوطة بدقة للسرعة والخفة
   // ===========================================================================
 
   /// 🎯 نابض الانتقال الأفقي والرأسي (XY-Axis Pan) للغرف
-  /// مضبوط بنسبة تخميد حرج دقيقة (Critical Damping ζ = 1.0)
-  /// k = 324.0, m = 1.0 => c = 2 * sqrt(1.0 * 324.0) = 36.0
-  /// يمنع أي ارتداد زائد (Zero Overshoot / No Jitter) لتوفير ثبات كامل لقارئات الشاشة.
+  /// تم تخفيف الكتلة وزيادة القساوة مع تخميد انسيابي لمنع الشعور بالثقل
   static const SpringDescription panSpring = SpringDescription(
-    mass: 1.0,
-    stiffness: 324.0,
-    damping: 36.0,
+    mass: 0.8,
+    stiffness: 420.0,
+    damping: 28.0,
   );
 
   /// 🏢 نابض الانتقال الرأسي في العمق (Z-Axis Multi-Floor Elevator)
-  /// مضبوط بنسبة تخميد حرج دقيقة (Critical Damping ζ = 1.0)
-  /// k = 256.0, m = 1.0 => c = 2 * sqrt(1.0 * 256.0) = 32.0
   static const SpringDescription zAxisSpring = SpringDescription(
     mass: 1.0,
     stiffness: 256.0,
     damping: 32.0,
   );
 
-  /// دالة تحقق رياضية من نسبة التخميد (Damping Ratio Verification):
-  /// ζ = c / (2 * sqrt(m * k))
+  /// دالة تحقق رياضية من نسبة التخميد:
   static double calculateDampingRatio(SpringDescription spring) {
     return spring.damping / (2.0 * math.sqrt(spring.mass * spring.stiffness));
   }
@@ -107,7 +101,6 @@ class SpatialPhysics {
   }
 
   /// دالة التنعيم المتصل خماسية الحدود (Ken Perlin's Smootherstep): 6t⁵ - 15t⁴ + 10t³
-  /// C² Continuous لمنع أي رمشة بصرية أثناء انتقال الإضاءة والطبقات
   static double smootherStep(double t) {
     final clamped = t.clamp(0.0, 1.0);
     return clamped *

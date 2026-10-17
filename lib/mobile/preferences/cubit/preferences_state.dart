@@ -1,6 +1,6 @@
 // lib/mobile/preferences/cubit/preferences_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum PreferencesStatus { initial, loading, success, error }
 
@@ -12,7 +12,7 @@ class PreferencesState extends Equatable {
   });
 
   final PreferencesStatus status;
-  final AppSettingEntity? settings; // ✅ استخدام الكيان النقي
+  final AppSettingEntity? settings;
   final String? errorMessage;
 
   // ===========================================================================
@@ -22,6 +22,9 @@ class PreferencesState extends Equatable {
   bool get hapticsEnabled => settings?.hapticsEnabled ?? true;
   bool get soundCuesEnabled => settings?.soundCuesEnabled ?? true;
   bool get isHighContrast => settings?.isHighContrast ?? false;
+
+  /// 🧭 هل ميزة همس الغرف صوتياً أثناء سحب البوصلة مفعلة؟
+  bool get spatialWhisperEnabled => settings?.spatialWhisperEnabled ?? false;
 
   String get defaultPriority => settings?.defaultPriority ?? 'medium';
   bool get autoArchiveCompleted => settings?.autoArchiveCompleted ?? true;

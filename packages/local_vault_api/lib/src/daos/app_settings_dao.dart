@@ -21,13 +21,18 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase> {
     required String persona,
     required bool isHighContrast,
     required double speechRate,
+    bool? spatialWhisperEnabled,
   }) async {
+    // 🌟 تفعيل الهمس تلقائياً إذا كان المستخدم كفيفاً، وإطفاؤه إن كان مينيماليست
+    final whisper = spatialWhisperEnabled ?? (persona == 'blind_accessible');
+
     await updateSettings(
       AppSettingsCompanion(
         userPersona: Value(persona),
         hasCompletedOnboarding: const Value(true),
         isHighContrast: Value(isHighContrast),
         speechRate: Value(speechRate),
+        spatialWhisperEnabled: Value(whisper),
       ),
     );
   }

@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 10; // 👈 ترقية إلى الإصدار 10 لدعم منظومة Ring
+  int get schemaVersion => 11; // 👈 ترقية إلى الإصدار 11 لدعم ميزة الهمس الصوتي
 
   @override
   MigrationStrategy get migration => DatabaseMigrations.createStrategy(this);
@@ -97,11 +97,13 @@ class AppDatabase extends _$AppDatabase {
     required String persona,
     required bool isHighContrast,
     required double speechRate,
+    bool? spatialWhisperEnabled,
   }) =>
       settingsDao.completeOnboarding(
         persona: persona,
         isHighContrast: isHighContrast,
         speechRate: speechRate,
+        spatialWhisperEnabled: spatialWhisperEnabled,
       );
   Future<AppSetting> getSettings() => settingsDao.getSettings();
   Future<void> updateSettings(AppSettingsCompanion updated) =>

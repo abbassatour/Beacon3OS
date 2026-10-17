@@ -98,7 +98,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     log('Bootstrap: Audio engines init bypassed: $e');
   }
 
-  // ✅ استخدام الكيان النقي (AppSettingEntity) فقط دون أي معرفة بقاعدة البيانات
+  // ✅ استخدام الكيان النقي (AppSettingEntity) مع القيمة الافتراضية للهمس الصوتي
   AppSettingEntity initialSettings;
   try {
     initialSettings = await launcherRepository.settings
@@ -113,6 +113,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
       hapticsEnabled: true,
       soundCuesEnabled: true,
       isHighContrast: isTv ? true : false,
+      spatialWhisperEnabled: isTv ? false : false,
       defaultPriority: 'medium',
       autoArchiveCompleted: true,
       speakDueDatesAloud: true,

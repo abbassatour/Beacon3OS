@@ -30,7 +30,7 @@ class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
   final CommsRepository _commsRepo;
   final TopologyRepository _topologyRepo;
 
-  StreamSubscription<AppSettingEntity>? _settingsSub; // ✅ كيان نقي
+  StreamSubscription<AppSettingEntity>? _settingsSub;
 
   void _initStream() {
     emit(state.copyWith(status: DesktopSettingsStatus.loading));
@@ -88,6 +88,11 @@ class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
 
   Future<void> setSpeechRate(double rate) async {
     await updateSetting(AppSettingUpdatePayload(speechRate: rate));
+  }
+
+  /// 🧭 ضبط همس الغرف الصوتي
+  Future<void> setSpatialWhisper(bool enabled) async {
+    await updateSetting(AppSettingUpdatePayload(spatialWhisperEnabled: enabled));
   }
 
   Future<void> forceFullSync() async {

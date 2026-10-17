@@ -123,6 +123,25 @@ class CockpitFloor1View extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // 🧭 🌟 زر التبديل الجديد لهمس الغرف
+                      _buildCard(
+                        context,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Spatial Room Whisper',
+                            style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Whisper upcoming room name via TTS when panning the compass.',
+                            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                          ),
+                          activeColor: colors.primary,
+                          value: state.spatialWhisperEnabled,
+                          onChanged: cubit.toggleSpatialWhisper,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _buildCard(
                         context,
                         child: Column(

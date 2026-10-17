@@ -77,6 +77,16 @@ class PreferencesCubit extends Cubit<PreferencesState> {
     );
   }
 
+  /// 🧭 تشغيل أو إطفاء همس الغرف عند سحب البوصلة
+  Future<void> toggleSpatialWhisper(bool enabled) async {
+    await _settingsRepo.updateSettings(
+      AppSettingUpdatePayload(spatialWhisperEnabled: enabled),
+    );
+    await _assistantRepo.speak(
+      enabled ? 'Spatial room whisper enabled.' : 'Room whisper turned off.',
+    );
+  }
+
   Future<void> setDefaultPriority(String priority) async {
     await _settingsRepo.updateSettings(
       AppSettingUpdatePayload(defaultPriority: priority),

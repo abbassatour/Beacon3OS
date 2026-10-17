@@ -11,6 +11,7 @@ class AppSettingEntity extends Equatable {
     required this.hapticsEnabled,
     required this.soundCuesEnabled,
     required this.isHighContrast,
+    required this.spatialWhisperEnabled,
     required this.defaultPriority,
     required this.autoArchiveCompleted,
     required this.speakDueDatesAloud,
@@ -34,6 +35,10 @@ class AppSettingEntity extends Equatable {
   final bool hapticsEnabled;
   final bool soundCuesEnabled;
   final bool isHighContrast;
+
+  /// 🧭 همس اسم الغرفة القادمة صوتياً أثناء سحب البوصلة
+  final bool spatialWhisperEnabled;
+
   final String defaultPriority;
   final bool autoArchiveCompleted;
   final bool speakDueDatesAloud;
@@ -51,12 +56,28 @@ class AppSettingEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id, userPersona, hasCompletedOnboarding, speechRate, hapticsEnabled,
-        soundCuesEnabled, isHighContrast, defaultPriority, autoArchiveCompleted,
-        speakDueDatesAloud, autoDialEmergency, shareGpsOnSos, speakIncomingSms,
-        voiceChimeHalfway, vibrateOnSessionFinish, syncAlarmsWithAndroidClock,
-        visionInspectionDetail, autoFlashlightInDark, preferredCurrency,
-        updatedAt, isSynced,
+        id,
+        userPersona,
+        hasCompletedOnboarding,
+        speechRate,
+        hapticsEnabled,
+        soundCuesEnabled,
+        isHighContrast,
+        spatialWhisperEnabled,
+        defaultPriority,
+        autoArchiveCompleted,
+        speakDueDatesAloud,
+        autoDialEmergency,
+        shareGpsOnSos,
+        speakIncomingSms,
+        voiceChimeHalfway,
+        vibrateOnSessionFinish,
+        syncAlarmsWithAndroidClock,
+        visionInspectionDetail,
+        autoFlashlightInDark,
+        preferredCurrency,
+        updatedAt,
+        isSynced,
       ];
 }
 
@@ -69,6 +90,7 @@ class AppSettingUpdatePayload {
     this.hapticsEnabled,
     this.soundCuesEnabled,
     this.isHighContrast,
+    this.spatialWhisperEnabled,
     this.defaultPriority,
     this.autoArchiveCompleted,
     this.speakDueDatesAloud,
@@ -90,6 +112,7 @@ class AppSettingUpdatePayload {
   final bool? hapticsEnabled;
   final bool? soundCuesEnabled;
   final bool? isHighContrast;
+  final bool? spatialWhisperEnabled;
   final String? defaultPriority;
   final bool? autoArchiveCompleted;
   final bool? speakDueDatesAloud;

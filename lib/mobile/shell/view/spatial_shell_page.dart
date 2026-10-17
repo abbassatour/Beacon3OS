@@ -156,14 +156,21 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                   details,
                   floorLevel: shellCubit.state.currentFloor,
                 ),
-                onScaleUpdate: (details) => _cameraController.onScaleUpdate(
-                  details: details,
-                  state: shellCubit.state,
-                  topology: topology,
-                  screenSize: screenSize,
-                  isInnerListScrolling: _isInnerListScrolling,
-                  onWhisperDirection: shellCubit.whisperRoomScrubbing,
-                ),
+                onScaleUpdate: (details) {
+                  // 🌟 قراءة حالة الإعداد اللحظية من PreferencesCubit
+                  final isWhisper =
+                      context.read<PreferencesCubit>().state.spatialWhisperEnabled;
+
+                  _cameraController.onScaleUpdate(
+                    details: details,
+                    state: shellCubit.state,
+                    topology: topology,
+                    screenSize: screenSize,
+                    isInnerListScrolling: _isInnerListScrolling,
+                    onWhisperDirection: shellCubit.whisperRoomScrubbing,
+                    isWhisperEnabled: isWhisper, // 👈 تمرير الإعداد
+                  );
+                },
                 onScaleEnd: (details) => _cameraController.onScaleEnd(
                   details: details,
                   state: shellCubit.state,

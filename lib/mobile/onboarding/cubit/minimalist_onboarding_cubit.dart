@@ -1,8 +1,8 @@
-// lib/onboarding/cubit/minimalist_onboarding_cubit.dart
+// lib/mobile/onboarding/cubit/minimalist_onboarding_cubit.dart
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/core/voice_bus/voice_bus.dart'; // 👈 مسار استيراد مصحح
+import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -138,7 +138,6 @@ class MinimalistOnboardingCubit extends Cubit<MinimalistOnboardingState> {
     }
   }
 
-  /// ⏪ الدالة المسترجعة للرجوع خطوة للخلف
   void previousStep() {
     switch (state.currentStep) {
       case MinimalistStep.manifesto:
@@ -158,10 +157,12 @@ class MinimalistOnboardingCubit extends Cubit<MinimalistOnboardingState> {
   Future<void> finishMinimalistOnboarding() async {
     emit(state.copyWith(status: MinimalistStatus.completing));
     try {
+      // 🌟 ميزة الهمس مطفأة تلقائياً للمستخدم المينيماليست لمنع ثقل السحب
       await _settings.completeOnboarding(
         persona: 'digital_minimalist',
         isHighContrast: false,
         speechRate: 0.5,
+        spatialWhisperEnabled: false,
       );
 
       await _sound.play(SoundCue.success);

@@ -3906,6 +3906,21 @@ class $AppSettingsTable extends AppSettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _spatialWhisperEnabledMeta =
+      const VerificationMeta('spatialWhisperEnabled');
+  @override
+  late final GeneratedColumn<bool> spatialWhisperEnabled =
+      GeneratedColumn<bool>(
+        'spatial_whisper_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("spatial_whisper_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
   static const VerificationMeta _defaultPriorityMeta = const VerificationMeta(
     'defaultPriority',
   );
@@ -4111,6 +4126,7 @@ class $AppSettingsTable extends AppSettings
     hapticsEnabled,
     soundCuesEnabled,
     isHighContrast,
+    spatialWhisperEnabled,
     defaultPriority,
     autoArchiveCompleted,
     speakDueDatesAloud,
@@ -4191,6 +4207,15 @@ class $AppSettingsTable extends AppSettings
         isHighContrast.isAcceptableOrUnknown(
           data['is_high_contrast']!,
           _isHighContrastMeta,
+        ),
+      );
+    }
+    if (data.containsKey('spatial_whisper_enabled')) {
+      context.handle(
+        _spatialWhisperEnabledMeta,
+        spatialWhisperEnabled.isAcceptableOrUnknown(
+          data['spatial_whisper_enabled']!,
+          _spatialWhisperEnabledMeta,
         ),
       );
     }
@@ -4351,6 +4376,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.bool,
         data['${effectivePrefix}is_high_contrast'],
       )!,
+      spatialWhisperEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}spatial_whisper_enabled'],
+      )!,
       defaultPriority: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}default_priority'],
@@ -4429,6 +4458,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool hapticsEnabled;
   final bool soundCuesEnabled;
   final bool isHighContrast;
+
+  /// 🧭 همس اسم الغرفة القادمة صوتياً أثناء سحب البوصلة
+  final bool spatialWhisperEnabled;
   final String defaultPriority;
   final bool autoArchiveCompleted;
   final bool speakDueDatesAloud;
@@ -4451,6 +4483,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.hapticsEnabled,
     required this.soundCuesEnabled,
     required this.isHighContrast,
+    required this.spatialWhisperEnabled,
     required this.defaultPriority,
     required this.autoArchiveCompleted,
     required this.speakDueDatesAloud,
@@ -4476,6 +4509,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['haptics_enabled'] = Variable<bool>(hapticsEnabled);
     map['sound_cues_enabled'] = Variable<bool>(soundCuesEnabled);
     map['is_high_contrast'] = Variable<bool>(isHighContrast);
+    map['spatial_whisper_enabled'] = Variable<bool>(spatialWhisperEnabled);
     map['default_priority'] = Variable<String>(defaultPriority);
     map['auto_archive_completed'] = Variable<bool>(autoArchiveCompleted);
     map['speak_due_dates_aloud'] = Variable<bool>(speakDueDatesAloud);
@@ -4504,6 +4538,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       hapticsEnabled: Value(hapticsEnabled),
       soundCuesEnabled: Value(soundCuesEnabled),
       isHighContrast: Value(isHighContrast),
+      spatialWhisperEnabled: Value(spatialWhisperEnabled),
       defaultPriority: Value(defaultPriority),
       autoArchiveCompleted: Value(autoArchiveCompleted),
       speakDueDatesAloud: Value(speakDueDatesAloud),
@@ -4536,6 +4571,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       hapticsEnabled: serializer.fromJson<bool>(json['hapticsEnabled']),
       soundCuesEnabled: serializer.fromJson<bool>(json['soundCuesEnabled']),
       isHighContrast: serializer.fromJson<bool>(json['isHighContrast']),
+      spatialWhisperEnabled: serializer.fromJson<bool>(
+        json['spatialWhisperEnabled'],
+      ),
       defaultPriority: serializer.fromJson<String>(json['defaultPriority']),
       autoArchiveCompleted: serializer.fromJson<bool>(
         json['autoArchiveCompleted'],
@@ -4573,6 +4611,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'hapticsEnabled': serializer.toJson<bool>(hapticsEnabled),
       'soundCuesEnabled': serializer.toJson<bool>(soundCuesEnabled),
       'isHighContrast': serializer.toJson<bool>(isHighContrast),
+      'spatialWhisperEnabled': serializer.toJson<bool>(spatialWhisperEnabled),
       'defaultPriority': serializer.toJson<String>(defaultPriority),
       'autoArchiveCompleted': serializer.toJson<bool>(autoArchiveCompleted),
       'speakDueDatesAloud': serializer.toJson<bool>(speakDueDatesAloud),
@@ -4602,6 +4641,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? hapticsEnabled,
     bool? soundCuesEnabled,
     bool? isHighContrast,
+    bool? spatialWhisperEnabled,
     String? defaultPriority,
     bool? autoArchiveCompleted,
     bool? speakDueDatesAloud,
@@ -4625,6 +4665,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
     soundCuesEnabled: soundCuesEnabled ?? this.soundCuesEnabled,
     isHighContrast: isHighContrast ?? this.isHighContrast,
+    spatialWhisperEnabled: spatialWhisperEnabled ?? this.spatialWhisperEnabled,
     defaultPriority: defaultPriority ?? this.defaultPriority,
     autoArchiveCompleted: autoArchiveCompleted ?? this.autoArchiveCompleted,
     speakDueDatesAloud: speakDueDatesAloud ?? this.speakDueDatesAloud,
@@ -4664,6 +4705,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       isHighContrast: data.isHighContrast.present
           ? data.isHighContrast.value
           : this.isHighContrast,
+      spatialWhisperEnabled: data.spatialWhisperEnabled.present
+          ? data.spatialWhisperEnabled.value
+          : this.spatialWhisperEnabled,
       defaultPriority: data.defaultPriority.present
           ? data.defaultPriority.value
           : this.defaultPriority,
@@ -4715,6 +4759,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('hapticsEnabled: $hapticsEnabled, ')
           ..write('soundCuesEnabled: $soundCuesEnabled, ')
           ..write('isHighContrast: $isHighContrast, ')
+          ..write('spatialWhisperEnabled: $spatialWhisperEnabled, ')
           ..write('defaultPriority: $defaultPriority, ')
           ..write('autoArchiveCompleted: $autoArchiveCompleted, ')
           ..write('speakDueDatesAloud: $speakDueDatesAloud, ')
@@ -4742,6 +4787,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     hapticsEnabled,
     soundCuesEnabled,
     isHighContrast,
+    spatialWhisperEnabled,
     defaultPriority,
     autoArchiveCompleted,
     speakDueDatesAloud,
@@ -4768,6 +4814,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.hapticsEnabled == this.hapticsEnabled &&
           other.soundCuesEnabled == this.soundCuesEnabled &&
           other.isHighContrast == this.isHighContrast &&
+          other.spatialWhisperEnabled == this.spatialWhisperEnabled &&
           other.defaultPriority == this.defaultPriority &&
           other.autoArchiveCompleted == this.autoArchiveCompleted &&
           other.speakDueDatesAloud == this.speakDueDatesAloud &&
@@ -4792,6 +4839,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> hapticsEnabled;
   final Value<bool> soundCuesEnabled;
   final Value<bool> isHighContrast;
+  final Value<bool> spatialWhisperEnabled;
   final Value<String> defaultPriority;
   final Value<bool> autoArchiveCompleted;
   final Value<bool> speakDueDatesAloud;
@@ -4815,6 +4863,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.hapticsEnabled = const Value.absent(),
     this.soundCuesEnabled = const Value.absent(),
     this.isHighContrast = const Value.absent(),
+    this.spatialWhisperEnabled = const Value.absent(),
     this.defaultPriority = const Value.absent(),
     this.autoArchiveCompleted = const Value.absent(),
     this.speakDueDatesAloud = const Value.absent(),
@@ -4839,6 +4888,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.hapticsEnabled = const Value.absent(),
     this.soundCuesEnabled = const Value.absent(),
     this.isHighContrast = const Value.absent(),
+    this.spatialWhisperEnabled = const Value.absent(),
     this.defaultPriority = const Value.absent(),
     this.autoArchiveCompleted = const Value.absent(),
     this.speakDueDatesAloud = const Value.absent(),
@@ -4863,6 +4913,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? hapticsEnabled,
     Expression<bool>? soundCuesEnabled,
     Expression<bool>? isHighContrast,
+    Expression<bool>? spatialWhisperEnabled,
     Expression<String>? defaultPriority,
     Expression<bool>? autoArchiveCompleted,
     Expression<bool>? speakDueDatesAloud,
@@ -4888,6 +4939,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (hapticsEnabled != null) 'haptics_enabled': hapticsEnabled,
       if (soundCuesEnabled != null) 'sound_cues_enabled': soundCuesEnabled,
       if (isHighContrast != null) 'is_high_contrast': isHighContrast,
+      if (spatialWhisperEnabled != null)
+        'spatial_whisper_enabled': spatialWhisperEnabled,
       if (defaultPriority != null) 'default_priority': defaultPriority,
       if (autoArchiveCompleted != null)
         'auto_archive_completed': autoArchiveCompleted,
@@ -4920,6 +4973,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? hapticsEnabled,
     Value<bool>? soundCuesEnabled,
     Value<bool>? isHighContrast,
+    Value<bool>? spatialWhisperEnabled,
     Value<String>? defaultPriority,
     Value<bool>? autoArchiveCompleted,
     Value<bool>? speakDueDatesAloud,
@@ -4945,6 +4999,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
       soundCuesEnabled: soundCuesEnabled ?? this.soundCuesEnabled,
       isHighContrast: isHighContrast ?? this.isHighContrast,
+      spatialWhisperEnabled:
+          spatialWhisperEnabled ?? this.spatialWhisperEnabled,
       defaultPriority: defaultPriority ?? this.defaultPriority,
       autoArchiveCompleted: autoArchiveCompleted ?? this.autoArchiveCompleted,
       speakDueDatesAloud: speakDueDatesAloud ?? this.speakDueDatesAloud,
@@ -4991,6 +5047,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     }
     if (isHighContrast.present) {
       map['is_high_contrast'] = Variable<bool>(isHighContrast.value);
+    }
+    if (spatialWhisperEnabled.present) {
+      map['spatial_whisper_enabled'] = Variable<bool>(
+        spatialWhisperEnabled.value,
+      );
     }
     if (defaultPriority.present) {
       map['default_priority'] = Variable<String>(defaultPriority.value);
@@ -5060,6 +5121,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('hapticsEnabled: $hapticsEnabled, ')
           ..write('soundCuesEnabled: $soundCuesEnabled, ')
           ..write('isHighContrast: $isHighContrast, ')
+          ..write('spatialWhisperEnabled: $spatialWhisperEnabled, ')
           ..write('defaultPriority: $defaultPriority, ')
           ..write('autoArchiveCompleted: $autoArchiveCompleted, ')
           ..write('speakDueDatesAloud: $speakDueDatesAloud, ')
@@ -10368,6 +10430,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> hapticsEnabled,
       Value<bool> soundCuesEnabled,
       Value<bool> isHighContrast,
+      Value<bool> spatialWhisperEnabled,
       Value<String> defaultPriority,
       Value<bool> autoArchiveCompleted,
       Value<bool> speakDueDatesAloud,
@@ -10393,6 +10456,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> hapticsEnabled,
       Value<bool> soundCuesEnabled,
       Value<bool> isHighContrast,
+      Value<bool> spatialWhisperEnabled,
       Value<String> defaultPriority,
       Value<bool> autoArchiveCompleted,
       Value<bool> speakDueDatesAloud,
@@ -10451,6 +10515,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<bool> get isHighContrast => $composableBuilder(
     column: $table.isHighContrast,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get spatialWhisperEnabled => $composableBuilder(
+    column: $table.spatialWhisperEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10569,6 +10638,11 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get spatialWhisperEnabled => $composableBuilder(
+    column: $table.spatialWhisperEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get defaultPriority => $composableBuilder(
     column: $table.defaultPriority,
     builder: (column) => ColumnOrderings(column),
@@ -10682,6 +10756,11 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get spatialWhisperEnabled => $composableBuilder(
+    column: $table.spatialWhisperEnabled,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get defaultPriority => $composableBuilder(
     column: $table.defaultPriority,
     builder: (column) => column,
@@ -10787,6 +10866,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> hapticsEnabled = const Value.absent(),
                 Value<bool> soundCuesEnabled = const Value.absent(),
                 Value<bool> isHighContrast = const Value.absent(),
+                Value<bool> spatialWhisperEnabled = const Value.absent(),
                 Value<String> defaultPriority = const Value.absent(),
                 Value<bool> autoArchiveCompleted = const Value.absent(),
                 Value<bool> speakDueDatesAloud = const Value.absent(),
@@ -10810,6 +10890,7 @@ class $$AppSettingsTableTableManager
                 hapticsEnabled: hapticsEnabled,
                 soundCuesEnabled: soundCuesEnabled,
                 isHighContrast: isHighContrast,
+                spatialWhisperEnabled: spatialWhisperEnabled,
                 defaultPriority: defaultPriority,
                 autoArchiveCompleted: autoArchiveCompleted,
                 speakDueDatesAloud: speakDueDatesAloud,
@@ -10835,6 +10916,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> hapticsEnabled = const Value.absent(),
                 Value<bool> soundCuesEnabled = const Value.absent(),
                 Value<bool> isHighContrast = const Value.absent(),
+                Value<bool> spatialWhisperEnabled = const Value.absent(),
                 Value<String> defaultPriority = const Value.absent(),
                 Value<bool> autoArchiveCompleted = const Value.absent(),
                 Value<bool> speakDueDatesAloud = const Value.absent(),
@@ -10858,6 +10940,7 @@ class $$AppSettingsTableTableManager
                 hapticsEnabled: hapticsEnabled,
                 soundCuesEnabled: soundCuesEnabled,
                 isHighContrast: isHighContrast,
+                spatialWhisperEnabled: spatialWhisperEnabled,
                 defaultPriority: defaultPriority,
                 autoArchiveCompleted: autoArchiveCompleted,
                 speakDueDatesAloud: speakDueDatesAloud,

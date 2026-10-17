@@ -17,37 +17,40 @@ class AppSettings extends Table {
       boolean().withDefault(const Constant(false))();
 
   // ==========================================
-  // 🎛️ 1. Core & Audio Engine (Floor 2 - Center)
+  // 🎛️ 1. Core & Audio Engine (Floor 1 - Center)
   // ==========================================
   RealColumn get speechRate => real().withDefault(const Constant(0.5))();
   BoolColumn get hapticsEnabled => boolean().withDefault(const Constant(true))();
   BoolColumn get soundCuesEnabled => boolean().withDefault(const Constant(true))();
   BoolColumn get isHighContrast => boolean().withDefault(const Constant(false))();
 
-  // ... باقي الحقول الحالية كما هي دون تغيير ...
+  /// 🧭 همس اسم الغرفة القادمة صوتياً أثناء سحب البوصلة
+  BoolColumn get spatialWhisperEnabled =>
+      boolean().withDefault(const Constant(false))();
+
   // ==========================================
-  // 📅 2. Agenda & Tasks Engine (Floor 2 - North)
+  // 📅 2. Agenda & Tasks Engine (Floor 1 - West)
   // ==========================================
   TextColumn get defaultPriority => text().withDefault(const Constant('medium'))();
   BoolColumn get autoArchiveCompleted => boolean().withDefault(const Constant(true))();
   BoolColumn get speakDueDatesAloud => boolean().withDefault(const Constant(true))();
 
   // ==========================================
-  // 🛡️ 3. Comms & SOS Radar (Floor 2 - South)
+  // 🛡️ 3. Comms & SOS Radar (Floor 1 - South)
   // ==========================================
   BoolColumn get autoDialEmergency => boolean().withDefault(const Constant(true))();
   BoolColumn get shareGpsOnSos => boolean().withDefault(const Constant(true))();
   BoolColumn get speakIncomingSms => boolean().withDefault(const Constant(true))();
 
   // ==========================================
-  // ⏳ 4. Focus & Study Tuning (Floor 2 - West)
+  // ⏳ 4. Focus & Study Tuning (Floor 1 - North)
   // ==========================================
   BoolColumn get voiceChimeHalfway => boolean().withDefault(const Constant(true))();
   BoolColumn get vibrateOnSessionFinish => boolean().withDefault(const Constant(true))();
   BoolColumn get syncAlarmsWithAndroidClock => boolean().withDefault(const Constant(true))();
 
   // ==========================================
-  // 👁️ 5. AI Vision Engine (Floor 2 - East)
+  // 👁️ 5. AI Vision Engine (Floor 1 - East)
   // ==========================================
   TextColumn get visionInspectionDetail => text().withDefault(const Constant('concise'))();
   BoolColumn get autoFlashlightInDark => boolean().withDefault(const Constant(true))();
@@ -59,7 +62,6 @@ class AppSettings extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
-  
   @override
   Set<Column> get primaryKey => {id};
 }

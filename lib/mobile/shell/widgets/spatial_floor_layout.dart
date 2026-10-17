@@ -1,4 +1,4 @@
-// lib/spatial_shell/widgets/spatial_floor_layout.dart
+// lib/mobile/shell/widgets/spatial_floor_layout.dart
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:flutter/material.dart';
@@ -33,18 +33,17 @@ class SpatialFloorLayout extends StatelessWidget {
           final coord = entry.key;
           final module = entry.value;
 
-          // 📐 حساب الإزاحة المكانية للغرفة بناءً على إحداثياتها (X, Y) وإزاحة الكاميرا الحالية
-          // نلاحظ أن محور Y الديكارتي (+1 للشمال) يقابل (-1) في محاور شاشة العرض
+          // 📐 حساب الإزاحة المكانية للغرفة بناءً على إحداثياتها وإزاحة الكاميرا الحالية
           final roomOffset = Offset(
             coord.x * size.width + panOffset.dx,
             -coord.y * size.height + panOffset.dy,
           );
 
-          // ⚡️ اختبار الاستبعاد المكاني الفوري (Spatial Culling Test)
+          // ⚡️ اختبار الاستبعاد المكاني الفوري مع حماية Buffer واسعة (250px) لمنع إعادة بناء الكيوبتات
           final isVisibleInViewport = SpatialPhysics.isIntersectingViewport(
             roomOffset: roomOffset,
             screenSize: size,
-            cullBuffer: 30.0,
+            cullBuffer: 250.0,
           );
 
           if (!isVisibleInViewport) {

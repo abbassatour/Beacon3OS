@@ -22,11 +22,12 @@ abstract class SettingsRepository {
   /// فحص هل أتم المستخدم مرحلة الإعداد والترحيب الأولي
   Future<bool> isOnboardingCompleted();
 
-  /// اعتماد إتمام التهيئة وتعيين الهوية وسرعة الصوت ومستوى التباين
+  /// اعتماد إتمام التهيئة وتعيين الهوية وسرعة الصوت ومستوى التباين وخيار الهمس
   Future<void> completeOnboarding({
     required String persona,
     required bool isHighContrast,
     required double speechRate,
+    bool? spatialWhisperEnabled,
   });
 
   /// استعادة تفضيلات المستخدم من Supabase إلى قاعدة البيانات المحلية
@@ -78,11 +79,13 @@ class SettingsRepositoryImpl implements SettingsRepository {
     required String persona,
     required bool isHighContrast,
     required double speechRate,
+    bool? spatialWhisperEnabled,
   }) async {
     await _db.completeOnboarding(
       persona: persona,
       isHighContrast: isHighContrast,
       speechRate: speechRate,
+      spatialWhisperEnabled: spatialWhisperEnabled,
     );
 
     final current = await _db.getSettings();
@@ -90,7 +93,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       log('SettingsRepository: Cloud onboarding sync deferred: $error');
     });
 
-    log('SettingsRepository: Onboarding completed for persona: $persona');
+    log('SettingsRepository: Onboarding completed for persona: $persona (whisper: ${current.spatialWhisperEnabled})');
   }
 
   @override
@@ -100,11 +103,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
     try {
       final cloudSettings = await _cloud.fetchCloudSettings();
       if (cloudSettings != null) {
+        final persona = cloudSettings['user_persona'] as String? ?? 'digital_minimalist';
         await _db.updateSettings(
           db.AppSettingsCompanion(
-            userPersona: Value(
-              cloudSettings['user_persona'] as String? ?? 'digital_minimalist',
-            ),
+            userPersona: Value(persona),
             hasCompletedOnboarding: Value(
               cloudSettings['has_completed_onboarding'] as bool? ?? false,
             ),
@@ -119,6 +121,9 @@ class SettingsRepositoryImpl implements SettingsRepository {
             ),
             isHighContrast: Value(
               cloudSettings['is_high_contrast'] as bool? ?? false,
+            ),
+            spatialWhisperEnabled: Value(
+              cloudSettings['spatial_whisper_enabled'] as bool? ?? (persona == 'blind_accessible'),
             ),
             defaultPriority: Value(
               cloudSettings['default_priority'] as String? ?? 'medium',
@@ -192,6 +197,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       'haptics_enabled': s.hapticsEnabled,
       'sound_cues_enabled': s.soundCuesEnabled,
       'is_high_contrast': s.isHighContrast,
+      'spatial_whisper_enabled': s.spatialWhisperEnabled,
       'default_priority': s.defaultPriority,
       'auto_archive_completed': s.autoArchiveCompleted,
       'speak_due_dates_aloud': s.speakDueDatesAloud,

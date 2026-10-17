@@ -51,12 +51,15 @@ class DatabaseMigrations {
             'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
           );
         }
-        // 🚀 ترقية الإصدار 10: دمج منظومة كاميرات Ring والغرفة المحيطية
         if (from < 10) {
           await m.createTable(db.ringDevices);
           await m.createTable(db.ringEvents);
           await seedDefaultRingDevices(db);
           await seedPerimeterSpatialNodes(db);
+        }
+        // 🚀 ترقية الإصدار 11: دعم خيار همس الغرف الصوتي
+        if (from < 11) {
+          await m.addColumn(db.appSettings, db.appSettings.spatialWhisperEnabled);
         }
       },
       beforeOpen: (details) async {

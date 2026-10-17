@@ -16,7 +16,7 @@ class DesktopSettingsState extends Equatable {
   });
 
   final DesktopSettingsStatus status;
-  final AppSettingEntity? settings; // ✅ استخدام الكيان النقي
+  final AppSettingEntity? settings;
   final bool isOnline;
   final String? userEmail;
   final bool isSyncing;
@@ -28,6 +28,9 @@ class DesktopSettingsState extends Equatable {
   double get speechRate => settings?.speechRate ?? 0.5;
   bool get hapticsEnabled => settings?.hapticsEnabled ?? true;
   bool get soundCuesEnabled => settings?.soundCuesEnabled ?? true;
+
+  /// 🧭 همس الغرف الصوتي
+  bool get spatialWhisperEnabled => settings?.spatialWhisperEnabled ?? false;
 
   String get defaultPriority => settings?.defaultPriority ?? 'medium';
   bool get autoArchiveCompleted => settings?.autoArchiveCompleted ?? true;

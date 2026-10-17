@@ -76,6 +76,7 @@ class SpatialCameraController extends ChangeNotifier {
     required Size screenSize,
     required bool isInnerListScrolling,
     required ValueChanged<SpatialDirection> onWhisperDirection,
+    bool isWhisperEnabled = false, // 👈 المعامل الحاسم للتحكم بالهمس الصوتي
   }) {
     // 1. مصعد الطوابق الرأسي (Z-Axis)
     if (details.pointerCount >= 2) {
@@ -290,7 +291,7 @@ class SpatialCameraController extends ChangeNotifier {
       }
     }
 
-    // 3. تحديث الرادار الصوتي والهمس
+    // 3. تحديث الرادار الصوتي البسيط (النغمات بدون TTS تعمل دائماً)
     final currentTargetX = -state.currentCoordinate.x * screenSize.width;
     final currentTargetY = state.currentCoordinate.y * screenSize.height;
     final normalizedX = -((_panX.value - currentTargetX) / screenSize.width);
@@ -301,6 +302,13 @@ class SpatialCameraController extends ChangeNotifier {
       normalizedY: normalizedY,
       floorLevel: state.currentFloor,
     );
+
+    // 🛡️ حماية الأداء: إذا كانت ميزة الهمس الصوتي معطلة، نتوقف فوراً ولا نستدعي TTS!
+    if (!isWhisperEnabled) {
+      _lastScrubbedDirection = null;
+      _scrubbingDebounceTimer?.cancel();
+      return;
+    }
 
     SpatialDirection? targetDirection;
     if (normalizedX > 0.35) {
@@ -316,7 +324,7 @@ class SpatialCameraController extends ChangeNotifier {
     if (targetDirection != null && targetDirection != _lastScrubbedDirection) {
       _lastScrubbedDirection = targetDirection;
       _scrubbingDebounceTimer?.cancel();
-      _scrubbingDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      _scrubbingDebounceTimer = Timer(const Duration(milliseconds: 350), () {
         onWhisperDirection(targetDirection!);
       });
     } else if (targetDirection == null) {
@@ -382,8 +390,9 @@ class SpatialCameraController extends ChangeNotifier {
       return;
     }
 
-    const distanceThresholdPercent = 0.50;
-    const velocityThreshold = 220.0;
+    // 🚀 تم تخفيض المسافة إلى 25% وخفض السرعة لتكون الحركة سريعة وخفيفة جداً
+    const distanceThresholdPercent = 0.25;
+    const velocityThreshold = 140.0;
 
     if (_lockedAxis == Axis.horizontal) {
       final vx = details.velocity.pixelsPerSecond.dx;
@@ -428,7 +437,7 @@ class SpatialCameraController extends ChangeNotifier {
       if (destination != state.currentCoordinate) {
         onTargetCoordinateSelected(destination);
       } else if (targetCoord == null &&
-          (deltaFromTarget.abs() > screenSize.width * 0.25 || vx.abs() > 180)) {
+          (deltaFromTarget.abs() > screenSize.width * 0.20 || vx.abs() > 140)) {
         SoundController.instance.playBoundaryBump();
       }
     } else if (_lockedAxis == Axis.vertical) {
@@ -481,7 +490,7 @@ class SpatialCameraController extends ChangeNotifier {
       if (destination != state.currentCoordinate) {
         onTargetCoordinateSelected(destination);
       } else if (targetCoord == null &&
-          (deltaFromTarget.abs() > screenSize.height * 0.25 || vy.abs() > 180)) {
+          (deltaFromTarget.abs() > screenSize.height * 0.20 || vy.abs() > 140)) {
         SoundController.instance.playBoundaryBump();
       }
     } else {

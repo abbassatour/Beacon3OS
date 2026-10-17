@@ -296,10 +296,12 @@ class AccessibleOnboardingCubit extends Cubit<AccessibleOnboardingState> {
   Future<void> finishAccessibleOnboarding() async {
     emit(state.copyWith(status: AccessibleFlowStatus.completing));
     try {
+      // 🌟 ميزة الهمس الصوتي مفعلة تلقائياً للمكفوفين لتوجيههم عبر البوصلة
       await _settings.completeOnboarding(
         persona: 'blind_accessible',
         isHighContrast: true,
         speechRate: state.speechRate,
+        spatialWhisperEnabled: true,
       );
 
       await _sound.play(SoundCue.success);
