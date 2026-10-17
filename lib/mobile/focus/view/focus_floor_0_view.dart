@@ -5,8 +5,7 @@ import 'package:beacon_os/mobile/focus/cubit/focus_state.dart';
 import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي (تم حذف local_vault_api)
 
 /// واجهة الطابق الأرضي لغرفة التركيز والمنبهات (Floor 0: Focus Timer & Alarms)
 class FocusFloor0View extends StatelessWidget {
@@ -335,7 +334,7 @@ class FocusFloor0View extends StatelessWidget {
 
   Widget _buildDismissibleAlarmTile(
     BuildContext context,
-    Alarm alarm,
+    AlarmEntity alarm, // ✅ تم استبدال Alarm بـ AlarmEntity
     FocusCubit cubit,
   ) {
     final colors = context.colors;
@@ -453,7 +452,7 @@ class FocusFloor0View extends StatelessWidget {
 
   void _confirmDeleteAlarm(
     BuildContext context,
-    Alarm alarm,
+    AlarmEntity alarm, // ✅ تم استبدال Alarm بـ AlarmEntity
     FocusCubit cubit,
   ) {
     final colors = context.colors;

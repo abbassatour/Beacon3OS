@@ -3,7 +3,6 @@ import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 /// معالج فحص الكاميرات المحيطية وتحليل المشهد المباشر صوتياً عبر الذكاء الاصطناعي
 class InspectCameraIntentHandler extends VoiceIntentHandler {
@@ -50,7 +49,7 @@ class InspectCameraIntentHandler extends VoiceIntentHandler {
     final params = intentContext.llmParameters;
 
     // 1. تحديد الكاميرا المستهدفة بناءً على النص أو معطيات الذكاء الاصطناعي
-    RingDeviceEntry? targetDevice;
+    RingDeviceEntity? targetDevice;
 
     final cameraParam = (params['camera_name'] as String?)?.toLowerCase();
 
@@ -138,7 +137,6 @@ class AnswerDoorbellIntentHandler extends VoiceIntentHandler {
     final ringRepo = context.read<LauncherRepository>().ring;
     final devices = await ringRepo.getAllDevices();
 
-    // اختيار جرس الباب الأمامي أو أول كاميرا تدعم جرس الباب
     final doorbell = devices.where((d) {
       return d.deviceType == 'doorbell' ||
           d.location.toLowerCase().contains('front');
@@ -219,7 +217,6 @@ class SimulateRingScenarioIntentHandler extends VoiceIntentHandler {
         scenarioParam.contains('neighbor')) {
       preset = RingScenarioPreset.friendlyNeighbor;
     } else {
-      // الافتراضي الأكثر طلباً للتحكيم: مندوب توصيل طرد
       preset = RingScenarioPreset.courierDelivery;
     }
 

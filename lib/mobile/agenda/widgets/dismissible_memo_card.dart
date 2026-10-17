@@ -1,6 +1,7 @@
+// lib/mobile/agenda/widgets/dismissible_memo_card.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class DismissibleMemoCard extends StatelessWidget {
   const DismissibleMemoCard({
@@ -10,7 +11,7 @@ class DismissibleMemoCard extends StatelessWidget {
     super.key,
   });
 
-  final VoiceMemo memo;
+  final VoiceMemoEntity memo; // ✅ الكيان النقي
   final VoidCallback onDismissed;
   final VoidCallback onReadAloud;
 

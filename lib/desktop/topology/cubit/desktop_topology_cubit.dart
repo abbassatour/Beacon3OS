@@ -1,11 +1,10 @@
-﻿// lib/desktop/cubit/desktop_topology_cubit.dart
+﻿// lib/desktop/topology/cubit/desktop_topology_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
   DesktopTopologyCubit({
@@ -16,7 +15,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
   }
 
   final TopologyRepository _repository;
-  StreamSubscription<List<SpatialNode>>? _subscription;
+  StreamSubscription<List<SpatialNodeEntity>>? _subscription;
 
   void _initStream() {
     emit(state.copyWith(status: TopologyStatus.loading));
@@ -42,7 +41,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     );
   }
 
-  /// ØªØ¨Ø¯ÙŠÙ„ Ø§Ù„Ø·Ø§Ø¨Ù‚ Ø§Ù„Ù…Ø¹Ø±ÙˆØ¶ (Floor 0 Ù…Ù‚Ø§Ø¨Ù„ Floor 1)
+  /// تبديل الطابق المعروض (Floor 0 مقابل Floor 1)
   void selectFloor(int floor) {
     if (state.currentFloor == floor) return;
     emit(
@@ -53,7 +52,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     );
   }
 
-  /// ØªØ­Ø¯ÙŠØ¯ ØºØ±ÙØ© Ù„Ù„Ù…Ø¹Ø§ÙŠÙ†Ø© ÙˆØ§Ù„ØªØ¹Ø¯ÙŠÙ„
+  /// تحديد غرفة للمعاينة والتعديل
   void selectNode(String? nodeId) {
     emit(
       state.copyWith(
@@ -63,7 +62,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     );
   }
 
-  /// Ù†Ù‚Ù„ ØºØ±ÙØ© Ø¥Ù„Ù‰ Ù…ÙˆÙ‚Ø¹ Ø¯ÙŠÙƒØ§Ø±ØªÙŠ Ø¬Ø¯ÙŠØ¯ (Ù…Ø¹ Ù…Ø¹Ø§Ù„Ø¬Ø© Ø§Ù„ØªØ¨Ø§Ø¯Ù„ Swap Ø¥Ù† ÙƒØ§Ù†Øª Ø§Ù„Ø®Ù„ÙŠØ© Ù…Ø´ØºÙˆÙ„Ø©)
+  /// نقل غرفة إلى موقع ديكارتي جديد (مع معالجة التبادل Swap إن كانت الخلية مشغولة)
   Future<void> moveNode({
     required String nodeId,
     required int newX,
@@ -79,7 +78,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
 
     try {
       if (targetOccupant != null) {
-        // ØªØ¨Ø§Ø¯Ù„ Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø¨Ø³Ù„Ø§Ø³Ø© Ø¨ÙŠÙ† Ø§Ù„ØºØ±ÙØªÙŠÙ†
+        // تبادل المواقع بسلاسة بين الغرفتين
         await _repository.updateNodeCoordinates(
           id: targetOccupant.id,
           x: currentNode.x,
@@ -100,7 +99,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     }
   }
 
-  /// ØªØ­Ø±ÙŠÙƒ Ø§Ù„ØºØ±ÙØ© Ø¨Ù…Ù‚Ø¯Ø§Ø± Ø®Ø·ÙˆØ© ÙˆØ§Ø­Ø¯Ø© Ø¹Ø¨Ø± Ù…ÙØ§ØªÙŠØ­ Ø§Ù„Ø£Ø³Ù‡Ù…
+  /// تحريك الغرفة بمقدار خطوة واحدة عبر مفاتيح الأسهم
   Future<void> nudgeNode({
     required String nodeId,
     required int deltaX,
@@ -115,7 +114,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     await moveNode(nodeId: nodeId, newX: newX, newY: newY);
   }
 
-  /// ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ù…Ø®ØµØµ Ù„Ù„ØºØ±ÙØ©
+  /// تحديث الاسم المخصص للغرفة
   Future<void> updateNodeTitle({
     required String nodeId,
     required String? customTitle,
@@ -137,11 +136,12 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     );
   }
 
-  /// Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§Ù„ØªÙˆØ²ÙŠØ¹ Ø§Ù„Ù‚ÙŠØ§Ø³ÙŠ Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠ Ù„Ù„ØºØ±Ù ÙÙŠ Ø§Ù„Ø·Ø§Ø¨Ù‚ Ø§Ù„Ù†Ø´Ø·
+  /// استعادة التوزيع القياسي الافتراضي للغرف في الطابق النشط
   Future<void> resetFloorToDefaults() async {
     const defaultCoords = {
       'cockpit': (x: 0, y: 0),
       'focus': (x: 0, y: 1),
+      'perimeter': (x: 0, y: 2),
       'comms': (x: 0, y: -1),
       'vision': (x: 1, y: 0),
       'agenda': (x: -1, y: 0),

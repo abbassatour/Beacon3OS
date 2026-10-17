@@ -8,7 +8,6 @@ import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/mobile/perimeter/cubit/perimeter_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class PerimeterCubit extends Cubit<PerimeterState> {
   PerimeterCubit({
@@ -29,14 +28,14 @@ class PerimeterCubit extends Cubit<PerimeterState> {
   final HapticManager _haptics;
   final SoundController _sound;
 
-  StreamSubscription<List<RingDeviceEntry>>? _devicesSub;
-  StreamSubscription<List<RingEventEntry>>? _eventsSub;
+  StreamSubscription<List<RingDeviceEntity>>? _devicesSub;
+  StreamSubscription<List<RingEventEntity>>? _eventsSub;
   StreamSubscription<RingEvent>? _liveEventSub;
 
   void _initStreams() {
     emit(state.copyWith(status: PerimeterStatus.loading));
 
-    // 1. مراقبة قائمة الكاميرات وتحديثها لحظياً من قاعدة البيانات
+    // 1. مراقبة قائمة الكاميرات وتحديثها لحظياً
     _devicesSub = _ringRepo.watchDevices().listen(
       (deviceList) {
         emit(
@@ -204,7 +203,7 @@ class PerimeterCubit extends Cubit<PerimeterState> {
   }
 
   /// قراءة تنبيه أو حدث أمني محدد بصوت عالٍ
-  Future<void> readEventAloud(RingEventEntry event) async {
+  Future<void> readEventAloud(RingEventEntity event) async {
     _haptics.selectionClick();
     final timeStr =
         '${event.timestamp.hour % 12 == 0 ? 12 : event.timestamp.hour % 12}:${event.timestamp.minute.toString().padLeft(2, '0')} ${event.timestamp.hour >= 12 ? 'PM' : 'AM'}';

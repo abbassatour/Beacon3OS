@@ -1,6 +1,6 @@
-// lib/focus/cubit/focus_state.dart
+// lib/mobile/focus/cubit/focus_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 enum TimerStatus { idle, running, paused, breakTime }
 
@@ -16,8 +16,8 @@ class FocusState extends Equatable {
   final TimerStatus timerStatus;
   final int selectedDurationMinutes;
   final int remainingSeconds;
-  final List<Alarm> alarms;
-  final List<FocusSession> todayCompletedSessions;
+  final List<AlarmEntity> alarms; // ✅ الكيان النقي
+  final List<FocusSessionEntity> todayCompletedSessions; // ✅ الكيان النقي
 
   bool get isTimerRunning => timerStatus == TimerStatus.running;
   bool get isPaused => timerStatus == TimerStatus.paused;
@@ -45,8 +45,8 @@ class FocusState extends Equatable {
     TimerStatus? timerStatus,
     int? selectedDurationMinutes,
     int? remainingSeconds,
-    List<Alarm>? alarms,
-    List<FocusSession>? todayCompletedSessions,
+    List<AlarmEntity>? alarms,
+    List<FocusSessionEntity>? todayCompletedSessions,
   }) {
     return FocusState(
       timerStatus: timerStatus ?? this.timerStatus,

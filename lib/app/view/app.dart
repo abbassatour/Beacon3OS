@@ -18,21 +18,20 @@ import 'package:beacon_os/tv/tv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class App extends StatefulWidget {
   const App({
     required LauncherRepository launcherRepository,
-    required AppSetting initialSettings,
+    required AppSettingEntity initialSettings,
     this.isTv = false,
     super.key,
   })  : _launcherRepository = launcherRepository,
         _initialSettings = initialSettings;
 
   final LauncherRepository _launcherRepository;
-  final AppSetting _initialSettings;
+  final AppSettingEntity _initialSettings;
   final bool isTv;
 
   @override
@@ -42,7 +41,7 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final SpatialTopology _topology;
   late final VoiceCommandDispatcher _voiceDispatcher;
-  StreamSubscription<List<SpatialNode>>? _nodesSubscription;
+  StreamSubscription<List<SpatialNodeEntity>>? _nodesSubscription;
   StreamSubscription<RemoteActionEvent>? _remoteActionsSubscription;
   Timer? _locateSoundTimer;
 
@@ -226,7 +225,6 @@ class _AppState extends State<App> {
         RepositoryProvider<TopologyRepository>.value(
           value: widget._launcherRepository.topology,
         ),
-        // 🌟 توفير مستودع الكاميرات Ring لكافة شاشات وموديولات النظام
         RepositoryProvider<RingRepository>.value(
           value: widget._launcherRepository.ring,
         ),

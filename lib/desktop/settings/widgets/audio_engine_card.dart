@@ -1,11 +1,11 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/widgets/audio_engine_card.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/settings_card.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي فقط
 
 class AudioEngineCard extends StatelessWidget {
   const AudioEngineCard({required this.state, super.key});
@@ -35,7 +35,7 @@ class AudioEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.soundCuesEnabled,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(soundCuesEnabled: drift.Value(val)),
+              AppSettingUpdatePayload(soundCuesEnabled: val),
             ),
           ),
           const Divider(),
@@ -52,7 +52,7 @@ class AudioEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.hapticsEnabled,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(hapticsEnabled: drift.Value(val)),
+              AppSettingUpdatePayload(hapticsEnabled: val),
             ),
           ),
           const Divider(),

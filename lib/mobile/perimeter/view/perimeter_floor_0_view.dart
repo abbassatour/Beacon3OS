@@ -175,7 +175,7 @@ class PerimeterFloor0View extends StatelessWidget {
 
   Widget _buildDeviceChip(
     BuildContext context,
-    dynamic device,
+    RingDeviceEntity device,
     bool isSelected,
     VoidCallback onTap,
   ) {
@@ -524,7 +524,7 @@ class PerimeterFloor0View extends StatelessWidget {
 
   Widget _buildEventTile(
     BuildContext context,
-    dynamic event,
+    RingEventEntity event,
     PerimeterCubit cubit,
   ) {
     final colors = context.colors;

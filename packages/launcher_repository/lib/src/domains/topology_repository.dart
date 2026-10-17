@@ -4,14 +4,18 @@ import 'dart:developer';
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/src/mappers/topology_mapper.dart';
+import 'package:launcher_repository/src/models/spatial_node_entity.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
+
+export 'package:launcher_repository/src/models/spatial_node_entity.dart';
 
 abstract class TopologyRepository {
   /// تدفق لحظي لجميع العقد الفضائية المسجلة محلياً
-  Stream<List<SpatialNode>> watchNodes();
+  Stream<List<SpatialNodeEntity>> watchNodes();
 
   /// جلب قائمة العقد الفضائية النشطة لمرة واحدة
-  Future<List<SpatialNode>> getAllNodes();
+  Future<List<SpatialNodeEntity>> getAllNodes();
 
   /// تحديث موقع غرفة معين في الفضاء (X, Y, Floor) محلياً وسحابياً
   Future<void> updateNodeCoordinates({
@@ -46,22 +50,27 @@ abstract class TopologyRepository {
 
 class TopologyRepositoryImpl implements TopologyRepository {
   TopologyRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required CloudSyncClient cloudSync,
   })  : _db = database,
         _cloud = cloudSync;
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final CloudSyncClient _cloud;
 
   StreamSubscription<dynamic>? _authSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _realtimeSubscription;
 
   @override
-  Stream<List<SpatialNode>> watchNodes() => _db.watchAllSpatialNodes();
+  Stream<List<SpatialNodeEntity>> watchNodes() => _db.watchAllSpatialNodes().map(
+        (list) => list.map((n) => n.toEntity()).toList(),
+      );
 
   @override
-  Future<List<SpatialNode>> getAllNodes() => _db.getAllSpatialNodes();
+  Future<List<SpatialNodeEntity>> getAllNodes() async {
+    final list = await _db.getAllSpatialNodes();
+    return list.map((n) => n.toEntity()).toList();
+  }
 
   @override
   Future<void> updateNodeCoordinates({
@@ -110,7 +119,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
     String? configJson,
   }) async {
     await _db.upsertSpatialNode(
-      SpatialNodesCompanion.insert(
+      db.SpatialNodesCompanion.insert(
         id: id,
         moduleId: moduleId,
         x: Value(x),
@@ -179,12 +188,12 @@ class TopologyRepositoryImpl implements TopologyRepository {
                   if (deletedAt != null) {
                     batch.delete(
                       _db.spatialNodes,
-                      SpatialNodesCompanion(id: Value(id)),
+                      db.SpatialNodesCompanion(id: Value(id)),
                     );
                   } else {
                     batch.insert(
                       _db.spatialNodes,
-                      SpatialNodesCompanion.insert(
+                      db.SpatialNodesCompanion.insert(
                         id: id,
                         moduleId: item['module_id'] as String,
                         floorLevel: Value(item['floor_level'] as int? ?? 0),
@@ -227,7 +236,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
         for (final item in cloudNodes) {
           batch.insert(
             _db.spatialNodes,
-            SpatialNodesCompanion.insert(
+            db.SpatialNodesCompanion.insert(
               id: item['id'] as String,
               moduleId: item['module_id'] as String,
               floorLevel: Value(item['floor_level'] as int? ?? 0),
@@ -268,7 +277,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
           deletedAt: n.deletedAt,
         );
         await (_db.update(_db.spatialNodes)..where((tbl) => tbl.id.equals(n.id)))
-            .write(const SpatialNodesCompanion(isSynced: Value(true)));
+            .write(const db.SpatialNodesCompanion(isSynced: Value(true)));
       }
     } catch (e) {
       log('TopologyRepository: Pending topology sync error: $e');

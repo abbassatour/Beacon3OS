@@ -6,7 +6,6 @@ import 'dart:math' as math;
 
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:http/http.dart' as http;
-import 'package:local_vault_api/local_vault_api.dart';
 import 'package:web3dart/web3dart.dart' as web3;
 
 /// خدمة الـ Web3 السيادية لإدارة الهوية الرقمية اللامركزية (DID)
@@ -56,7 +55,6 @@ class Web3Service {
 
   /// تهيئة المحفظة السيادية مع استرجاع المفتاح المحفوظ دائماً
   Future<void> initialize({
-    AppDatabase? database,
     String? explicitPrivateKeyHex,
   }) async {
     if (_isInitialized && explicitPrivateKeyHex == null) return;
@@ -65,10 +63,8 @@ class Web3Service {
       final httpClient = http.Client();
       _client = web3.Web3Client(ApiConstants.web3RpcUrl, httpClient);
 
-      final db = database ?? AppDatabase();
-
-      // 1. محاولة تحميل المفتاح الخاص المحفوظ مسبقاً في الخزنة
-      var storedKey = explicitPrivateKeyHex ?? await _loadStoredKey(db);
+      // 1. محاولة تحميل المفتاح الخاص المحفوظ مسبقاً في التخزين السيادي
+      var storedKey = explicitPrivateKeyHex ?? await _loadStoredKey();
 
       if (storedKey == null || storedKey.trim().isEmpty) {
         // توليد هوية سيادية جديدة لأول مرة وحفظها دائماً
@@ -77,7 +73,7 @@ class Web3Service {
         storedKey =
             '0x${newCred.privateKeyInt.toRadixString(16).padLeft(64, '0')}';
 
-        await _persistKey(db, storedKey);
+        await _persistKey(storedKey);
         _credentials = newCred;
         log('Web3Service: 🆕 Generated & Persisted NEW Sovereign DID: $walletAddressHex');
       } else {
@@ -105,19 +101,15 @@ class Web3Service {
     }
   }
 
-  /// استيراد مفتاح خاص محدد (مفيد للمحكمين لاختبار محفظة ممولة برصيد تجريبي)
-  Future<bool> importPrivateKey(
-    String keyHex, {
-    AppDatabase? database,
-  }) async {
+  /// استيراد مفتاح خاص محدد
+  Future<bool> importPrivateKey(String keyHex) async {
     try {
       final clean = keyHex.trim();
       final hexBody = clean.startsWith('0x') ? clean.substring(2) : clean;
       final newCred = web3.EthPrivateKey.fromHex(hexBody);
 
-      final db = database ?? AppDatabase();
       final fullHex = '0x$hexBody';
-      await _persistKey(db, fullHex);
+      await _persistKey(fullHex);
 
       _credentials = newCred;
       log('Web3Service: 📥 Imported new Sovereign DID: $walletAddressHex');
@@ -128,42 +120,31 @@ class Web3Service {
     }
   }
 
-  /// استرجاع المفتاح من جدول التخزين المشفر في SQLite عبر دوال Drift الآمنة
-  Future<String?> _loadStoredKey(AppDatabase db) async {
-    try {
-      final key = await db.getSovereignKey('primary_sovereign_wallet');
-      if (key != null && key.isNotEmpty) return key;
-    } catch (e) {
-      log('Web3Service: Database key read note: $e');
-    }
-
-    // محاولة ثانوية عبر الملف المحلي المحمي
+  /// استرجاع المفتاح من الملف المحلي المحمي
+  Future<String?> _loadStoredKey() async {
     try {
       final file = _getFallbackFile();
       if (file != null && await file.exists()) {
         final content = (await file.readAsString()).trim();
         if (content.isNotEmpty) return content;
       }
-    } catch (_) {}
-
+    } catch (e) {
+      log('Web3Service: File key read note: $e');
+    }
     return null;
   }
 
-  /// حفظ المفتاح في SQLite وملف النسخ الاحتياطي عبر دوال Drift الآمنة
-  Future<void> _persistKey(AppDatabase db, String keyHex) async {
-    try {
-      await db.setSovereignKey('primary_sovereign_wallet', keyHex);
-    } catch (e) {
-      log('Web3Service: Database key write note: $e');
-    }
-
+  /// حفظ المفتاح في الملف المحلي المحمي
+  Future<void> _persistKey(String keyHex) async {
     try {
       final file = _getFallbackFile();
       if (file != null) {
         await file.parent.create(recursive: true);
         await file.writeAsString(keyHex);
       }
-    } catch (_) {}
+    } catch (e) {
+      log('Web3Service: File key write note: $e');
+    }
   }
 
   File? _getFallbackFile() {
@@ -217,7 +198,7 @@ class Web3Service {
             function: function,
             parameters: [latE6, lngE6, batt],
           ),
-          chainId: 421614, // Arbitrum Sepolia Chain ID
+          chainId: 421614,
         );
         log('Web3Service: ✅ SOS Attested On-Chain. Tx: $txHash');
         return txHash;

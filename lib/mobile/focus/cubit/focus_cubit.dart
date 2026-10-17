@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/mobile/focus/cubit/focus_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/focus/cubit/focus_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
   FocusCubit({
@@ -34,8 +33,8 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
 
   Timer? _ticker;
   DateTime? _targetEndTime;
-  StreamSubscription<List<Alarm>>? _alarmsSub;
-  StreamSubscription<List<FocusSession>>? _sessionsSub;
+  StreamSubscription<List<AlarmEntity>>? _alarmsSub; // ✅
+  StreamSubscription<List<FocusSessionEntity>>? _sessionsSub; // ✅
 
   bool _halfwayAnnounced = false;
   bool _oneMinuteAnnounced = false;
@@ -202,7 +201,7 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> toggleAlarm(Alarm alarm) async {
+  Future<void> toggleAlarm(AlarmEntity alarm) async { // ✅
     await _haptics.successNotification();
     await _focusRepo.toggleAlarm(alarm);
 
@@ -224,7 +223,7 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     await _assistant.speak('Alarm set for $timeStr. Rings $relative.');
   }
 
-  Future<void> deleteAlarm(Alarm alarm) async {
+  Future<void> deleteAlarm(AlarmEntity alarm) async { // ✅
     await _haptics.successNotification();
     await _focusRepo.deleteAlarm(alarm.id);
 
@@ -232,7 +231,7 @@ class FocusCubit extends Cubit<FocusState> with WidgetsBindingObserver {
     await _assistant.speak('Alarm for $timeStr deleted.');
   }
 
-  Future<void> readAlarmDetailsAloud(Alarm alarm) async {
+  Future<void> readAlarmDetailsAloud(AlarmEntity alarm) async { // ✅
     await _haptics.successNotification();
 
     final timeStr = _format12HourTime(alarm.hour, alarm.minute);

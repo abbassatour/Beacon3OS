@@ -1,4 +1,4 @@
-// lib/spatial_shell/cubit/spatial_shell_cubit.dart
+// lib/mobile/shell/cubit/spatial_shell_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 import 'package:beacon_os/core/audio/sound_controller.dart';
@@ -8,7 +8,6 @@ import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart'; // 👈 لضمان حل نوع SpatialNode
 
 class SpatialShellCubit extends Cubit<SpatialShellState> {
   SpatialShellCubit({
@@ -33,7 +32,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   final SoundController _sound;
 
   StreamSubscription<void>? _topologySub;
-  StreamSubscription<List<SpatialNode>>? _nodesRepoSub;
+  StreamSubscription<List<SpatialNodeEntity>>? _nodesRepoSub;
 
   void _initTopologyListener() {
     // ⚡️ 1. الاستماع المباشر لبث كائن الطوبولوجيا الحي
@@ -257,7 +256,6 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   // ===========================================================================
 
   Future<void> announceCurrentLocation() async {
-    // قراءة العنوان الحقيقي المخزن في قاعدة البيانات
     final roomTitle = _topology.titleAtCoordinate(state.currentCoordinate);
     final floorTitle = state.currentFloor == 0
         ? 'Ground Floor'
@@ -277,7 +275,6 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
     );
     if (nextNode == null) return;
 
-    // همس الاسم الحقيقي للغرفة القادمة أثناء السحب
     final hint = _topology.titleAtCoordinate(nextNode);
     await _assistant.stopSpeaking();
     await _assistant.speak(hint);

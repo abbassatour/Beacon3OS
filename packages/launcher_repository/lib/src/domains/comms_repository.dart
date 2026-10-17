@@ -6,18 +6,23 @@ import 'dart:math' as math;
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
 import 'package:launcher_repository/src/domains/services/contacts_reconciliation_service.dart';
+import 'package:launcher_repository/src/mappers/comms_mapper.dart';
+import 'package:launcher_repository/src/models/contact_entity.dart';
+import 'package:launcher_repository/src/models/message_entity.dart';
 import 'package:launcher_repository/src/models/remote_action_event.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:uuid/uuid.dart';
 
 export 'package:cloud_sync_api/cloud_sync_api.dart' show SyncTransportMode;
+export 'package:launcher_repository/src/models/contact_entity.dart';
+export 'package:launcher_repository/src/models/message_entity.dart';
 export 'package:launcher_repository/src/models/remote_action_event.dart';
 
 abstract class CommsRepository {
-  Stream<List<Contact>> watchContacts();
-  Future<List<Contact>> getEmergencyContacts();
-  Future<Contact?> findContact(String query);
+  Stream<List<ContactEntity>> watchContacts();
+  Future<List<ContactEntity>> getEmergencyContacts();
+  Future<ContactEntity?> findContact(String query);
   Future<String> saveContact({
     required String name,
     required String phoneNumber,
@@ -30,8 +35,8 @@ abstract class CommsRepository {
   Future<({int addedCount, int updatedCount, int deletedCount})>
       syncDeviceContactsToVault();
 
-  Stream<List<MessagesVaultData>> watchMessages(String contactIdentifier);
-  Future<List<MessagesVaultData>> getUnreadMessages();
+  Stream<List<MessageEntity>> watchMessages(String contactIdentifier);
+  Future<List<MessageEntity>> getUnreadMessages();
   Future<void> markMessagesAsRead(String contactIdentifier);
   Future<String> recordMessage({
     required String contactIdentifier,
@@ -93,7 +98,7 @@ abstract class CommsRepository {
 
 class CommsRepositoryImpl implements CommsRepository {
   CommsRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required CloudSyncClient cloudSync,
     required HardwareClient hardware,
     HybridSyncClient? hybridSync,
@@ -105,7 +110,7 @@ class CommsRepositoryImpl implements CommsRepository {
         _reconciliationService =
             reconciliationService ?? ContactsReconciliationService();
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
   final HybridSyncClient _hybridSync;
@@ -188,7 +193,6 @@ class CommsRepositoryImpl implements CommsRepository {
       }
     });
 
-    // الاستماع للأوامر السحابية يبقى مفعلاً دائماً لالتقاط أوامر أليكسا والشاشات المنزلية
     _subscribeToRemoteActions();
 
     if (_cloud.isAuthenticated) {
@@ -263,7 +267,6 @@ class CommsRepositoryImpl implements CommsRepository {
 
     log('CommsRepository: 📢 Locating Device: Triggering audio siren, haptics & flashlight strobe...');
 
-    // تشغيل التنبيه الصوتي والحسي المسجل بالتوازي
     if (_locateHandler != null) {
       unawaited(_locateHandler!().catchError((Object err) {
         log('CommsRepository: Custom locate handler note: $err');
@@ -280,7 +283,6 @@ class CommsRepositoryImpl implements CommsRepository {
     } catch (e) {
       log('CommsRepository: Hardware locator strobe error: $e');
     } finally {
-      // إطفاء الفلاش بشكل حتمي
       await _hardware.toggleFlashlight(enable: false).catchError((_) => false);
       _isLocating = false;
     }
@@ -298,7 +300,7 @@ class CommsRepositoryImpl implements CommsRepository {
       if (cloudContacts.isEmpty) return;
 
       final localContacts = await (_db.select(_db.contacts)).get();
-      final Map<String, Contact> localMap = {
+      final Map<String, db.Contact> localMap = {
         for (final c in localContacts) c.id: c,
       };
 
@@ -316,7 +318,7 @@ class CommsRepositoryImpl implements CommsRepository {
 
           if (deletedAt != null) {
             if (local != null) {
-              batch.delete(_db.contacts, ContactsCompanion(id: Value(id)));
+              batch.delete(_db.contacts, db.ContactsCompanion(id: Value(id)));
             }
           } else {
             final name = (cloudItem['name'] as String? ?? '').trim();
@@ -328,7 +330,7 @@ class CommsRepositoryImpl implements CommsRepository {
 
             batch.insert(
               _db.contacts,
-              ContactsCompanion.insert(
+              db.ContactsCompanion.insert(
                 id: id,
                 name: name,
                 phoneNumber: phone,
@@ -363,14 +365,23 @@ class CommsRepositoryImpl implements CommsRepository {
   // ===========================================================================
 
   @override
-  Stream<List<Contact>> watchContacts() => _db.watchAllContacts();
+  Stream<List<ContactEntity>> watchContacts() {
+    return _db.watchAllContacts().map(
+          (list) => list.map((c) => c.toEntity()).toList(),
+        );
+  }
 
   @override
-  Future<List<Contact>> getEmergencyContacts() => _db.getEmergencyContacts();
+  Future<List<ContactEntity>> getEmergencyContacts() async {
+    final list = await _db.getEmergencyContacts();
+    return list.map((c) => c.toEntity()).toList();
+  }
 
   @override
-  Future<Contact?> findContact(String query) =>
-      _db.findContactByNameOrRelation(query);
+  Future<ContactEntity?> findContact(String query) async {
+    final contact = await _db.findContactByNameOrRelation(query);
+    return contact?.toEntity();
+  }
 
   @override
   Future<String> saveContact({
@@ -422,7 +433,7 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   Future<void> deleteContact(dynamic contactOrId) async {
     final String id =
-        contactOrId is Contact ? contactOrId.id : contactOrId.toString();
+        contactOrId is ContactEntity ? contactOrId.id : contactOrId.toString();
     await _db.softDeleteContact(id);
 
     _cloud.softDeleteContactInCloud(id).catchError((Object error) {
@@ -461,12 +472,17 @@ class CommsRepositoryImpl implements CommsRepository {
   // ===========================================================================
 
   @override
-  Stream<List<MessagesVaultData>> watchMessages(String contactIdentifier) =>
-      _db.watchMessagesForContact(contactIdentifier);
+  Stream<List<MessageEntity>> watchMessages(String contactIdentifier) {
+    return _db.watchMessagesForContact(contactIdentifier).map(
+          (list) => list.map((m) => m.toEntity()).toList(),
+        );
+  }
 
   @override
-  Future<List<MessagesVaultData>> getUnreadMessages() =>
-      _db.getUnreadMessages();
+  Future<List<MessageEntity>> getUnreadMessages() async {
+    final list = await _db.getUnreadMessages();
+    return list.map((m) => m.toEntity()).toList();
+  }
 
   @override
   Future<void> markMessagesAsRead(String contactIdentifier) async {
@@ -579,7 +595,7 @@ class CommsRepositoryImpl implements CommsRepository {
         for (final c in cloudContacts) {
           batch.insert(
             _db.contacts,
-            ContactsCompanion.insert(
+            db.ContactsCompanion.insert(
               id: c['id'] as String,
               name: c['name'] as String,
               phoneNumber: c['phone_number'] as String,
@@ -629,7 +645,7 @@ class CommsRepositoryImpl implements CommsRepository {
         final upsertIds = toUpsert.map((c) => c.id).toList();
         await (_db.update(_db.contacts)
               ..where((tbl) => tbl.id.isIn(upsertIds)))
-            .write(const ContactsCompanion(isSynced: Value(true)));
+            .write(const db.ContactsCompanion(isSynced: Value(true)));
       }
     } catch (e, st) {
       log('CommsRepository: Pending batch sync error: $e', stackTrace: st);
@@ -643,10 +659,8 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   Future<String?> initiateDevicePairing({required String deviceType}) async {
     final rng = math.Random();
-    // توليد كود الـ 6 أرقام محلياً دائماً
     final code = (rng.nextInt(900000) + 100000).toString();
 
-    // محاولة غير معطلة لتسجيل الكود في السحابة إن وُجد إنترنت
     try {
       await _cloud.createPairingSession(
         pairingCode: code,
@@ -657,7 +671,6 @@ class CommsRepositoryImpl implements CommsRepository {
       log('CommsRepository: Cloud pairing registration deferred (offline-first): $e');
     }
 
-    // إرجاع الكود دائماً لعرضه على شاشة التلفاز أو شاشات الغرفة
     return code;
   }
 

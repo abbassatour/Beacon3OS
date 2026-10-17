@@ -5,9 +5,14 @@ import 'dart:developer';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
 import 'package:launcher_repository/src/domains/assistant_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/src/mappers/ring_mapper.dart';
+import 'package:launcher_repository/src/models/ring_device_entity.dart';
+import 'package:launcher_repository/src/models/ring_event_entity.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
 import 'package:ring_integration_api/ring_integration_api.dart';
 
+export 'package:launcher_repository/src/models/ring_device_entity.dart';
+export 'package:launcher_repository/src/models/ring_event_entity.dart';
 export 'package:ring_integration_api/ring_integration_api.dart'
     show
         RingCameraLocation,
@@ -20,19 +25,19 @@ export 'package:ring_integration_api/ring_integration_api.dart'
 /// العقد النطاقي المخصص لإدارة كاميرات Ring المحيطية وأحداثها
 abstract class RingRepository {
   /// تدفق قائمة الأجهزة المسجلة في الخزنة
-  Stream<List<RingDeviceEntry>> watchDevices();
+  Stream<List<RingDeviceEntity>> watchDevices();
 
   /// تدفق سجل الأحداث الأمنية والتنبيهات
-  Stream<List<RingEventEntry>> watchRecentEvents({int limit = 30});
+  Stream<List<RingEventEntity>> watchRecentEvents({int limit = 30});
 
   /// تدفق الأحداث الحية الواردة فوراً من العتاد أو المحاكي
   Stream<RingEvent> get liveEventsStream;
 
   /// جلب جميع الكاميرات لمرة واحدة
-  Future<List<RingDeviceEntry>> getAllDevices();
+  Future<List<RingDeviceEntity>> getAllDevices();
 
   /// جلب كاميرا محددة بالمعرف
-  Future<RingDeviceEntry?> getDeviceById(String id);
+  Future<RingDeviceEntity?> getDeviceById(String id);
 
   /// فحص مباشر للكاميرا بالصوت وتحليل المشهد عبر Gemini 2.0 Flash
   Future<String?> inspectCameraLive({
@@ -56,7 +61,7 @@ abstract class RingRepository {
 /// التنفيذ الفعلي لـ RingRepository المدمج مع قاعدة بيانات Drift والذكاء الاصطناعي
 class RingRepositoryImpl implements RingRepository {
   RingRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required RingClientInterface ringClient,
     required AssistantRepository assistantRepository,
     CloudSyncClient? cloudSync,
@@ -67,7 +72,7 @@ class RingRepositoryImpl implements RingRepository {
     _initEventPipeline();
   }
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final RingClientInterface _ringClient;
   final AssistantRepository _assistant;
   final CloudSyncClient? _cloud;
@@ -80,18 +85,27 @@ class RingRepositoryImpl implements RingRepository {
   Stream<RingEvent> get liveEventsStream => _liveEventsController.stream;
 
   @override
-  Stream<List<RingDeviceEntry>> watchDevices() => _db.watchAllRingDevices();
+  Stream<List<RingDeviceEntity>> watchDevices() => _db.watchAllRingDevices().map(
+        (list) => list.map((d) => d.toEntity()).toList(),
+      );
 
   @override
-  Stream<List<RingEventEntry>> watchRecentEvents({int limit = 30}) =>
-      _db.watchRecentRingEvents(limit: limit);
+  Stream<List<RingEventEntity>> watchRecentEvents({int limit = 30}) =>
+      _db.watchRecentRingEvents(limit: limit).map(
+            (list) => list.map((e) => e.toEntity()).toList(),
+          );
 
   @override
-  Future<List<RingDeviceEntry>> getAllDevices() => _db.getAllRingDevices();
+  Future<List<RingDeviceEntity>> getAllDevices() async {
+    final list = await _db.getAllRingDevices();
+    return list.map((d) => d.toEntity()).toList();
+  }
 
   @override
-  Future<RingDeviceEntry?> getDeviceById(String id) =>
-      _db.getRingDeviceById(id);
+  Future<RingDeviceEntity?> getDeviceById(String id) async {
+    final device = await _db.getRingDeviceById(id);
+    return device?.toEntity();
+  }
 
   /// 🤖 الأنبوب التلقائي للذكاء الاصطناعي (Autonomous AI Vision & Audio Pipeline)
   void _initEventPipeline() {
@@ -126,7 +140,7 @@ class RingRepositoryImpl implements RingRepository {
 
       // 3. حفظ الحدث موثقاً بالوصف الذكي في الخزنة المشفرة
       await _db.insertRingEvent(
-        RingEventsCompanion.insert(
+        db.RingEventsCompanion.insert(
           id: event.id,
           deviceId: event.deviceId,
           deviceLabel: event.deviceLabel,

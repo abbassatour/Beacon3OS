@@ -2,39 +2,47 @@
 import 'dart:developer';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
 import 'package:system_hardware_api/system_hardware_api.dart';
 
+import '../models/alarm_entity.dart';
+import '../models/focus_session_entity.dart';
+import '../mappers/focus_alarms_mapper.dart';
+
 abstract class FocusAlarmsRepository {
-  Stream<List<Alarm>> watchAlarms();
+  Stream<List<AlarmEntity>> watchAlarms();
   Future<String> createAlarm({
     required int hour,
     required int minute,
     String label = 'Beacon Alarm',
   });
-  Future<void> toggleAlarm(Alarm alarm);
+  Future<void> toggleAlarm(AlarmEntity alarm);
   Future<void> deleteAlarm(dynamic alarmOrId);
 
-  Stream<List<FocusSession>> watchTodayFocusSessions();
+  Stream<List<FocusSessionEntity>> watchTodayFocusSessions();
   Future<String> recordCompletedFocusSession(int minutes);
   Future<void> syncPendingAlarms();
 }
 
 class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   FocusAlarmsRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required CloudSyncClient cloudSync,
     required HardwareClient hardware,
   })  : _db = database,
         _cloud = cloudSync,
         _hardware = hardware;
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
 
   @override
-  Stream<List<Alarm>> watchAlarms() => _db.watchAllAlarms();
+  Stream<List<AlarmEntity>> watchAlarms() {
+    return _db.watchAllAlarms().map(
+          (driftAlarms) => driftAlarms.map((a) => a.toEntity()).toList(),
+        );
+  }
 
   @override
   Future<String> createAlarm({
@@ -44,7 +52,6 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   }) async {
     final id = await _db.insertAlarm(hour: hour, minute: minute, label: label);
 
-    // ⚡️ فحص إعداد مزامنة المنبهات مع ساعة أندرويد الرسمية
     final settings = await _db.getSettings();
     if (settings.syncAlarmsWithAndroidClock) {
       await _hardware.setSystemAlarm(hour: hour, minute: minute, label: label);
@@ -58,12 +65,11 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   }
 
   @override
-  Future<void> toggleAlarm(Alarm alarm) async {
+  Future<void> toggleAlarm(AlarmEntity alarm) async {
     final nextStatus = !alarm.isActive;
     await _db.toggleAlarmStatus(alarm.id, nextStatus);
 
     if (nextStatus) {
-      // ⚡️ مزامنة التفعيل مع أندرويد فقط إذا سمح المستخدم بذلك
       final settings = await _db.getSettings();
       if (settings.syncAlarmsWithAndroidClock) {
         await _hardware.setSystemAlarm(
@@ -87,7 +93,7 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
 
   @override
   Future<void> deleteAlarm(dynamic alarmOrId) async {
-    final String id = alarmOrId is Alarm ? alarmOrId.id : alarmOrId.toString();
+    final String id = alarmOrId is AlarmEntity ? alarmOrId.id : alarmOrId.toString();
     await _db.softDeleteAlarm(id);
 
     _cloud.softDeleteAlarmInCloud(id).catchError((Object error) {
@@ -96,8 +102,11 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   }
 
   @override
-  Stream<List<FocusSession>> watchTodayFocusSessions() =>
-      _db.watchTodayFocusSessions();
+  Stream<List<FocusSessionEntity>> watchTodayFocusSessions() {
+    return _db.watchTodayFocusSessions().map(
+          (driftSessions) => driftSessions.map((s) => s.toEntity()).toList(),
+        );
+  }
 
   @override
   Future<String> recordCompletedFocusSession(int minutes) async {
@@ -129,7 +138,7 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
             isActive: a.isActive,
           );
           await (_db.update(_db.alarms)..where((tbl) => tbl.id.equals(a.id)))
-              .write(const AlarmsCompanion(isSynced: Value(true)));
+              .write(const db.AlarmsCompanion(isSynced: Value(true)));
         }
       }
     } catch (e) {

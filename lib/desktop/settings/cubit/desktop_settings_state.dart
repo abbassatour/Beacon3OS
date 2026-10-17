@@ -1,6 +1,6 @@
-﻿// lib/desktop/cubit/desktop_settings_state.dart
+﻿// lib/desktop/settings/cubit/desktop_settings_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum DesktopSettingsStatus { initial, loading, success, syncing, error }
 
@@ -16,14 +16,13 @@ class DesktopSettingsState extends Equatable {
   });
 
   final DesktopSettingsStatus status;
-  final AppSetting? settings;
+  final AppSettingEntity? settings; // ✅ استخدام الكيان النقي
   final bool isOnline;
   final String? userEmail;
   final bool isSyncing;
   final String? lastSyncMessage;
   final String? errorMessage;
 
-  // ØªÙØ¶ÙŠÙ„Ø§Øª Ø§Ù„Ù†Ø¸Ø§Ù… Ù…Ø¹ Ù‚ÙŠÙ… Ø§ÙØªØ±Ø§Ø¶ÙŠØ© Ø¢Ù…Ù†Ø©
   String get userPersona => settings?.userPersona ?? 'digital_minimalist';
   bool get isHighContrast => settings?.isHighContrast ?? false;
   double get speechRate => settings?.speechRate ?? 0.5;
@@ -47,7 +46,7 @@ class DesktopSettingsState extends Equatable {
 
   DesktopSettingsState copyWith({
     DesktopSettingsStatus? status,
-    AppSetting? settings,
+    AppSettingEntity? settings,
     bool? isOnline,
     String? userEmail,
     bool? isSyncing,

@@ -11,7 +11,6 @@ import 'package:beacon_os/core/voice_bus/voice_command_dispatcher.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
   AmbientVoiceCubit({
@@ -152,7 +151,6 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
 
     final activeContext = context ?? _navigatorKey?.currentContext;
 
-    // ⚡ تمرير مجمّع السياق الديناميكي المستقل
     final result = await _dispatcher.dispatchAndAnnounce(
       effectiveQuery,
       context: activeContext,
@@ -179,20 +177,18 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     });
   }
 
-  /// تجميع سياق النظام: يجمع البيانات الأساسية بالتوازي + يمر على الموديولات المسجلة في السجل
   Future<Map<String, dynamic>> _fetchLiveSystemContext([
     BuildContext? context,
   ]) async {
     try {
       const timeout = Duration(milliseconds: 700);
 
-      // 1. جمع البيانات الأساسية بالتوازي
       final results = await Future.wait([
         _tasksRepo.getPendingTasks().timeout(timeout, onTimeout: () => []),
         _focusRepo.watchAlarms().first.timeout(timeout, onTimeout: () => []),
         _settingsRepo.getSettings().timeout(
               timeout,
-              onTimeout: () => AppSetting(
+              onTimeout: () => AppSettingEntity(
                 id: 'fallback',
                 userPersona: 'digital_minimalist',
                 hasCompletedOnboarding: true,
@@ -219,14 +215,15 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
         _tasksRepo.watchMemos().first.timeout(timeout, onTimeout: () => []),
         _commsRepo != null
             ? _commsRepo!.watchContacts().first.timeout(timeout, onTimeout: () => [])
-            : Future.value(<Contact>[]),
+            : Future.value(<ContactEntity>[]),
       ]);
 
-      final tasks = (results[0] as List<Task>).take(15).toList();
-      final alarms = (results[1] as List<Alarm>).take(10).toList();
-      final settings = results[2] as AppSetting;
-      final memos = (results[3] as List<VoiceMemo>).take(5).toList();
-      final contacts = (results[4] as List<Contact>).take(20).toList();
+      // ✅ التصفية بالكيانات النقية بالكامل
+      final tasks = (results[0] as List<TaskEntity>).take(15).toList();
+      final alarms = (results[1] as List<AlarmEntity>).take(10).toList();
+      final settings = results[2] as AppSettingEntity;
+      final memos = (results[3] as List<VoiceMemoEntity>).take(5).toList();
+      final contacts = (results[4] as List<ContactEntity>).take(20).toList();
 
       final aggregatedContext = <String, dynamic>{
         'tasks': tasks
@@ -276,7 +273,6 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
         },
       };
 
-      // 🌟 2. استطلاع سياق الموديولات المسجلة في السجل المركزي تلقائياً
       if (context != null) {
         for (final module in SpatialModuleRegistry.instance.allModules) {
           try {

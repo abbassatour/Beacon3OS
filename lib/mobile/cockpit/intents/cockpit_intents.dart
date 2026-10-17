@@ -1,11 +1,10 @@
-// lib/cockpit/intents/cockpit_intents.dart
+// lib/mobile/cockpit/intents/cockpit_intents.dart
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
-import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+
 /// معالج فحص مستوى البطارية بالمسار السريع (Sub-5ms)
 class BatteryStatusIntentHandler extends VoiceIntentHandler {
   @override
@@ -283,7 +282,7 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       final enable = isOn ? true : (isOff ? false : !current.isHighContrast);
 
       await settingsRepo.updateSettings(
-        AppSettingsCompanion(isHighContrast: Value(enable)),
+        AppSettingUpdatePayload(isHighContrast: enable),
       );
 
       return LauncherCommandResult(
@@ -298,7 +297,7 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       final enable = isOn ? true : (isOff ? false : !current.hapticsEnabled);
 
       await settingsRepo.updateSettings(
-        AppSettingsCompanion(hapticsEnabled: Value(enable)),
+        AppSettingUpdatePayload(hapticsEnabled: enable),
       );
 
       return LauncherCommandResult(
@@ -313,7 +312,7 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       final enable = isOn ? true : (isOff ? false : !current.soundCuesEnabled);
 
       await settingsRepo.updateSettings(
-        AppSettingsCompanion(soundCuesEnabled: Value(enable)),
+        AppSettingUpdatePayload(soundCuesEnabled: enable),
       );
 
       return LauncherCommandResult(
@@ -336,7 +335,7 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
 
       await assistantRepo.setSpeechRate(newRate);
       await settingsRepo.updateSettings(
-        AppSettingsCompanion(speechRate: Value(newRate)),
+        AppSettingUpdatePayload(speechRate: newRate),
       );
 
       return LauncherCommandResult(

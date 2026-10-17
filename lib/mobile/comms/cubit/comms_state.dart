@@ -1,6 +1,6 @@
-// lib/comms/cubit/comms_state.dart
+// lib/mobile/comms/cubit/comms_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum CommsStatus { initial, loading, success, error }
 
@@ -15,21 +15,21 @@ class CommsState extends Equatable {
   });
 
   final CommsStatus status;
-  final List<Contact> contacts;
-  final List<MessagesVaultData> recentMessages;
+  final List<ContactEntity> contacts;
+  final List<MessageEntity> recentMessages;
   final bool isSosBroadcasting;
   final bool isSyncingContacts;
   final String? errorMessage;
 
   /// جهات اتصال الطوارئ مرتبة أبجدياً
-  List<Contact> get emergencyContacts {
+  List<ContactEntity> get emergencyContacts {
     final list = contacts.where((c) => c.isEmergency).toList();
     list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return list;
   }
 
   /// جهات الاتصال العادية مرتبة أبجدياً
-  List<Contact> get regularContacts {
+  List<ContactEntity> get regularContacts {
     final list = contacts.where((c) => !c.isEmergency).toList();
     list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return list;
@@ -37,8 +37,8 @@ class CommsState extends Equatable {
 
   CommsState copyWith({
     CommsStatus? status,
-    List<Contact>? contacts,
-    List<MessagesVaultData>? recentMessages,
+    List<ContactEntity>? contacts,
+    List<MessageEntity>? recentMessages,
     bool? isSosBroadcasting,
     bool? isSyncingContacts,
     String? errorMessage,

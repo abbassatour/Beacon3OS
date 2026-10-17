@@ -1,10 +1,9 @@
-// lib/comms/intents/comms_intents.dart
+// lib/mobile/comms/intents/comms_intents.dart
 import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 /// معالج استغاثة الطوارئ SOS بالمسار السريع الفوري (أعلى أولوية في النظام: 100)
 class EmergencySosIntentHandler extends VoiceIntentHandler {
@@ -274,7 +273,7 @@ class DeleteContactIntentHandler extends VoiceIntentHandler {
       }
     }
 
-    Contact? targetContact;
+    ContactEntity? targetContact;
 
     if (contactId != null && contactId.isNotEmpty) {
       final allContacts = await commsRepo.watchContacts().first;
@@ -416,14 +415,14 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
     );
 
     if (success) {
-      return  LauncherCommandResult(
+      return LauncherCommandResult(
         intent: 'PAIR_DEVICE',
         spokenResponse:
             'Living room display successfully linked! Real-time telemetry and agenda are now live.',
         actionPayload: cleanCode,
       );
     } else {
-      return  LauncherCommandResult(
+      return LauncherCommandResult(
         intent: 'PAIR_DEVICE_FAILED',
         spokenResponse:
             'Pairing failed. The code may be incorrect or has expired. Please check the screen.',

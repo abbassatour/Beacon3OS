@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class AgendaCubit extends Cubit<AgendaState> {
   AgendaCubit({
@@ -31,8 +30,8 @@ class AgendaCubit extends Cubit<AgendaState> {
   final HapticManager _haptics;
   final SoundController _sound;
 
-  StreamSubscription<List<Task>>? _tasksSub;
-  StreamSubscription<List<VoiceMemo>>? _memosSub;
+  StreamSubscription<List<TaskEntity>>? _tasksSub;
+  StreamSubscription<List<VoiceMemoEntity>>? _memosSub;
 
   void _initSubscriptions() {
     emit(state.copyWith(status: AgendaStatus.loading));
@@ -46,7 +45,7 @@ class AgendaCubit extends Cubit<AgendaState> {
     });
   }
 
-  Future<void> toggleTask(Task task) async {
+  Future<void> toggleTask(TaskEntity task) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.navCenter);
     await _taskRepo.toggleTask(task);
@@ -82,7 +81,7 @@ class AgendaCubit extends Cubit<AgendaState> {
     await _assistant.speak('Task created: $title with $effectivePriority priority.');
   }
 
-  Future<void> deleteTask(Task task) async {
+  Future<void> deleteTask(TaskEntity task) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.navCenter);
     await _taskRepo.deleteTask(task.id);
@@ -99,7 +98,7 @@ class AgendaCubit extends Cubit<AgendaState> {
     await _assistant.speak('Note saved: $title');
   }
 
-  Future<void> readTaskAloud(Task task) async {
+  Future<void> readTaskAloud(TaskEntity task) async {
     await _haptics.successNotification();
     final priorityText = 'Priority: ${task.priority}.';
     final statusText = task.isCompleted ? 'Completed.' : 'Pending.';
@@ -122,12 +121,12 @@ class AgendaCubit extends Cubit<AgendaState> {
     await _assistant.speak('${task.title}. $priorityText $dueText$statusText');
   }
 
-  Future<void> readMemoAloud(VoiceMemo memo) async {
+  Future<void> readMemoAloud(VoiceMemoEntity memo) async {
     await _haptics.successNotification();
     await _assistant.speak('Note titled: ${memo.title}. Content: ${memo.content}');
   }
 
-  Future<void> deleteMemo(VoiceMemo memo) async {
+  Future<void> deleteMemo(VoiceMemoEntity memo) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.navCenter);
     await _taskRepo.deleteMemo(memo.id);

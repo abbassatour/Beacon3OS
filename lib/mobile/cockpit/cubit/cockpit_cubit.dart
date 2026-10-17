@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
-import 'package:beacon_os/mobile/cockpit/cubit/cockpit_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/cockpit/cubit/cockpit_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class CockpitCubit extends Cubit<CockpitState> {
   CockpitCubit({
@@ -34,9 +33,9 @@ class CockpitCubit extends Cubit<CockpitState> {
   final HapticManager _haptics;
   final SoundController _sound;
 
-  StreamSubscription<List<Alarm>>? _alarmsSub;
-  StreamSubscription<List<Task>>? _tasksSub;
-  StreamSubscription<List<VoiceMemo>>? _memosSub;
+  StreamSubscription<List<AlarmEntity>>? _alarmsSub;
+  StreamSubscription<List<TaskEntity>>? _tasksSub;
+  StreamSubscription<List<VoiceMemoEntity>>? _memosSub;
   Timer? _batteryTimer;
 
   void _initSubscriptions() {
@@ -123,7 +122,7 @@ class CockpitCubit extends Cubit<CockpitState> {
     }
   }
 
-  Future<void> readTaskAloud(Task task) async {
+  Future<void> readTaskAloud(TaskEntity task) async {
     await _haptics.successNotification();
     final priorityText = 'Priority: ${task.priority}.';
     final dueText = task.dueDate != null
@@ -132,14 +131,14 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _assistantRepo.speak('${task.title}. $priorityText $dueText');
   }
 
-  Future<void> toggleTask(Task task) async {
+  Future<void> toggleTask(TaskEntity task) async {
     await _haptics.successNotification();
     await _tasksRepo.toggleTask(task);
     final status = task.isCompleted ? 'marked pending' : 'completed';
     await _assistantRepo.speak('Task $status: ${task.title}');
   }
 
-  Future<void> toggleAlarm(Alarm alarm) async {
+  Future<void> toggleAlarm(AlarmEntity alarm) async {
     await _haptics.successNotification();
     await _focusRepo.toggleAlarm(alarm);
     final status = !alarm.isActive ? 'enabled' : 'disabled';
@@ -148,7 +147,7 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _assistantRepo.speak('Alarm for $hourStr:$minStr $status.');
   }
 
-  Future<void> readNextAlarmAloud(Alarm? alarm) async {
+  Future<void> readNextAlarmAloud(AlarmEntity? alarm) async {
     await _haptics.successNotification();
     if (alarm == null) {
       await _assistantRepo.speak('No active alarms scheduled for today.');
@@ -162,7 +161,7 @@ class CockpitCubit extends Cubit<CockpitState> {
     }
   }
 
-  Future<void> readMemoAloud(VoiceMemo memo) async {
+  Future<void> readMemoAloud(VoiceMemoEntity memo) async {
     await _haptics.successNotification();
     await _assistantRepo.speak('Note titled: ${memo.title}. Content: ${memo.content}');
   }

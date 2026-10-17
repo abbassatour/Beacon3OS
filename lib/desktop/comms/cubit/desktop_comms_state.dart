@@ -1,6 +1,6 @@
-﻿// lib/desktop/cubit/desktop_comms_state.dart
+﻿// lib/desktop/comms/cubit/desktop_comms_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum DesktopCommsStatus { initial, loading, success, error }
 
@@ -17,27 +17,27 @@ class DesktopCommsState extends Equatable {
   });
 
   final DesktopCommsStatus status;
-  final List<Contact> contacts;
-  final List<MessagesVaultData> unreadMessages;
+  final List<ContactEntity> contacts;
+  final List<MessageEntity> unreadMessages;
   final String searchQuery;
   final bool isBroadcastingSos;
   final bool isSyncingContacts;
   final String? lastSosAlertId;
   final String? errorMessage;
 
-  /// Ø¬Ù‡Ø§Øª Ø§ØªØµØ§Ù„ Ø§Ù„Ø·ÙˆØ§Ø±Ø¦ Ù…ÙÙ„ØªØ±Ø© ÙˆÙ…Ø±ØªØ¨Ø© Ø£Ø¨Ø¬Ø¯ÙŠØ§Ù‹
-  List<Contact> get emergencyContacts {
+  /// جهات اتصال الطوارئ مفلترة ومرتبة أبجدياً
+  List<ContactEntity> get emergencyContacts {
     final list = contacts.where((c) => c.isEmergency).toList();
     return _filterAndSort(list);
   }
 
-  /// Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ Ø§Ù„Ø¹Ø§Ø¯ÙŠØ© Ù…ÙÙ„ØªØ±Ø© ÙˆÙ…Ø±ØªØ¨Ø© Ø£Ø¨Ø¬Ø¯ÙŠØ§Ù‹
-  List<Contact> get regularContacts {
+  /// جهات الاتصال العادية مفلترة ومرتبة أبجدياً
+  List<ContactEntity> get regularContacts {
     final list = contacts.where((c) => !c.isEmergency).toList();
     return _filterAndSort(list);
   }
 
-  List<Contact> _filterAndSort(List<Contact> list) {
+  List<ContactEntity> _filterAndSort(List<ContactEntity> list) {
     return list.where((c) {
       if (searchQuery.isEmpty) return true;
       final q = searchQuery.toLowerCase();
@@ -51,8 +51,8 @@ class DesktopCommsState extends Equatable {
 
   DesktopCommsState copyWith({
     DesktopCommsStatus? status,
-    List<Contact>? contacts,
-    List<MessagesVaultData>? unreadMessages,
+    List<ContactEntity>? contacts,
+    List<MessageEntity>? unreadMessages,
     String? searchQuery,
     bool? isBroadcastingSos,
     bool? isSyncingContacts,

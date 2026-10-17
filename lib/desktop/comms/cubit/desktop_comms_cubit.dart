@@ -1,11 +1,10 @@
-﻿// lib/desktop/cubit/desktop_comms_cubit.dart
+﻿// lib/desktop/comms/cubit/desktop_comms_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class DesktopCommsCubit extends Cubit<DesktopCommsState> {
   DesktopCommsCubit({
@@ -16,7 +15,7 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
   }
 
   final CommsRepository _commsRepo;
-  StreamSubscription<List<Contact>>? _contactsSub;
+  StreamSubscription<List<ContactEntity>>? _contactsSub;
 
   void _initStreams() {
     emit(state.copyWith(status: DesktopCommsStatus.loading));
@@ -67,9 +66,8 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  Future<void> toggleEmergencyStatus(Contact contact) async {
+  Future<void> toggleEmergencyStatus(ContactEntity contact) async {
     try {
-      // Ø¥Ø²Ø§Ù„Ø© Ø§Ù„Ù‚Ø¯ÙŠÙ… ÙˆØ­ÙØ¸Ù‡ Ø¨Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
       await _commsRepo.deleteContact(contact.id);
       await _commsRepo.saveContact(
         name: contact.name,
@@ -82,7 +80,7 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  Future<void> deleteContact(Contact contact) async {
+  Future<void> deleteContact(ContactEntity contact) async {
     try {
       await _commsRepo.deleteContact(contact.id);
     } catch (e) {
@@ -103,7 +101,7 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  Future<void> markMessageAsRead(MessagesVaultData msg) async {
+  Future<void> markMessageAsRead(MessageEntity msg) async {
     try {
       await _commsRepo.markMessagesAsRead(msg.contactIdentifier);
       final unread = await _commsRepo.getUnreadMessages();
@@ -113,7 +111,7 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  /// Ø¥Ø·Ù„Ø§Ù‚ Ø¨Ø« Ø±Ø§Ø¯Ø§Ø± Ø·ÙˆØ§Ø±Ø¦ ØªØ¬Ø±ÙŠØ¨ÙŠ Ù„Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø§ØªØµØ§Ù„ Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠ
+  /// إطلاق بث رادار طوارئ تجريبي للتحقق من الاتصال السحابي
   Future<void> triggerTestSosBroadcast() async {
     if (state.isBroadcastingSos) return;
 
@@ -121,7 +119,7 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
 
     try {
       final alertId = await _commsRepo.triggerEmergencySos(
-        latitude: 52.3676, // Ø¥Ø­Ø¯Ø§Ø«ÙŠØ§Øª Ù…Ø±Ø¬Ø¹ÙŠØ©
+        latitude: 52.3676,
         longitude: 4.9041,
         batteryLevel: 95,
       );

@@ -12,11 +12,9 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:voice_ai_api/voice_ai_api.dart';
 
-/// بيئات التشغيل المدعومة في النظام
 enum AppFlavor { development, staging, production }
 
 class AppBlocObserver extends BlocObserver {
@@ -40,8 +38,6 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     log(details.exceptionAsString(), stackTrace: details.stack);
   };
 
-  // 🛡️ تفعيل مراقب الأحداث (Observer) فقط في بيئتي التطوير والتجريب
-  // أما في الإنتاج (Production) نتركه معطلاً لتوفير الذاكرة وأداء المعالج
   if (flavor != AppFlavor.production) {
     Bloc.observer = const AppBlocObserver();
   }
@@ -50,7 +46,6 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
 
   final isMobile = Platform.isAndroid || Platform.isIOS;
 
-  // 📺 1. فحص فوري: هل الجهاز شاشة تلفزيون (Android TV / Fire TV)؟
   var isTv = false;
   if (Platform.isAndroid) {
     try {
@@ -62,20 +57,15 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }
   }
 
-  // 2. وضع الشاشة الكاملة الحقيقي للهواتف والتلفزيونات
   if (isMobile) {
     try {
-      await SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.immersiveSticky,
-      );
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     } catch (e) {
       log('Bootstrap: Immersive mode setup bypassed: $e');
     }
   }
 
-  // 3. تهيئة Supabase بأمان تام
-  if (ApiConstants.supabaseUrl.isNotEmpty &&
-      ApiConstants.supabaseAnonKey.isNotEmpty) {
+  if (ApiConstants.supabaseUrl.isNotEmpty && ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
       await Supabase.initialize(
         url: ApiConstants.supabaseUrl,
@@ -87,25 +77,18 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }
   }
 
-  // 4. إنشاء نسخة مفردة واحدة من الخزنة المشفرة لجميع الخدمات (Single Source of Truth)
-  final database = AppDatabase();
-
-  // 5. تهيئة خدمة الـ Web3 السيادية بنفس نسخة قاعدة البيانات
   try {
-    await Web3Service.instance.initialize(database: database).timeout(const Duration(seconds: 6));
+    await Web3Service.instance.initialize().timeout(const Duration(seconds: 6));
     log('Bootstrap: Web3 Sovereign Identity initialized.');
   } catch (e) {
     log('Bootstrap: Web3 init deferred: $e');
   }
 
-  // 6. تهيئة وكيل الذكاء الاصطناعي ومستودع النظام بنفس نسخة قاعدة البيانات
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(
-    database: database,
     llmAgent: llmAgent,
   );
 
-  // 7. تهيئة محركات الصوت بمهلة كافية للمحاكي
   try {
     await launcherRepository.assistant
         .initializeEngines()
@@ -115,14 +98,14 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     log('Bootstrap: Audio engines init bypassed: $e');
   }
 
-  // 8. قراءة الإعدادات
-  AppSetting initialSettings;
+  // ✅ استخدام الكيان النقي (AppSettingEntity) فقط دون أي معرفة بقاعدة البيانات
+  AppSettingEntity initialSettings;
   try {
     initialSettings = await launcherRepository.settings
         .getSettings()
         .timeout(const Duration(seconds: 6));
   } catch (e) {
-    initialSettings = AppSetting(
+    initialSettings = AppSettingEntity(
       id: 'local_device_settings',
       userPersona: isTv ? 'blind_accessible' : 'digital_minimalist',
       hasCompletedOnboarding: isTv ? true : false,
@@ -151,7 +134,6 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));
 
-  // 9. إطلاق التطبيق
   runApp(
     App(
       launcherRepository: launcherRepository,

@@ -3,18 +3,21 @@ import 'dart:developer';
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
+
+import '../models/app_setting_entity.dart';
+import '../mappers/app_setting_mapper.dart';
 
 /// العقد النطاقي المخصص لإدارة إعدادات النظام وهوية المستخدم
 abstract class SettingsRepository {
   /// الاستماع اللحظي لتغييرات الإعدادات
-  Stream<AppSetting> watchSettings();
+  Stream<AppSettingEntity> watchSettings();
 
   /// جلب الإعدادات الحالية لمرة واحدة
-  Future<AppSetting> getSettings();
+  Future<AppSettingEntity> getSettings();
 
-  /// تحديث حقل أو أكثر في الإعدادات محلياً وسحابياً
-  Future<void> updateSettings(AppSettingsCompanion updated);
+  /// تحديث حقل أو أكثر في الإعدادات محلياً وسحابياً عبر الكيان النقي
+  Future<void> updateSettings(AppSettingUpdatePayload updated);
 
   /// فحص هل أتم المستخدم مرحلة الإعداد والترحيب الأولي
   Future<bool> isOnboardingCompleted();
@@ -36,28 +39,33 @@ abstract class SettingsRepository {
 /// التنفيذ المدمج بين قاعدة بيانات Drift وسحابة Supabase
 class SettingsRepositoryImpl implements SettingsRepository {
   SettingsRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required CloudSyncClient cloudSync,
   })  : _db = database,
         _cloud = cloudSync;
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final CloudSyncClient _cloud;
 
   @override
-  Stream<AppSetting> watchSettings() => _db.watchSettings();
+  Stream<AppSettingEntity> watchSettings() {
+    return _db.watchSettings().map((settings) => settings.toEntity());
+  }
 
   @override
-  Future<AppSetting> getSettings() => _db.getSettings();
+  Future<AppSettingEntity> getSettings() async {
+    final settings = await _db.getSettings();
+    return settings.toEntity();
+  }
 
   @override
-  Future<void> updateSettings(AppSettingsCompanion updated) async {
-    // 1. الحفظ الفوري محلياً في Drift (Offline-First)
-    await _db.updateSettings(updated);
+  Future<void> updateSettings(AppSettingUpdatePayload updated) async {
+    // 1. الحفظ الفوري محلياً في Drift (Offline-First) بعد التحويل لـ Companion
+    await _db.updateSettings(updated.toCompanion());
 
     // 2. المزامنة السحابية غير المعطلة
     final current = await _db.getSettings();
-    _cloud.syncSettings(_mapSettingsToCloud(current)).catchError((Object error) {
+    _cloud.syncSettings(_mapSettingsToCloud(current.toEntity())).catchError((Object error) {
       log('SettingsRepository: Cloud sync deferred: $error');
     });
   }
@@ -78,7 +86,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
 
     final current = await _db.getSettings();
-    await _cloud.syncSettings(_mapSettingsToCloud(current)).catchError((Object error) {
+    await _cloud.syncSettings(_mapSettingsToCloud(current.toEntity())).catchError((Object error) {
       log('SettingsRepository: Cloud onboarding sync deferred: $error');
     });
 
@@ -93,7 +101,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       final cloudSettings = await _cloud.fetchCloudSettings();
       if (cloudSettings != null) {
         await _db.updateSettings(
-          AppSettingsCompanion(
+          db.AppSettingsCompanion(
             userPersona: Value(
               cloudSettings['user_persona'] as String? ?? 'digital_minimalist',
             ),
@@ -165,8 +173,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     try {
       final settings = await _db.getSettings();
       if (!settings.isSynced) {
-        await _cloud.syncSettings(_mapSettingsToCloud(settings));
-        await _db.updateSettings(const AppSettingsCompanion(isSynced: Value(true)));
+        await _cloud.syncSettings(_mapSettingsToCloud(settings.toEntity()));
+        await _db.updateSettings(const db.AppSettingsCompanion(isSynced: Value(true)));
         log('SettingsRepository: Pending offline settings synced.');
       }
     } catch (e) {
@@ -174,8 +182,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     }
   }
 
-  /// تحويل كائن قاعدة البيانات المحلية Drift إلى خريطة متوافقة مع Supabase
-  Map<String, dynamic> _mapSettingsToCloud(AppSetting s) {
+  /// تحويل كائن الكيان النقي إلى خريطة متوافقة مع Supabase
+  Map<String, dynamic> _mapSettingsToCloud(AppSettingEntity s) {
     return {
       'id': s.id,
       'user_persona': s.userPersona,

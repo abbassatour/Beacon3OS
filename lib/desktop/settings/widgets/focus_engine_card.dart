@@ -1,11 +1,11 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/widgets/focus_engine_card.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/settings_card.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class FocusEngineCard extends StatelessWidget {
   const FocusEngineCard({required this.state, super.key});
@@ -35,7 +35,7 @@ class FocusEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.voiceChimeHalfway,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(voiceChimeHalfway: drift.Value(val)),
+              AppSettingUpdatePayload(voiceChimeHalfway: val),
             ),
           ),
           const Divider(),
@@ -52,7 +52,7 @@ class FocusEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.vibrateOnSessionFinish,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(vibrateOnSessionFinish: drift.Value(val)),
+              AppSettingUpdatePayload(vibrateOnSessionFinish: val),
             ),
           ),
           const Divider(),
@@ -69,7 +69,7 @@ class FocusEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.syncAlarmsWithAndroidClock,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(syncAlarmsWithAndroidClock: drift.Value(val)),
+              AppSettingUpdatePayload(syncAlarmsWithAndroidClock: val),
             ),
           ),
         ],

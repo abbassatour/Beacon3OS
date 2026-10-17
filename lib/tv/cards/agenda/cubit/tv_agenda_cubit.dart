@@ -6,8 +6,7 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/tv/cards/agenda/cubit/tv_agenda_state.dart';
 import 'package:bloc/bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅
 
 class TvAgendaCubit extends Cubit<TvAgendaState> {
   TvAgendaCubit({
@@ -21,7 +20,7 @@ class TvAgendaCubit extends Cubit<TvAgendaState> {
 
   final TaskAgendaRepository _taskRepo;
   final SoundController _sound;
-  StreamSubscription<List<Task>>? _tasksSubscription;
+  StreamSubscription<List<TaskEntity>>? _tasksSubscription;
 
   static const int _maxGlanceableTasks = 3;
 
@@ -30,7 +29,6 @@ class TvAgendaCubit extends Cubit<TvAgendaState> {
 
     _tasksSubscription = _taskRepo.watchTasks().listen(
       (allTasks) {
-        // فلترة الخصوصية الصارمة: فقط المهام المعلقة دون أي مذكرات صوتية أو نصوص حساسة
         final pendingTasks = allTasks
             .where((task) => !task.isCompleted)
             .take(_maxGlanceableTasks)
@@ -55,7 +53,7 @@ class TvAgendaCubit extends Cubit<TvAgendaState> {
     );
   }
 
-  Future<void> toggleTaskCompletion(Task task) async {
+  Future<void> toggleTaskCompletion(TaskEntity task) async {
     try {
       await _sound.play(SoundCue.success);
       await _taskRepo.toggleTask(task);

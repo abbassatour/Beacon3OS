@@ -1,6 +1,6 @@
-﻿// lib/desktop/cubit/desktop_topology_state.dart
+﻿// lib/desktop/topology/cubit/desktop_topology_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum TopologyStatus { initial, loading, success, error }
 
@@ -14,33 +14,33 @@ class DesktopTopologyState extends Equatable {
   });
 
   final TopologyStatus status;
-  final List<SpatialNode> nodes;
+  final List<SpatialNodeEntity> nodes;
   final int currentFloor;
   final String? selectedNodeId;
   final String? errorMessage;
 
-  /// Ø§Ù„Ø¹ÙÙ‚Ø¯ Ø§Ù„Ù…ÙˆØ¬ÙˆØ¯Ø© ÙÙŠ Ø§Ù„Ø·Ø§Ø¨Ù‚ Ø§Ù„Ù†Ø´Ø· Ø­Ø§Ù„ÙŠØ§Ù‹
-  List<SpatialNode> get currentFloorNodes =>
+  /// العُقد الموجودة في الطابق النشط حالياً
+  List<SpatialNodeEntity> get currentFloorNodes =>
       nodes.where((n) => n.floorLevel == currentFloor).toList();
 
-  /// Ø®Ø±ÙŠØ·Ø© Ø¨Ø±Ù…Ø¬ÙŠØ© Ø³Ø±ÙŠØ¹Ø© Ù„Ù„ÙˆØµÙˆÙ„ Ù„Ù„ØºØ±ÙØ© Ù…Ù† Ø¥Ø­Ø¯Ø§Ø«ÙŠØ§ØªÙ‡Ø§ "X,Y"
-  Map<String, SpatialNode> get currentFloorNodeMap {
-    final map = <String, SpatialNode>{};
+  /// خريطة برمجية سريعة للوصول للغرفة من إحداثياتها "X,Y"
+  Map<String, SpatialNodeEntity> get currentFloorNodeMap {
+    final map = <String, SpatialNodeEntity>{};
     for (final node in currentFloorNodes) {
       map['${node.x},${node.y}'] = node;
     }
     return map;
   }
 
-  /// Ø§Ù„ØºØ±ÙØ© Ø§Ù„Ù…Ø­Ø¯Ø¯Ø© Ø­Ø§Ù„ÙŠØ§Ù‹ ÙÙŠ Ù„ÙˆØ­Ø© Ø§Ù„ØªÙØªÙŠØ´
-  SpatialNode? get selectedNode {
+  /// الغرفة المحددة حالياً في لوحة التفتيش
+  SpatialNodeEntity? get selectedNode {
     if (selectedNodeId == null) return null;
     return nodes.where((n) => n.id == selectedNodeId).firstOrNull;
   }
 
   DesktopTopologyState copyWith({
     TopologyStatus? status,
-    List<SpatialNode>? nodes,
+    List<SpatialNodeEntity>? nodes,
     int? currentFloor,
     String? selectedNodeId,
     bool clearSelectedNode = false,

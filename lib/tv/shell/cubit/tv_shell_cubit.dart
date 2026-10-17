@@ -7,13 +7,12 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/tv/shell/cubit/tv_shell_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart'; // 👈 استيراد RingEventEntry
 
 class TvShellCubit extends Cubit<TvShellState> {
   TvShellCubit({
     required CommsRepository commsRepository,
     required AssistantRepository assistantRepository,
-    required RingRepository ringRepository, // 👈 حقن مستودع Ring
+    required RingRepository ringRepository,
     SoundController? soundController,
   })  : _commsRepo = commsRepository,
         _assistant = assistantRepository,
@@ -35,7 +34,7 @@ class TvShellCubit extends Cubit<TvShellState> {
   StreamSubscription<SyncTransportMode>? _transportSub;
   StreamSubscription<String?>? _pairingAuthSub;
   StreamSubscription<RemoteActionEvent>? _remoteActionsSub;
-  StreamSubscription<List<RingEventEntry>>? _ringEventsSub; // 👈 اشتراك الكاميرات
+  StreamSubscription<List<RingEventEntity>>? _ringEventsSub;
 
   static const Duration _screensaverTimeout = Duration(seconds: 75);
   static const Duration _alertDismissDuration = Duration(seconds: 20);
@@ -44,7 +43,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     _startClockTicker();
     _resetScreensaverTimer();
     _listenToRemoteActions();
-    _listenToRingEvents(); // 👈 بدء الاستماع للكاميرات
+    _listenToRingEvents();
 
     await _initHybridTransport();
   }
@@ -220,7 +219,6 @@ class TvShellCubit extends Cubit<TvShellState> {
         wakeFromAmbient();
         _sound.play(SoundCue.wake);
 
-        // إرسال تنبيه مخصص للراية (Banner) كـ Payload
         emit(state.copyWith(
           activeAlert: RemoteActionEvent(
             id: latest.id,
@@ -234,7 +232,6 @@ class TvShellCubit extends Cubit<TvShellState> {
           ),
         ));
 
-        // تعليمه كمقروء حتى لا يظهر التنبيه مجدداً
         _ringRepo.markEventAsRead(latest.id);
 
         _alertDismissTimer?.cancel();
@@ -275,7 +272,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     _transportSub?.cancel();
     _pairingAuthSub?.cancel();
     _remoteActionsSub?.cancel();
-    _ringEventsSub?.cancel(); // 👈 لا ننسى تحرير الموارد
+    _ringEventsSub?.cancel();
     return super.close();
   }
 }

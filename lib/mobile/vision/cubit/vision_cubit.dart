@@ -6,10 +6,9 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/camera_service.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
-import 'package:beacon_os/mobile/vision/cubit/vision_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/vision/cubit/vision_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class VisionCubit extends Cubit<VisionState> {
   VisionCubit({
@@ -119,7 +118,7 @@ class VisionCubit extends Cubit<VisionState> {
         await _sound.play(SoundCue.processing);
       }
 
-      AppSetting? settings;
+      AppSettingEntity? settings;
       try {
         settings = await _settingsRepo.getSettings();
       } catch (_) {}
@@ -238,7 +237,7 @@ class VisionCubit extends Cubit<VisionState> {
     }
   }
 
-  String _buildPromptForMode(VisionMode mode, AppSetting? settings) {
+  String _buildPromptForMode(VisionMode mode, AppSettingEntity? settings) {
     final isDetailed = settings?.visionInspectionDetail == 'detailed';
     final currencyPref = settings?.preferredCurrency ?? 'USD / Local';
 

@@ -1,6 +1,6 @@
-// lib/preferences/cubit/preferences_state.dart
+// lib/mobile/preferences/cubit/preferences_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 enum PreferencesStatus { initial, loading, success, error }
 
@@ -12,7 +12,7 @@ class PreferencesState extends Equatable {
   });
 
   final PreferencesStatus status;
-  final AppSetting? settings;
+  final AppSettingEntity? settings; // ✅ استخدام الكيان النقي
   final String? errorMessage;
 
   // ===========================================================================
@@ -43,7 +43,7 @@ class PreferencesState extends Equatable {
 
   PreferencesState copyWith({
     PreferencesStatus? status,
-    AppSetting? settings,
+    AppSettingEntity? settings,
     String? errorMessage,
   }) {
     return PreferencesState(

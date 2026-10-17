@@ -1,6 +1,6 @@
 // lib/tv/cards/agenda/cubit/tv_agenda_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 enum TvAgendaStatus { initial, loading, success, error }
 
@@ -12,7 +12,7 @@ class TvAgendaState extends Equatable {
   });
 
   final TvAgendaStatus status;
-  final List<Task> tasks;
+  final List<TaskEntity> tasks; // ✅
   final String? errorMessage;
 
   bool get isEmpty => tasks.isEmpty;
@@ -20,7 +20,7 @@ class TvAgendaState extends Equatable {
 
   TvAgendaState copyWith({
     TvAgendaStatus? status,
-    List<Task>? tasks,
+    List<TaskEntity>? tasks,
     String? errorMessage,
   }) {
     return TvAgendaState(

@@ -1,11 +1,10 @@
-﻿// lib/desktop/cubit/desktop_agenda_cubit.dart
+﻿// lib/desktop/agenda/cubit/desktop_agenda_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_state.dart';
 import 'package:bloc/bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
   DesktopAgendaCubit({
@@ -16,8 +15,8 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
   }
 
   final TaskAgendaRepository _taskRepo;
-  StreamSubscription<List<Task>>? _tasksSub;
-  StreamSubscription<List<VoiceMemo>>? _memosSub;
+  StreamSubscription<List<TaskEntity>>? _tasksSub;
+  StreamSubscription<List<VoiceMemoEntity>>? _memosSub;
 
   void _initStreams() {
     emit(state.copyWith(status: DesktopAgendaStatus.loading));
@@ -85,7 +84,7 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
     }
   }
 
-  Future<void> toggleTask(Task task) async {
+  Future<void> toggleTask(TaskEntity task) async {
     try {
       await _taskRepo.toggleTask(task);
     } catch (e) {
@@ -93,7 +92,7 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
     }
   }
 
-  Future<void> deleteTask(Task task) async {
+  Future<void> deleteTask(TaskEntity task) async {
     try {
       await _taskRepo.deleteTask(task.id);
     } catch (e) {
@@ -101,7 +100,7 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
     }
   }
 
-  Future<void> updateTaskPriority(Task task, String newPriority) async {
+  Future<void> updateTaskPriority(TaskEntity task, String newPriority) async {
     try {
       await _taskRepo.updateTask(
         taskId: task.id,
@@ -130,7 +129,7 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
     }
   }
 
-  Future<void> deleteMemo(VoiceMemo memo) async {
+  Future<void> deleteMemo(VoiceMemoEntity memo) async {
     try {
       await _taskRepo.deleteMemo(memo.id);
     } catch (e) {

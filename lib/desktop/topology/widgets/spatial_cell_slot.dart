@@ -1,9 +1,10 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/topology/widgets/spatial_cell_slot.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 extension on String {
   IconData get moduleIcon {
@@ -30,7 +31,7 @@ class SpatialCellSlot extends StatefulWidget {
   final int x;
   final int y;
   final bool isCenter;
-  final SpatialNode? node;
+  final SpatialNodeEntity? node;
   final bool isSelected;
 
   @override
@@ -45,7 +46,7 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
     final colors = context.colors;
     final cubit = context.read<DesktopTopologyCubit>();
 
-    return DragTarget<SpatialNode>(
+    return DragTarget<SpatialNodeEntity>(
       onWillAcceptWithDetails: (details) => details.data.id != widget.node?.id,
       onAcceptWithDetails: (details) {
         cubit.moveNode(
@@ -126,13 +127,13 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
     );
   }
 
-  Widget _buildDraggableRoomCard(BuildContext context, SpatialNode node) {
+  Widget _buildDraggableRoomCard(BuildContext context, SpatialNodeEntity node) {
     final colors = context.colors;
     final cubit = context.read<DesktopTopologyCubit>();
     final icon = node.moduleId.moduleIcon;
     final title = node.customTitle ?? node.moduleId.defaultTitle;
 
-    return Draggable<SpatialNode>(
+    return Draggable<SpatialNodeEntity>(
       data: node,
       feedback: Material(
         color: Colors.transparent,
@@ -185,7 +186,7 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
 
   Widget _buildRoomCardContent(
     BuildContext context,
-    SpatialNode node,
+    SpatialNodeEntity node,
     IconData icon,
     String title,
   ) {

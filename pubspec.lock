@@ -700,7 +700,7 @@ packages:
     source: hosted
     version: "3.0.2"
   local_vault_api:
-    dependency: "direct main"
+    dependency: transitive
     description:
       path: "packages/local_vault_api"
       relative: true

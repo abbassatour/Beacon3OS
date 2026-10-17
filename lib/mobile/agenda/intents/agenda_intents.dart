@@ -1,9 +1,8 @@
-// lib/agenda/intents/agenda_intents.dart
+// lib/mobile/agenda/intents/agenda_intents.dart
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 /// معالج قراءة واستعراض المهام والأولويات
 class ReadTasksIntentHandler extends VoiceIntentHandler {
@@ -89,13 +88,11 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
     final params = intentContext.llmParameters;
     String taskTitle = '';
 
-    // 1. استخراج العنوان من المسار السريع
     final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
     if (match != null && match.groupCount >= 1) {
       taskTitle = match.group(1)?.trim() ?? '';
     }
 
-    // 2. استخراج العنوان من معطيات الذكاء الاصطناعي
     if (taskTitle.isEmpty && params.containsKey('title')) {
       taskTitle = params['title'] as String? ?? '';
     }
@@ -107,7 +104,6 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    // 3. تحديد الأولوية
     String priority = 'medium';
     if (params.containsKey('priority') && params['priority'] is String) {
       priority = (params['priority'] as String).toLowerCase();
@@ -122,7 +118,6 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
           .trim();
     }
 
-    // 4. استخراج موعد الاستحقاق إن وُجد
     DateTime? dueDate;
     if (params.containsKey('due_date') && params['due_date'] != null) {
       dueDate = DateTime.tryParse(params['due_date'].toString());
@@ -256,7 +251,7 @@ class CompleteTaskIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    Task? matchedTask;
+    TaskEntity? matchedTask; // ✅ استخدام الكيان النقي
     final taskId = params['task_id'] as String?;
     if (taskId != null && taskId.isNotEmpty) {
       matchedTask = pending.where((t) => t.id == taskId).firstOrNull;
@@ -328,7 +323,7 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
 
     final pending = await tasksRepo.getPendingTasks();
 
-    Task? matchedTask;
+    TaskEntity? matchedTask; // ✅ استخدام الكيان النقي
     final taskId = params['task_id'] as String?;
     if (taskId != null && taskId.isNotEmpty) {
       matchedTask = pending.where((t) => t.id == taskId).firstOrNull;
@@ -360,7 +355,7 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
   }
 }
 
-/// معالج تعديل بيانات المهمة (الأولوية، العنوان، الموعد)
+/// معالج تعديل بيانات المهمة
 class UpdateTaskIntentHandler extends VoiceIntentHandler {
   @override
   String get intentId => 'UPDATE_TASK';
@@ -404,7 +399,7 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
 
     final pending = await tasksRepo.getPendingTasks();
 
-    Task? targetTask;
+    TaskEntity? targetTask; // ✅ استخدام الكيان النقي
     if (taskId != null && taskId.isNotEmpty) {
       targetTask = await tasksRepo.getTaskById(taskId);
     }
@@ -492,7 +487,7 @@ class DeleteMemoIntentHandler extends VoiceIntentHandler {
     final memoId = params['memo_id'] as String?;
     final memos = await tasksRepo.watchMemos().first;
 
-    VoiceMemo? targetMemo;
+    VoiceMemoEntity? targetMemo; // ✅ استخدام الكيان النقي
     if (memoId != null && memoId.isNotEmpty) {
       targetMemo = memos.where((m) => m.id == memoId).firstOrNull;
     }

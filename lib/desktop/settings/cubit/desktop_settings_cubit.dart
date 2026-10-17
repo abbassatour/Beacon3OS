@@ -1,12 +1,10 @@
-﻿// lib/desktop/cubit/desktop_settings_cubit.dart
+﻿// lib/desktop/settings/cubit/desktop_settings_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:bloc/bloc.dart';
-import 'package:drift/drift.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
@@ -32,7 +30,7 @@ class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
   final CommsRepository _commsRepo;
   final TopologyRepository _topologyRepo;
 
-  StreamSubscription<AppSetting>? _settingsSub;
+  StreamSubscription<AppSettingEntity>? _settingsSub; // ✅ كيان نقي
 
   void _initStream() {
     emit(state.copyWith(status: DesktopSettingsStatus.loading));
@@ -72,27 +70,26 @@ class DesktopSettingsCubit extends Cubit<DesktopSettingsState> {
     }
   }
 
-  Future<void> updateSetting(AppSettingsCompanion companion) async {
+  Future<void> updateSetting(AppSettingUpdatePayload payload) async {
     try {
-      await _settingsRepo.updateSettings(companion);
+      await _settingsRepo.updateSettings(payload);
     } catch (e) {
       log('DesktopSettingsCubit: Error updating setting: $e');
     }
   }
 
   Future<void> setPersona(String persona) async {
-    await updateSetting(AppSettingsCompanion(userPersona: Value(persona)));
+    await updateSetting(AppSettingUpdatePayload(userPersona: persona));
   }
 
   Future<void> setHighContrast(bool enabled) async {
-    await updateSetting(AppSettingsCompanion(isHighContrast: Value(enabled)));
+    await updateSetting(AppSettingUpdatePayload(isHighContrast: enabled));
   }
 
   Future<void> setSpeechRate(double rate) async {
-    await updateSetting(AppSettingsCompanion(speechRate: Value(rate)));
+    await updateSetting(AppSettingUpdatePayload(speechRate: rate));
   }
 
-  /// Ø¥Ø¬Ø¨Ø§Ø± Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø© Ø§Ù„Ø«Ù†Ø§Ø¦ÙŠØ© Ø§Ù„ÙƒØ§Ù…Ù„Ø© Ø¹Ø¨Ø± ÙƒØ§ÙØ© Ø§Ù„Ù…Ø³ØªÙˆØ¯Ø¹Ø§Øª
   Future<void> forceFullSync() async {
     if (state.isSyncing) return;
 

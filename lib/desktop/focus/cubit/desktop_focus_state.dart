@@ -1,6 +1,6 @@
-﻿// lib/desktop/cubit/desktop_focus_state.dart
+﻿// lib/desktop/focus/cubit/desktop_focus_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum DesktopFocusStatus { initial, loading, success, error }
 enum DesktopTimerStatus { idle, running, paused }
@@ -20,33 +20,33 @@ class DesktopFocusState extends Equatable {
   final DesktopTimerStatus timerStatus;
   final int selectedDurationMinutes;
   final int remainingSeconds;
-  final List<Alarm> alarms;
-  final List<FocusSession> todaySessions;
+  final List<AlarmEntity> alarms;
+  final List<FocusSessionEntity> todaySessions;
   final String? errorMessage;
 
   bool get isRunning => timerStatus == DesktopTimerStatus.running;
   bool get isPaused => timerStatus == DesktopTimerStatus.paused;
 
-  /// Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø¯Ù‚Ø§Ø¦Ù‚ Ø§Ù„ØªØ±ÙƒÙŠØ² Ø§Ù„Ù…Ù†Ø¬Ø²Ø© Ø§Ù„ÙŠÙˆÙ…
+  /// إجمالي دقائق التركيز المنجزة اليوم
   int get totalFocusMinutesToday =>
       todaySessions.fold<int>(0, (sum, s) => sum + s.durationMinutes);
 
-  /// Ù†Ø³Ø¨Ø© ØªÙ‚Ø¯Ù… Ø§Ù„Ù…Ø¤Ù‚Øª Ù…Ù† 0.0 Ø¥Ù„Ù‰ 1.0
+  /// نسبة تقدم المؤقت من 0.0 إلى 1.0
   double get progress {
     final totalSec = selectedDurationMinutes * 60;
     if (totalSec == 0) return 0.0;
     return (1.0 - (remainingSeconds / totalSec)).clamp(0.0, 1.0);
   }
 
-  /// Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ Ø¨ØµÙŠØºØ© MM:SS
+  /// الوقت المتبقي بصيغة MM:SS
   String get formattedRemainingTime {
     final mins = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
     final secs = (remainingSeconds % 60).toString().padLeft(2, '0');
     return '$mins:$secs';
   }
 
-  /// Ø§Ù„Ù…Ù†Ø¨Ù‡ Ø§Ù„Ù†Ø´Ø· Ø§Ù„Ù‚Ø§Ø¯Ù… Ø§Ù„Ø£Ù‚Ø±Ø¨ Ø²Ù…Ù†ÙŠØ§Ù‹
-  Alarm? get nextUpcomingAlarm {
+  /// المنبه النشط القادم الأقرب زمنياً
+  AlarmEntity? get nextUpcomingAlarm {
     final active = alarms.where((a) => a.isActive).toList();
     if (active.isEmpty) return null;
 
@@ -71,8 +71,8 @@ class DesktopFocusState extends Equatable {
     DesktopTimerStatus? timerStatus,
     int? selectedDurationMinutes,
     int? remainingSeconds,
-    List<Alarm>? alarms,
-    List<FocusSession>? todaySessions,
+    List<AlarmEntity>? alarms,
+    List<FocusSessionEntity>? todaySessions,
     String? errorMessage,
   }) {
     return DesktopFocusState(

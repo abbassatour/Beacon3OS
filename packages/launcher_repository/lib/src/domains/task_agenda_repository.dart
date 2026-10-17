@@ -3,12 +3,16 @@ import 'dart:developer';
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:local_vault_api/local_vault_api.dart' as db;
+
+import '../models/task_entity.dart';
+import '../models/voice_memo_entity.dart';
+import '../mappers/agenda_mapper.dart';
 
 abstract class TaskAgendaRepository {
-  Stream<List<Task>> watchTasks();
-  Future<List<Task>> getPendingTasks();
-  Future<Task?> getTaskById(String taskId);
+  Stream<List<TaskEntity>> watchTasks();
+  Future<List<TaskEntity>> getPendingTasks();
+  Future<TaskEntity?> getTaskById(String taskId);
   Future<String> createTask({
     required String title,
     DateTime? dueDate,
@@ -21,37 +25,48 @@ abstract class TaskAgendaRepository {
     String? priority,
     bool clearDueDate = false,
   });
-  Future<void> toggleTask(Task task);
+  Future<void> toggleTask(TaskEntity task);
   Future<void> deleteTask(dynamic taskOrId);
 
-  Stream<List<VoiceMemo>> watchMemos();
+  Stream<List<VoiceMemoEntity>> watchMemos();
   Future<String> createMemo({
     required String title,
     required String content,
   });
   Future<void> deleteMemo(dynamic memoOrId);
+  
   Future<void> restoreTasksAndMemosFromCloud();
   Future<void> syncPendingTasksAndMemos();
 }
 
 class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
   TaskAgendaRepositoryImpl({
-    required AppDatabase database,
+    required db.AppDatabase database,
     required CloudSyncClient cloudSync,
   })  : _db = database,
         _cloud = cloudSync;
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   final CloudSyncClient _cloud;
 
   @override
-  Stream<List<Task>> watchTasks() => _db.watchAllTasks();
+  Stream<List<TaskEntity>> watchTasks() {
+    return _db.watchAllTasks().map(
+          (driftTasks) => driftTasks.map((t) => t.toEntity()).toList(),
+        );
+  }
 
   @override
-  Future<List<Task>> getPendingTasks() => _db.getPendingTasks();
+  Future<List<TaskEntity>> getPendingTasks() async {
+    final driftTasks = await _db.getPendingTasks();
+    return driftTasks.map((t) => t.toEntity()).toList();
+  }
 
   @override
-  Future<Task?> getTaskById(String taskId) => _db.getTaskById(taskId);
+  Future<TaskEntity?> getTaskById(String taskId) async {
+    final driftTask = await _db.getTaskById(taskId);
+    return driftTask?.toEntity();
+  }
 
   @override
   Future<String> createTask({
@@ -87,7 +102,6 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
     String? priority,
     bool clearDueDate = false,
   }) async {
-    // 1. التحديث الفوري محلياً في Drift (Offline-First)
     await _db.updateTaskDetails(
       taskId: taskId,
       title: title,
@@ -96,7 +110,6 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
       clearDueDate: clearDueDate,
     );
 
-    // 2. مزامنة التعديل سحابياً مع Supabase
     final updated = await _db.getTaskById(taskId);
     if (updated != null) {
       _cloud
@@ -114,7 +127,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
   }
 
   @override
-  Future<void> toggleTask(Task task) async {
+  Future<void> toggleTask(TaskEntity task) async {
     final nextStatus = !task.isCompleted;
     await _db.toggleTaskCompletion(task.id, nextStatus);
 
@@ -133,7 +146,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
 
   @override
   Future<void> deleteTask(dynamic taskOrId) async {
-    final String id = taskOrId is Task ? taskOrId.id : taskOrId.toString();
+    final String id = taskOrId is TaskEntity ? taskOrId.id : taskOrId.toString();
     await _db.softDeleteTask(id);
 
     _cloud.softDeleteTaskInCloud(id).catchError((Object error) {
@@ -142,7 +155,11 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
   }
 
   @override
-  Stream<List<VoiceMemo>> watchMemos() => _db.watchRecentMemos();
+  Stream<List<VoiceMemoEntity>> watchMemos() {
+    return _db.watchRecentMemos().map(
+          (driftMemos) => driftMemos.map((m) => m.toEntity()).toList(),
+        );
+  }
 
   @override
   Future<String> createMemo({
@@ -162,7 +179,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
 
   @override
   Future<void> deleteMemo(dynamic memoOrId) async {
-    final String id = memoOrId is VoiceMemo ? memoOrId.id : memoOrId.toString();
+    final String id = memoOrId is VoiceMemoEntity ? memoOrId.id : memoOrId.toString();
     await _db.softDeleteMemo(id);
 
     _cloud.softDeleteMemoInCloud(id).catchError((Object error) {
@@ -181,7 +198,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
           due = DateTime.tryParse(t['due_date'] as String);
         }
         await _db.into(_db.tasks).insert(
-              TasksCompanion.insert(
+              db.TasksCompanion.insert(
                 id: t['id'] as String,
                 title: t['title'] as String,
                 dueDate: Value(due),
@@ -218,7 +235,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
             isCompleted: t.isCompleted,
           );
           await (_db.update(_db.tasks)..where((tbl) => tbl.id.equals(t.id)))
-              .write(const TasksCompanion(isSynced: Value(true)));
+              .write(const db.TasksCompanion(isSynced: Value(true)));
         }
       }
 
@@ -232,7 +249,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
         } else {
           await _cloud.syncMemo(id: m.id, title: m.title, content: m.content);
           await (_db.update(_db.voiceMemos)..where((tbl) => tbl.id.equals(m.id)))
-              .write(const VoiceMemosCompanion(isSynced: Value(true)));
+              .write(const db.VoiceMemosCompanion(isSynced: Value(true)));
         }
       }
     } catch (e) {

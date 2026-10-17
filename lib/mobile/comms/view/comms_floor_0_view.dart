@@ -7,7 +7,6 @@ import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 /// واجهة الطابق الأرضي للتواصل والرادار (Floor 0: Communications & Safety Radar)
 class CommsFloor0View extends StatelessWidget {
@@ -392,7 +391,7 @@ class CommsFloor0View extends StatelessWidget {
 
   Widget _buildDismissibleEmergencyCard(
     BuildContext context,
-    Contact contact,
+    ContactEntity contact,
     CommsCubit cubit,
   ) {
     final colors = context.colors;
@@ -495,7 +494,7 @@ class CommsFloor0View extends StatelessWidget {
 
   Widget _buildMessageTile(
     BuildContext context,
-    MessagesVaultData msg,
+    MessageEntity msg,
     CommsCubit cubit,
   ) {
     final colors = context.colors;
@@ -588,7 +587,7 @@ class CommsFloor0View extends StatelessWidget {
 
   Widget _buildDismissibleRegularCard(
     BuildContext context,
-    Contact contact,
+    ContactEntity contact,
     CommsCubit cubit,
   ) {
     final colors = context.colors;

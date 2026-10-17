@@ -1,14 +1,15 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/agenda/widgets/completed_tasks_column.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_cubit.dart';
 import 'package:beacon_os/desktop/agenda/widgets/board_column_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class CompletedTasksColumn extends StatelessWidget {
   const CompletedTasksColumn({required this.tasks, super.key});
 
-  final List<Task> tasks;
+  final List<TaskEntity> tasks; // ✅
 
   @override
   Widget build(BuildContext context) {

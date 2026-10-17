@@ -1,15 +1,16 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/agenda/widgets/memos_column.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_cubit.dart';
 import 'package:beacon_os/desktop/agenda/widgets/board_column_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class MemosColumn extends StatelessWidget {
   const MemosColumn({required this.memos, super.key});
 
-  final List<VoiceMemo> memos;
+  final List<VoiceMemoEntity> memos; // ✅
 
   @override
   Widget build(BuildContext context) {

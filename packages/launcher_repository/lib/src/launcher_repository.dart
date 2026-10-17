@@ -23,6 +23,17 @@ export 'domains/settings_repository.dart';
 export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
 export 'domains/topology_repository.dart';
+
+export 'models/app_setting_entity.dart';
+export 'models/task_entity.dart';
+export 'models/voice_memo_entity.dart';
+export 'models/alarm_entity.dart';
+export 'models/focus_session_entity.dart';
+export 'models/contact_entity.dart';
+export 'models/message_entity.dart';
+export 'models/spatial_node_entity.dart';
+export 'models/ring_device_entity.dart'; // 👈 الكيان الجديد
+export 'models/ring_event_entity.dart';  // 👈 الكيان الجديد
 export 'models/remote_action_event.dart';
 
 class LauncherCommandResult {

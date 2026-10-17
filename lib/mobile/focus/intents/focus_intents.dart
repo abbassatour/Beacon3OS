@@ -1,9 +1,8 @@
-// lib/focus/intents/focus_intents.dart
+// lib/mobile/focus/intents/focus_intents.dart
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 /// معالج ضبط وبرمجة المنبهات
 class SetAlarmIntentHandler extends VoiceIntentHandler {
@@ -44,7 +43,6 @@ class SetAlarmIntentHandler extends VoiceIntentHandler {
     int? hour;
     int? minute;
 
-    // 1. استخراج الساعة والدقيقة مباشرة إن تم تمريرهما كأرقام
     if (params.containsKey('hour') && params['hour'] != null) {
       hour = int.tryParse(params['hour'].toString());
     }
@@ -52,7 +50,6 @@ class SetAlarmIntentHandler extends VoiceIntentHandler {
       minute = int.tryParse(params['minute'].toString());
     }
 
-    // 2. تحليل معيار time النصي من الذكاء الاصطناعي
     if (hour == null &&
         params.containsKey('time') &&
         params['time'] is String) {
@@ -71,7 +68,6 @@ class SetAlarmIntentHandler extends VoiceIntentHandler {
       }
     }
 
-    // 3. تحليل الوقت من نص المسار السريع إذا لم يحدده الـ LLM
     if (hour == null) {
       final match = RegExp(r'(\d{1,2})(?::(\d{2}))?').firstMatch(query);
       if (match != null) {
@@ -154,7 +150,7 @@ class ToggleAlarmIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    Alarm? targetAlarm;
+    AlarmEntity? targetAlarm; // ✅
     final alarmId = params['alarm_id'] as String?;
     if (alarmId != null && alarmId.isNotEmpty) {
       targetAlarm = alarmList.where((a) => a.id == alarmId).firstOrNull;
@@ -246,7 +242,7 @@ class DeleteAlarmIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    Alarm? targetAlarm;
+    AlarmEntity? targetAlarm; // ✅
     final alarmId = params['alarm_id'] as String?;
     if (alarmId != null && alarmId.isNotEmpty) {
       targetAlarm = alarmList.where((a) => a.id == alarmId).firstOrNull;

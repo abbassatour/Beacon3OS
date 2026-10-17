@@ -1,6 +1,6 @@
 // lib/tv/cards/alarms/cubit/tv_alarms_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum TvAlarmsStatus { initial, loading, success, error }
 
@@ -13,16 +13,16 @@ class TvAlarmsState extends Equatable {
   });
 
   final TvAlarmsStatus status;
-  final List<Alarm> alarms;
-  final Alarm? nextAlarm;
+  final List<AlarmEntity> alarms;
+  final AlarmEntity? nextAlarm;
   final String? errorMessage;
 
   bool get hasUpcomingAlarm => nextAlarm != null;
 
   TvAlarmsState copyWith({
     TvAlarmsStatus? status,
-    List<Alarm>? alarms,
-    Alarm? nextAlarm,
+    List<AlarmEntity>? alarms,
+    AlarmEntity? nextAlarm,
     bool clearNextAlarm = false,
     String? errorMessage,
   }) {

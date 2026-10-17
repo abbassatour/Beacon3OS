@@ -1,7 +1,8 @@
+// lib/mobile/agenda/widgets/dismissible_task_card.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class DismissibleTaskCard extends StatelessWidget {
   const DismissibleTaskCard({
@@ -12,7 +13,7 @@ class DismissibleTaskCard extends StatelessWidget {
     super.key,
   });
 
-  final Task task;
+  final TaskEntity task; // ✅ الكيان النقي
   final VoidCallback onDismissed;
   final VoidCallback onToggle;
   final VoidCallback onReadAloud;

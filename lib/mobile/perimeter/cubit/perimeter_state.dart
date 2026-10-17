@@ -1,6 +1,6 @@
 // lib/mobile/perimeter/cubit/perimeter_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 enum PerimeterStatus {
   initial,
@@ -25,8 +25,8 @@ class PerimeterState extends Equatable {
   });
 
   final PerimeterStatus status;
-  final List<RingDeviceEntry> devices;
-  final List<RingEventEntry> recentEvents;
+  final List<RingDeviceEntity> devices;
+  final List<RingEventEntity> recentEvents;
   final String? selectedDeviceId;
   final String? liveInspectionText;
   final bool isTwoWayAudioActive;
@@ -38,7 +38,7 @@ class PerimeterState extends Equatable {
   bool get isSpeaking => status == PerimeterStatus.speaking;
 
   /// الكاميرا المحددة حالياً للمعاينة في الواجهة
-  RingDeviceEntry? get selectedDevice {
+  RingDeviceEntity? get selectedDevice {
     if (devices.isEmpty) return null;
     if (selectedDeviceId == null) return devices.first;
     return devices.where((d) => d.id == selectedDeviceId).firstOrNull ??
@@ -46,22 +46,22 @@ class PerimeterState extends Equatable {
   }
 
   /// كاميرا جرس الباب الأمامي
-  RingDeviceEntry? get frontDoorCamera {
+  RingDeviceEntity? get frontDoorCamera {
     return devices.where((d) => d.location == 'frontDoor').firstOrNull;
   }
 
   /// كاميرا الحديقة الخلفية
-  RingDeviceEntry? get backyardCamera {
+  RingDeviceEntity? get backyardCamera {
     return devices.where((d) => d.location == 'backyard').firstOrNull;
   }
 
   /// كاميرا الحضانة / غرفة الأطفال
-  RingDeviceEntry? get nurseryCamera {
+  RingDeviceEntity? get nurseryCamera {
     return devices.where((d) => d.location == 'nursery').firstOrNull;
   }
 
   /// كاميرا المرآب / مدخل السيارات
-  RingDeviceEntry? get garageCamera {
+  RingDeviceEntity? get garageCamera {
     return devices.where((d) => d.location == 'garage').firstOrNull;
   }
 
@@ -71,8 +71,8 @@ class PerimeterState extends Equatable {
 
   PerimeterState copyWith({
     PerimeterStatus? status,
-    List<RingDeviceEntry>? devices,
-    List<RingEventEntry>? recentEvents,
+    List<RingDeviceEntity>? devices,
+    List<RingEventEntity>? recentEvents,
     String? selectedDeviceId,
     String? liveInspectionText,
     bool clearInspectionText = false,

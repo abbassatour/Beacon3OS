@@ -5,6 +5,7 @@ import 'package:beacon_os/core/topology/spatial_coordinate.dart';
 import 'package:beacon_os/core/topology/spatial_direction.dart';
 import 'package:beacon_os/core/topology/spatial_module.dart';
 import 'package:beacon_os/core/topology/spatial_module_registry.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 /// خريطة الطوبولوجيا المكانية الديناميكية والتفاعلية لنظام التشغيل
 class SpatialTopology {
@@ -100,7 +101,7 @@ class SpatialTopology {
   }
 
   /// 🎯 تحديث خريطة الطوبولوجيا ديناميكياً من السجل المركزي دون أي فحص نصي ثابت
-  void updateFromNodes(List<dynamic> nodes) {
+  void updateFromNodes(List<SpatialNodeEntity> nodes) {
     final registry = SpatialModuleRegistry.instance;
 
     // تفريغ الشبكتين تماماً لضمان المحاذاة مع أحدث حالة لقاعدة البيانات
@@ -108,11 +109,11 @@ class SpatialTopology {
     _customTitles.clear();
 
     for (final node in nodes) {
-      final moduleId = (node.moduleId as String?) ?? '';
-      final x = (node.x as int?) ?? 0;
-      final y = (node.y as int?) ?? 0;
-      final floor = (node.floorLevel as int?) ?? 0;
-      final customTitle = (node.customTitle as String?)?.trim();
+      final moduleId = node.moduleId;
+      final x = node.x;
+      final y = node.y;
+      final floor = node.floorLevel;
+      final customTitle = node.customTitle?.trim();
 
       // 🌟 استدعاء الموديول مباشرة من السجل المركزي (يدعم أي موديول جديد تلقائياً)
       final module = registry.get(moduleId);

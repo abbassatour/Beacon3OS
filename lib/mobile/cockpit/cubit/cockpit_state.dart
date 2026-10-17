@@ -1,6 +1,6 @@
-// lib/cockpit/cubit/cockpit_state.dart
+// lib/mobile/cockpit/cubit/cockpit_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ النقاء التام
 
 enum CockpitStatus { initial, loading, success, error }
 
@@ -16,15 +16,14 @@ class CockpitState extends Equatable {
   });
 
   final CockpitStatus status;
-  final List<Alarm> alarms;
-  final List<Task> tasks;
-  final List<VoiceMemo> memos;
+  final List<AlarmEntity> alarms; // ✅
+  final List<TaskEntity> tasks;
+  final List<VoiceMemoEntity> memos;
   final String batteryStatus;
   final bool isBriefingPlaying;
   final String? errorMessage;
 
-  /// المهام قيد الإنجاز اليوم مرتبة حسب الأولوية الصارمة (High -> Medium -> Low) ثم موعد الاستحقاق
-  List<Task> get pendingTasks {
+  List<TaskEntity> get pendingTasks {
     final pending = tasks.where((t) => !t.isCompleted).toList();
     pending.sort((a, b) {
       const priorityWeight = {'high': 0, 'medium': 1, 'low': 2};
@@ -42,8 +41,7 @@ class CockpitState extends Equatable {
     return pending;
   }
 
-  /// المنبه النشط القادم الأقرب زمنياً في المستقبل (مع حساب دورة الـ 24 ساعة بدقة)
-  Alarm? get nextAlarm {
+  AlarmEntity? get nextAlarm { // ✅
     final active = alarms.where((a) => a.isActive).toList();
     if (active.isEmpty) return null;
 
@@ -52,7 +50,7 @@ class CockpitState extends Equatable {
 
     active.sort((a, b) {
       var diffA = (a.hour * 60 + a.minute) - currentMinutes;
-      if (diffA <= 0) diffA += 24 * 60; // إذا انقضى وقته اليوم، فالرنين القادم غداً
+      if (diffA <= 0) diffA += 24 * 60; 
 
       var diffB = (b.hour * 60 + b.minute) - currentMinutes;
       if (diffB <= 0) diffB += 24 * 60;
@@ -63,14 +61,13 @@ class CockpitState extends Equatable {
     return active.first;
   }
 
-  /// أحدث مذكرة أو ملاحظة تم تدوينها
-  VoiceMemo? get latestMemo => memos.isNotEmpty ? memos.first : null;
+  VoiceMemoEntity? get latestMemo => memos.isNotEmpty ? memos.first : null;
 
   CockpitState copyWith({
     CockpitStatus? status,
-    List<Alarm>? alarms,
-    List<Task>? tasks,
-    List<VoiceMemo>? memos,
+    List<AlarmEntity>? alarms,
+    List<TaskEntity>? tasks,
+    List<VoiceMemoEntity>? memos,
     String? batteryStatus,
     bool? isBriefingPlaying,
     String? errorMessage,

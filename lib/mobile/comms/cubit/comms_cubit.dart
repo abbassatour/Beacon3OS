@@ -4,10 +4,9 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
-import 'package:beacon_os/mobile/comms/cubit/comms_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/comms/cubit/comms_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class CommsCubit extends Cubit<CommsState> {
   CommsCubit({
@@ -31,7 +30,7 @@ class CommsCubit extends Cubit<CommsState> {
   final HapticManager _haptics;
   final SoundController _sound;
 
-  StreamSubscription<List<Contact>>? _contactsSubscription;
+  StreamSubscription<List<ContactEntity>>? _contactsSubscription;
 
   void _initStreams() {
     emit(state.copyWith(status: CommsStatus.loading));
@@ -58,14 +57,14 @@ class CommsCubit extends Cubit<CommsState> {
     );
   }
 
-  Future<void> callContact(Contact contact) async {
+  Future<void> callContact(ContactEntity contact) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.navCenter);
     await _assistant.speak('Calling ${contact.name}');
     await _hardwareRepo.callPhoneNumber(contact.phoneNumber);
   }
 
-  Future<void> readContactDetailsAloud(Contact contact) async {
+  Future<void> readContactDetailsAloud(ContactEntity contact) async {
     await _haptics.successNotification();
     final relation = contact.relationship != null
         ? 'Relationship: ${contact.relationship}.'
@@ -77,7 +76,7 @@ class CommsCubit extends Cubit<CommsState> {
     );
   }
 
-  Future<void> readMessageAloud(MessagesVaultData message) async {
+  Future<void> readMessageAloud(MessageEntity message) async {
     await _haptics.successNotification();
     await _sound.play(SoundCue.processing);
 
@@ -114,7 +113,7 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  Future<void> deleteContact(Contact contact) async {
+  Future<void> deleteContact(ContactEntity contact) async {
     try {
       await _commsRepo.deleteContact(contact.id);
       await _haptics.successNotification();

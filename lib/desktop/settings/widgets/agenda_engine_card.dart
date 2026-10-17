@@ -1,11 +1,11 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/widgets/agenda_engine_card.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/settings_card.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class AgendaEngineCard extends StatelessWidget {
   const AgendaEngineCard({required this.state, super.key});
@@ -41,7 +41,7 @@ class AgendaEngineCard extends StatelessWidget {
                 onChanged: (val) {
                   if (val != null) {
                     cubit.updateSetting(
-                      AppSettingsCompanion(defaultPriority: drift.Value(val)),
+                      AppSettingUpdatePayload(defaultPriority: val),
                     );
                   }
                 },
@@ -62,7 +62,7 @@ class AgendaEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.autoArchiveCompleted,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(autoArchiveCompleted: drift.Value(val)),
+              AppSettingUpdatePayload(autoArchiveCompleted: val),
             ),
           ),
           const Divider(),
@@ -79,7 +79,7 @@ class AgendaEngineCard extends StatelessWidget {
             activeColor: colors.primary,
             value: state.speakDueDatesAloud,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(speakDueDatesAloud: drift.Value(val)),
+              AppSettingUpdatePayload(speakDueDatesAloud: val),
             ),
           ),
         ],

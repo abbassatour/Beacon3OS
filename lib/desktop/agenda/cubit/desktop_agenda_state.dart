@@ -1,6 +1,6 @@
-﻿// lib/desktop/cubit/desktop_agenda_state.dart
+﻿// lib/desktop/agenda/cubit/desktop_agenda_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 enum DesktopAgendaStatus { initial, loading, success, error }
 
@@ -15,14 +15,14 @@ class DesktopAgendaState extends Equatable {
   });
 
   final DesktopAgendaStatus status;
-  final List<Task> tasks;
-  final List<VoiceMemo> memos;
+  final List<TaskEntity> tasks; // ✅ الكيان النقي
+  final List<VoiceMemoEntity> memos; // ✅ الكيان النقي
   final String searchQuery;
-  final String priorityFilter; // 'all', 'high', 'medium', 'low'
+  final String priorityFilter; 
   final String? errorMessage;
 
-  /// Ø§Ù„Ù…Ù‡Ø§Ù… Ù‚ÙŠØ¯ Ø§Ù„Ø¥Ù†Ø¬Ø§Ø² Ù…ÙÙ„ØªØ±Ø© ÙˆÙ…Ø±ØªØ¨Ø© Ø¨Ø¯Ù‚Ø©
-  List<Task> get pendingTasks {
+  /// المهام قيد الإنجاز مفلترة ومرتبة
+  List<TaskEntity> get pendingTasks {
     final pending = tasks.where((t) => !t.isCompleted).toList();
 
     return pending.where((task) {
@@ -47,8 +47,8 @@ class DesktopAgendaState extends Equatable {
       });
   }
 
-  /// Ø§Ù„Ù…Ù‡Ø§Ù… Ø§Ù„Ù…ÙƒØªÙ…Ù„Ø© Ù…ÙÙ„ØªØ±Ø© ÙˆÙ…Ø±ØªØ¨Ø© Ù…Ù† Ø§Ù„Ø£Ø­Ø¯Ø« Ø¥Ù†Ø¬Ø§Ø²Ø§Ù‹
-  List<Task> get completedTasks {
+  /// المهام المكتملة
+  List<TaskEntity> get completedTasks {
     final completed = tasks.where((t) => t.isCompleted).toList();
 
     return completed.where((task) {
@@ -58,8 +58,8 @@ class DesktopAgendaState extends Equatable {
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
-  /// Ø§Ù„Ù…Ø°ÙƒØ±Ø§Øª Ø§Ù„ØµÙˆØªÙŠØ© Ù…ÙÙ„ØªØ±Ø© ÙˆÙ…Ø±ØªØ¨Ø© Ù…Ù† Ø§Ù„Ø£Ø­Ø¯Ø« Ø¥Ù„Ù‰ Ø§Ù„Ø£Ù‚Ø¯Ù…
-  List<VoiceMemo> get filteredMemos {
+  /// المذكرات الصوتية
+  List<VoiceMemoEntity> get filteredMemos {
     return memos.where((memo) {
       if (searchQuery.isEmpty) return true;
       final q = searchQuery.toLowerCase();
@@ -71,8 +71,8 @@ class DesktopAgendaState extends Equatable {
 
   DesktopAgendaState copyWith({
     DesktopAgendaStatus? status,
-    List<Task>? tasks,
-    List<VoiceMemo>? memos,
+    List<TaskEntity>? tasks,
+    List<VoiceMemoEntity>? memos,
     String? searchQuery,
     String? priorityFilter,
     String? errorMessage,

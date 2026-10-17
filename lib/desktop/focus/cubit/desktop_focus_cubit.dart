@@ -1,11 +1,10 @@
-﻿// lib/desktop/cubit/desktop_focus_cubit.dart
+﻿// lib/desktop/focus/cubit/desktop_focus_cubit.dart
 import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/desktop/focus/cubit/desktop_focus_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class DesktopFocusCubit extends Cubit<DesktopFocusState> {
   DesktopFocusCubit({
@@ -18,8 +17,8 @@ class DesktopFocusCubit extends Cubit<DesktopFocusState> {
   final FocusAlarmsRepository _focusRepo;
   Timer? _ticker;
   DateTime? _targetEndTime;
-  StreamSubscription<List<Alarm>>? _alarmsSub;
-  StreamSubscription<List<FocusSession>>? _sessionsSub;
+  StreamSubscription<List<AlarmEntity>>? _alarmsSub;
+  StreamSubscription<List<FocusSessionEntity>>? _sessionsSub;
 
   void _initStreams() {
     emit(state.copyWith(status: DesktopFocusStatus.loading));
@@ -54,7 +53,7 @@ class DesktopFocusCubit extends Cubit<DesktopFocusState> {
   }
 
   // ===========================================================================
-  // â±ï¸ Ø§Ù„ØªØ­ÙƒÙ… Ø¨Ø§Ù„Ù…Ø¤Ù‚Øª (Pomodoro Engine)
+  // ⏳ التحكم بالمؤقت (Pomodoro Engine)
   // ===========================================================================
 
   void selectDuration(int minutes) {
@@ -128,7 +127,7 @@ class DesktopFocusCubit extends Cubit<DesktopFocusState> {
   }
 
   // ===========================================================================
-  // â° Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù†Ø¨Ù‡Ø§Øª (Alarms Scheduler)
+  // ⏰ إدارة المنبهات (Alarms Scheduler)
   // ===========================================================================
 
   Future<void> addAlarm({
@@ -148,7 +147,7 @@ class DesktopFocusCubit extends Cubit<DesktopFocusState> {
     }
   }
 
-  Future<void> toggleAlarm(Alarm alarm) async {
+  Future<void> toggleAlarm(AlarmEntity alarm) async {
     try {
       await _focusRepo.toggleAlarm(alarm);
     } catch (e) {
@@ -156,7 +155,7 @@ class DesktopFocusCubit extends Cubit<DesktopFocusState> {
     }
   }
 
-  Future<void> deleteAlarm(Alarm alarm) async {
+  Future<void> deleteAlarm(AlarmEntity alarm) async {
     try {
       await _focusRepo.deleteAlarm(alarm.id);
     } catch (e) {

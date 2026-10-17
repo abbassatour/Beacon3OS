@@ -7,7 +7,6 @@ import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/tv/cards/alarms/cubit/tv_alarms_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
-import 'package:local_vault_api/local_vault_api.dart';
 
 class TvAlarmsCubit extends Cubit<TvAlarmsState> {
   TvAlarmsCubit({
@@ -21,7 +20,7 @@ class TvAlarmsCubit extends Cubit<TvAlarmsState> {
 
   final FocusAlarmsRepository _focusRepo;
   final SoundController _sound;
-  StreamSubscription<List<Alarm>>? _alarmsSubscription;
+  StreamSubscription<List<AlarmEntity>>? _alarmsSubscription;
 
   void _initAlarmsStream() {
     emit(state.copyWith(status: TvAlarmsStatus.loading));
@@ -50,7 +49,7 @@ class TvAlarmsCubit extends Cubit<TvAlarmsState> {
     );
   }
 
-  Alarm? _computeNextUpcomingAlarm(List<Alarm> alarms) {
+  AlarmEntity? _computeNextUpcomingAlarm(List<AlarmEntity> alarms) {
     final activeAlarms = alarms.where((a) => a.isActive).toList();
     if (activeAlarms.isEmpty) return null;
 
@@ -70,7 +69,7 @@ class TvAlarmsCubit extends Cubit<TvAlarmsState> {
     return activeAlarms.first;
   }
 
-  Future<void> toggleAlarm(Alarm alarm) async {
+  Future<void> toggleAlarm(AlarmEntity alarm) async {
     try {
       await _sound.play(SoundCue.navCenter);
       await _focusRepo.toggleAlarm(alarm);

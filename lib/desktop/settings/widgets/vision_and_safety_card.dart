@@ -1,11 +1,11 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/widgets/vision_and_safety_card.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/settings_card.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart';
 
 class VisionAndSafetyCard extends StatelessWidget {
   const VisionAndSafetyCard({required this.state, super.key});
@@ -40,7 +40,7 @@ class VisionAndSafetyCard extends StatelessWidget {
                 onChanged: (val) {
                   if (val != null) {
                     cubit.updateSetting(
-                      AppSettingsCompanion(visionInspectionDetail: drift.Value(val)),
+                      AppSettingUpdatePayload(visionInspectionDetail: val),
                     );
                   }
                 },
@@ -61,7 +61,7 @@ class VisionAndSafetyCard extends StatelessWidget {
             activeColor: colors.error,
             value: state.autoDialEmergency,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(autoDialEmergency: drift.Value(val)),
+              AppSettingUpdatePayload(autoDialEmergency: val),
             ),
           ),
           const Divider(),
@@ -78,7 +78,7 @@ class VisionAndSafetyCard extends StatelessWidget {
             activeColor: colors.error,
             value: state.shareGpsOnSos,
             onChanged: (val) => cubit.updateSetting(
-              AppSettingsCompanion(shareGpsOnSos: drift.Value(val)),
+              AppSettingUpdatePayload(shareGpsOnSos: val),
             ),
           ),
         ],

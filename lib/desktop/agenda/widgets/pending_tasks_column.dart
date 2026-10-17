@@ -1,15 +1,16 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/agenda/widgets/pending_tasks_column.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_cubit.dart';
 import 'package:beacon_os/desktop/agenda/widgets/board_column_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:local_vault_api/local_vault_api.dart';
+import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
 
 class PendingTasksColumn extends StatelessWidget {
   const PendingTasksColumn({required this.tasks, super.key});
 
-  final List<Task> tasks;
+  final List<TaskEntity> tasks; // ✅
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,7 @@ class PendingTasksColumn extends StatelessWidget {
 
   Widget _buildTaskCard(
     BuildContext context,
-    Task task,
+    TaskEntity task,
     DesktopAgendaCubit cubit,
     ColorScheme colors,
   ) {
@@ -128,7 +129,7 @@ class PendingTasksColumn extends StatelessWidget {
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
-                child: Text('ðŸ—‘ï¸ Delete Task', style: TextStyle(color: Colors.red)),
+                child: Text('🗑️ Delete Task', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),

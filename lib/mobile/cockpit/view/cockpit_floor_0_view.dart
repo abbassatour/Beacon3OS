@@ -387,9 +387,11 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
     );
   }
 
+  // ... داخل الكلاس _CockpitFloor0ViewState استبدل دالة الإنذار:
+
   Widget _buildNextAlarmCard(
     BuildContext context,
-    Alarm? alarm,
+    AlarmEntity? alarm, // ✅ الكيان النقي
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
@@ -476,9 +478,11 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
     );
   }
 
+  // ... داخل الكلاس _CockpitFloor0ViewState استبدل الدالتين التاليتين:
+
   Widget _buildPriorityTaskTile(
     BuildContext context,
-    Task task,
+    TaskEntity task, // ✅ الكيان النقي
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
@@ -565,7 +569,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
 
   Widget _buildMemoSnippetCard(
     BuildContext context,
-    VoiceMemo memo,
+    VoiceMemoEntity memo, // ✅ الكيان النقي
     CockpitCubit cubit,
   ) {
     final colors = context.colors;
