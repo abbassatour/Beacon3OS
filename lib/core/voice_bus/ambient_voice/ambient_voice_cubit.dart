@@ -196,6 +196,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
                 hapticsEnabled: true,
                 soundCuesEnabled: true,
                 isHighContrast: false,
+                spatialWhisperEnabled: false, // 👈 تم التوفير هنا
                 defaultPriority: 'medium',
                 autoArchiveCompleted: true,
                 speakDueDatesAloud: true,
@@ -218,7 +219,6 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
             : Future.value(<ContactEntity>[]),
       ]);
 
-      // ✅ التصفية بالكيانات النقية بالكامل
       final tasks = (results[0] as List<TaskEntity>).take(15).toList();
       final alarms = (results[1] as List<AlarmEntity>).take(10).toList();
       final settings = results[2] as AppSettingEntity;
@@ -266,6 +266,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
           'haptics_enabled': settings.hapticsEnabled,
           'sound_cues_enabled': settings.soundCuesEnabled,
           'is_high_contrast': settings.isHighContrast,
+          'spatial_whisper_enabled': settings.spatialWhisperEnabled,
           'default_priority': settings.defaultPriority,
           'auto_archive_completed': settings.autoArchiveCompleted,
           'vision_inspection_detail': settings.visionInspectionDetail,
