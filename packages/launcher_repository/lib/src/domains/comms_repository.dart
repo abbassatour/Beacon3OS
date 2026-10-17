@@ -31,9 +31,17 @@ abstract class CommsRepository {
   });
   Future<void> deleteContact(dynamic contactOrId);
 
-  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية عبر خوارزمية تفاضلية
-  Future<({int addedCount, int updatedCount, int deletedCount})>
-      syncDeviceContactsToVault();
+  /// تبديل حالة الطوارئ لجهة الاتصال بأمان دون حذف السجل وإعادة إنشائه
+  Future<void> toggleEmergencyStatus(String contactId, {bool? isEmergency});
+
+  /// مزامنة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية عبر خوارزمية تفاضلية غير تدميرية
+  Future<
+      ({
+        int addedCount,
+        int updatedCount,
+        int deletedCount,
+        bool permissionDenied,
+      })> syncDeviceContactsToVault();
 
   Stream<List<MessageEntity>> watchMessages(String contactIdentifier);
   Future<List<MessageEntity>> getUnreadMessages();
@@ -106,7 +114,8 @@ class CommsRepositoryImpl implements CommsRepository {
   })  : _db = database,
         _cloud = cloudSync,
         _hardware = hardware,
-        _hybridSync = hybridSync ?? HybridSyncClient(cloudSyncClient: cloudSync),
+        _hybridSync =
+            hybridSync ?? HybridSyncClient(cloudSyncClient: cloudSync),
         _reconciliationService =
             reconciliationService ?? ContactsReconciliationService();
 
@@ -118,8 +127,10 @@ class CommsRepositoryImpl implements CommsRepository {
   final _uuid = const Uuid();
 
   StreamSubscription<dynamic>? _authSubscription;
-  StreamSubscription<List<Map<String, dynamic>>>? _realtimeContactsSubscription;
-  StreamSubscription<List<Map<String, dynamic>>>? _remoteActionsSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>?
+      _realtimeContactsSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>?
+      _remoteActionsSubscription;
   StreamSubscription<P2pMessage>? _hybridEventsSubscription;
 
   final StreamController<RemoteActionEvent> _remoteActionController =
@@ -171,6 +182,15 @@ class CommsRepositoryImpl implements CommsRepository {
 
   void _handleUnifiedIncomingMessage(P2pMessage message) {
     final event = RemoteActionEvent.fromP2pMessage(message);
+
+    // ⚡ معالجة تحديثات الخزنة المحلية عبر المقابس
+    if (message.type == P2pMessageType.vaultMutation) {
+      final table = message.payload['table'] as String?;
+      if (table == 'contacts') {
+        _handleInboundContactMutation(message.payload);
+      }
+    }
+
     if (event.actionType == RemoteActionType.unknown) return;
 
     log('CommsRepository: ⚡ Action Received via [${message.senderType ?? "Hybrid"}] -> ${event.actionType}');
@@ -178,6 +198,43 @@ class CommsRepositoryImpl implements CommsRepository {
 
     if (event.actionType == RemoteActionType.locateDevice) {
       executeLocateDevice();
+    }
+  }
+
+  Future<void> _handleInboundContactMutation(
+      Map<String, dynamic> payload) async {
+    try {
+      final action = payload['action'] as String?;
+      final data = payload['data'] is Map<String, dynamic>
+          ? payload['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (action == 'INSERT' || action == 'UPDATE') {
+        final id = data['id'] as String?;
+        final name = data['name'] as String?;
+        final phone = data['phone_number'] as String?;
+        if (id != null && name != null && phone != null) {
+          await _db.into(_db.contacts).insert(
+                db.ContactsCompanion.insert(
+                  id: id,
+                  name: name,
+                  phoneNumber: phone,
+                  relationship: Value(data['relationship'] as String?),
+                  isEmergency: Value(data['is_emergency'] as bool? ?? false),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+        }
+      } else if (action == 'DELETE') {
+        final id = data['id'] as String?;
+        if (id != null) {
+          await (_db.delete(_db.contacts)..where((tbl) => tbl.id.equals(id)))
+              .go();
+        }
+      }
+    } catch (e) {
+      log('CommsRepository: Inbound contact mutation note: $e');
     }
   }
 
@@ -431,6 +488,45 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
+  Future<void> toggleEmergencyStatus(String contactId, {bool? isEmergency}) async {
+    final contacts = await _db.getAllContacts();
+    final existing = contacts.where((c) => c.id == contactId).firstOrNull;
+    if (existing == null) return;
+
+    final nextStatus = isEmergency ?? !existing.isEmergency;
+
+    await (_db.update(_db.contacts)..where((tbl) => tbl.id.equals(contactId))).write(
+      db.ContactsCompanion(
+        isEmergency: Value(nextStatus),
+        updatedAt: Value(DateTime.now()),
+        isSynced: const Value(false),
+      ),
+    );
+
+    _cloud.syncContact(
+      id: existing.id,
+      name: existing.name,
+      phoneNumber: existing.phoneNumber,
+      relationship: existing.relationship,
+      isEmergency: nextStatus,
+    ).catchError((Object err) {
+      log('CommsRepository: Cloud emergency toggle deferred: $err');
+    });
+
+    _hybridSync.broadcastVaultMutation(
+      table: 'contacts',
+      action: 'UPDATE',
+      data: {
+        'id': existing.id,
+        'name': existing.name,
+        'phone_number': existing.phoneNumber,
+        'relationship': existing.relationship,
+        'is_emergency': nextStatus,
+      },
+    );
+  }
+
+  @override
   Future<void> deleteContact(dynamic contactOrId) async {
     final String id =
         contactOrId is ContactEntity ? contactOrId.id : contactOrId.toString();
@@ -448,14 +544,45 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
-  Future<({int addedCount, int updatedCount, int deletedCount})>
-      syncDeviceContactsToVault() async {
+  Future<
+      ({
+        int addedCount,
+        int updatedCount,
+        int deletedCount,
+        bool permissionDenied,
+      })> syncDeviceContactsToVault() async {
+    // 1. فحص إذن الوصول لسجل الهاتف مع دعم Limited Access
+    final hasPerm = await _hardware.hasContactsPermission();
+    if (!hasPerm) {
+      log('CommsRepository: Cannot sync contacts. Permission not granted.');
+      return (
+        addedCount: 0,
+        updatedCount: 0,
+        deletedCount: 0,
+        permissionDenied: true,
+      );
+    }
+
+    // 2. قراءة جهات الاتصال وتسويتها
     final deviceRecords = await _hardware.getDeviceContacts();
     final result = await _reconciliationService.reconcile(
       deviceRecords: deviceRecords,
       database: _db,
     );
 
+    // 3. بث التحديث محلياً عبر P2P للأجهزة المقترنة (TV / Desktop)
+    if (result.addedCount > 0 || result.updatedCount > 0) {
+      _hybridSync.broadcastVaultMutation(
+        table: 'contacts',
+        action: 'RECONCILE',
+        data: {
+          'added': result.addedCount,
+          'updated': result.updatedCount,
+        },
+      );
+    }
+
+    // 4. مزامنة التغييرات المعلقة مع السحابة
     syncPendingComms().catchError((Object err) {
       log('CommsRepository: Cloud sync deferred after diffing: $err');
     });
@@ -464,6 +591,7 @@ class CommsRepositoryImpl implements CommsRepository {
       addedCount: result.addedCount,
       updatedCount: result.updatedCount,
       deletedCount: result.deletedCount,
+      permissionDenied: false,
     );
   }
 
@@ -753,5 +881,11 @@ class CommsRepositoryImpl implements CommsRepository {
   Future<void> unpairDevice() async {
     await _db.deleteDevicePairingMeta('linked_vault_id');
     log('CommsRepository: Device unpaired successfully.');
+  }
+}
+
+extension on db.AppDatabase {
+  Future<List<db.Contact>> getAllContacts() {
+    return (select(contacts)..where((c) => c.deletedAt.isNull())).get();
   }
 }

@@ -37,7 +37,9 @@ class CommsCubit extends Cubit<CommsState> {
 
     _contactsSubscription = _commsRepo.watchContacts().listen(
       (contactsList) async {
+        if (isClosed) return;
         final messages = await _commsRepo.getUnreadMessages();
+        if (isClosed) return;
         emit(
           state.copyWith(
             status: CommsStatus.success,
@@ -47,12 +49,14 @@ class CommsCubit extends Cubit<CommsState> {
         );
       },
       onError: (Object error) {
-        emit(
-          state.copyWith(
-            status: CommsStatus.error,
-            errorMessage: error.toString(),
-          ),
-        );
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              status: CommsStatus.error,
+              errorMessage: error.toString(),
+            ),
+          );
+        }
       },
     );
   }
@@ -86,7 +90,9 @@ class CommsCubit extends Cubit<CommsState> {
 
     await _commsRepo.markMessagesAsRead(message.contactIdentifier);
     final unread = await _commsRepo.getUnreadMessages();
-    emit(state.copyWith(recentMessages: unread));
+    if (!isClosed) {
+      emit(state.copyWith(recentMessages: unread));
+    }
   }
 
   Future<void> addNewContact({
@@ -109,7 +115,27 @@ class CommsCubit extends Cubit<CommsState> {
     } catch (e) {
       await _haptics.errorAlert();
       await _sound.play(SoundCue.error);
-      emit(state.copyWith(errorMessage: 'Failed to add contact: $e'));
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Failed to add contact: $e'));
+      }
+    }
+  }
+
+  /// تبديل حالة الطوارئ لجهة الاتصال بأمان دون حذف السجل وإعادة إنشائه
+  Future<void> toggleEmergencyStatus(ContactEntity contact) async {
+    try {
+      await _haptics.successNotification();
+      await _sound.play(SoundCue.navCenter);
+      final nextStatus = !contact.isEmergency;
+      await _commsRepo.toggleEmergencyStatus(contact.id, isEmergency: nextStatus);
+
+      final label = nextStatus
+          ? 'promoted to emergency contact'
+          : 'set as standard contact';
+      await _assistant.speak('${contact.name} $label.');
+    } catch (e) {
+      await _haptics.errorAlert();
+      await _sound.play(SoundCue.error);
     }
   }
 
@@ -148,9 +174,12 @@ class CommsCubit extends Cubit<CommsState> {
     );
 
     await Future<void>.delayed(const Duration(seconds: 4));
-    emit(state.copyWith(isSosBroadcasting: false));
+    if (!isClosed) {
+      emit(state.copyWith(isSosBroadcasting: false));
+    }
   }
 
+  /// مزامنة دفتر هواتف الجهاز وتسويتها داخل الخزنة المشفرة
   Future<void> syncDeviceContacts() async {
     if (state.isSyncingContacts) return;
 
@@ -160,6 +189,24 @@ class CommsCubit extends Cubit<CommsState> {
     await _assistant.speak('Reconciling contacts from your device...');
 
     final result = await _commsRepo.syncDeviceContactsToVault();
+
+    // 🛡️ إذا كان الإذن محجوباً، نوجه المستخدم صوتياً بوضوح
+    if (result.permissionDenied) {
+      await _haptics.errorAlert();
+      await _sound.play(SoundCue.error);
+      await _assistant.speak(
+        'Contacts permission is required to sync your phonebook. Please allow contacts access in settings.',
+      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            isSyncingContacts: false,
+            errorMessage: 'Contacts permission denied by user.',
+          ),
+        );
+      }
+      return;
+    }
 
     await _haptics.successNotification();
     await _sound.play(SoundCue.success);
@@ -171,7 +218,9 @@ class CommsCubit extends Cubit<CommsState> {
     );
 
     await _assistant.speak(feedback);
-    emit(state.copyWith(isSyncingContacts: false));
+    if (!isClosed) {
+      emit(state.copyWith(isSyncingContacts: false));
+    }
   }
 
   String _buildSyncFeedback({
@@ -180,13 +229,12 @@ class CommsCubit extends Cubit<CommsState> {
     required int deleted,
   }) {
     if (added == 0 && updated == 0 && deleted == 0) {
-      return 'Your contacts are already completely up to date.';
+      return 'Your contacts are already up to date.';
     }
 
     final summaryParts = <String>[];
     if (added > 0) summaryParts.add('$added new contacts added');
     if (updated > 0) summaryParts.add('$updated updated');
-    if (deleted > 0) summaryParts.add('$deleted removed');
 
     return 'Contacts reconciled: ${summaryParts.join(', ')}.';
   }

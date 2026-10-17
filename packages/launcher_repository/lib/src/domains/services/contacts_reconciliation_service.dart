@@ -1,5 +1,6 @@
 // packages/launcher_repository/lib/src/domains/services/contacts_reconciliation_service.dart
 import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:local_vault_api/local_vault_api.dart';
@@ -12,14 +13,17 @@ class ContactsReconciliationResult {
     required this.addedCount,
     required this.updatedCount,
     required this.deletedCount,
+    this.totalProcessed = 0,
   });
 
   final int addedCount;
   final int updatedCount;
   final int deletedCount;
+  final int totalProcessed;
 }
 
 /// خدمة تفاضلية ذكية لمطابقة جهات اتصال الهاتف وتسويتها داخل الخزنة المحلية
+/// دون مسح جهات الاتصال اليدوية أو السحابية (Non-Destructive Smart Reconciliation).
 class ContactsReconciliationService {
   ContactsReconciliationService({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
@@ -30,7 +34,7 @@ class ContactsReconciliationService {
     required AppDatabase database,
   }) async {
     if (deviceRecords.isEmpty) {
-      log('ContactsReconciliationService: No records provided.');
+      log('ContactsReconciliationService: No device records provided for reconciliation.');
       return const ContactsReconciliationResult(
         addedCount: 0,
         updatedCount: 0,
@@ -39,110 +43,130 @@ class ContactsReconciliationService {
     }
 
     try {
+      // 1. جلب كافة جهات الاتصال النشطة في الخزنة
       final existingContacts = await (database.select(database.contacts)
             ..where((c) => c.deletedAt.isNull()))
           .get();
 
-      final Map<String, Contact> map9 = {};
-      final Map<String, Contact> map8 = {};
+      // بناء خريطة فهرسة للأرقام والأسماء
+      final Map<String, Contact> phoneIndex = {};
+      final Map<String, Contact> nameIndex = {};
 
       for (final c in existingContacts) {
-        final digits = c.phoneNumber.replaceAll(RegExp(r'\D'), '');
-        if (digits.isEmpty) continue;
-
-        if (digits.length >= 9) {
-          map9[digits.substring(digits.length - 9)] = c;
-        } else {
-          map9[digits] = c;
+        final digits = cleanDigits(c.phoneNumber);
+        if (digits.isNotEmpty) {
+          phoneIndex[digits] = c;
+          if (digits.length >= 7) {
+            phoneIndex[digits.substring(digits.length - 7)] = c;
+          }
         }
-
-        if (digits.length >= 8) {
-          map8[digits.substring(digits.length - 8)] = c;
-        }
+        nameIndex[c.name.trim().toLowerCase()] = c;
       }
 
       var addedCount = 0;
       var updatedCount = 0;
-      var deletedCount = 0;
-
       final Set<String> matchedExistingIds = {};
-      final Set<String> processedDeviceKeys = {};
+      final Set<String> processedNumbersInRun = {};
 
       await database.batch((batch) {
         for (final record in deviceRecords) {
-          final cleanPhone = sanitizeNumber(record.phoneNumber);
-          final digits = cleanPhone.replaceAll(RegExp(r'\D'), '');
-          if (digits.length < 3) continue;
+          final cleanPrimaryPhone = sanitizeNumber(record.phoneNumber);
+          final primaryDigits = cleanDigits(cleanPrimaryPhone);
 
-          final key9 = digits.length >= 9
-              ? digits.substring(digits.length - 9)
-              : digits;
-          final key8 = digits.length >= 8
-              ? digits.substring(digits.length - 8)
-              : null;
+          if (primaryDigits.length < 3) continue;
 
-          if (processedDeviceKeys.contains(key9)) continue;
-          processedDeviceKeys.add(key9);
+          // تجنب تكرار نفس الرقم في نفس جلسة المزامنة
+          if (processedNumbersInRun.contains(primaryDigits)) continue;
+          processedNumbersInRun.add(primaryDigits);
 
-          final existing = map9[key9] ?? (key8 != null ? map8[key8] : null);
+          // 2. البحث عن جهة اتصال مطابقة بالرقم الأساسي أو الأرقام البديلة أو الاسم
+          Contact? matched;
 
-          if (existing != null) {
-            matchedExistingIds.add(existing.id);
+          // فحص الرقم الأساسي والأرقام البديلة التابعة لنفس الشخص
+          final candidateNumbers = [
+            cleanPrimaryPhone,
+            ...record.allPhoneNumbers.map(sanitizeNumber),
+          ];
 
-            final nameChanged = existing.name != record.name;
-            final phoneChanged = existing.phoneNumber != cleanPhone;
+          for (final phone in candidateNumbers) {
+            final digits = cleanDigits(phone);
+            if (phoneIndex.containsKey(digits)) {
+              matched = phoneIndex[digits];
+              break;
+            }
+            if (digits.length >= 7) {
+              final suffix7 = digits.substring(digits.length - 7);
+              if (phoneIndex.containsKey(suffix7)) {
+                matched = phoneIndex[suffix7];
+                break;
+              }
+            }
+          }
 
+          // إذا لم نجد تطابقاً بالرقم، نفحص تطابق الاسم بدقة
+          matched ??= nameIndex[record.name.trim().toLowerCase()];
+
+          // 3. اتخاذ القرار (تحديث السجل الحالي أم إضافة جديد)
+          if (matched != null) {
+            matchedExistingIds.add(matched.id);
+
+            final nameChanged = matched.name.trim() != record.name.trim();
+            final phoneChanged = !numbersMatch(matched.phoneNumber, cleanPrimaryPhone);
+
+            // تحديث جهة الاتصال إن تغير اسمها أو رقمها في دفتر الهاتف
             if (nameChanged || phoneChanged) {
               batch.update(
                 database.contacts,
                 ContactsCompanion(
-                  name: Value(record.name),
-                  phoneNumber: Value(cleanPhone),
+                  name: Value(record.name.trim()),
+                  phoneNumber: Value(cleanPrimaryPhone),
                   updatedAt: Value(DateTime.now()),
                   isSynced: const Value(false),
                 ),
-                where: (tbl) => tbl.id.equals(existing.id),
+                where: (tbl) => tbl.id.equals(matched!.id),
               );
               updatedCount++;
             }
           } else {
+            // إضافة جهة اتصال جديدة لم تكن موجودة في الخزنة
             final newId = _uuid.v4();
             batch.insert(
               database.contacts,
               ContactsCompanion.insert(
                 id: newId,
-                name: record.name,
-                phoneNumber: cleanPhone,
+                name: record.name.trim(),
+                phoneNumber: cleanPrimaryPhone,
                 isEmergency: const Value(false),
                 isSynced: const Value(false),
               ),
             );
             addedCount++;
-          }
-        }
 
-        for (final existing in existingContacts) {
-          if (!matchedExistingIds.contains(existing.id)) {
-            if (existing.isEmergency) continue;
-
-            batch.update(
-              database.contacts,
-              ContactsCompanion(
-                deletedAt: Value(DateTime.now()),
-                updatedAt: Value(DateTime.now()),
-                isSynced: const Value(false),
-              ),
-              where: (tbl) => tbl.id.equals(existing.id),
+            // تحديث الفهرس اللحظي لمنع التكرار في نفس الدورة
+            phoneIndex[primaryDigits] = Contact(
+              id: newId,
+              name: record.name.trim(),
+              phoneNumber: cleanPrimaryPhone,
+              isEmergency: false,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              isSynced: false,
             );
-            deletedCount++;
           }
         }
+
+        // 🛡️ ملاحظة معمارية حاسمة:
+        // تم إلغاء حلقة الحذف التلقائي التي كانت تمسح جهات اتصال الخزنة غير الموجودة بالهاتف!
+        // جهات اتصال الخزنة (المدخلة يدوياً أو المسترجعة من السحابة/الكمبيوتر) تظل محفوظة دائماً.
       });
+
+      log('ContactsReconciliationService: Reconciled. Added: $addedCount, Updated: $updatedCount, Preserved Existing: ${existingContacts.length}');
 
       return ContactsReconciliationResult(
         addedCount: addedCount,
         updatedCount: updatedCount,
-        deletedCount: deletedCount,
+        deletedCount: 0,
+        totalProcessed: deviceRecords.length,
       );
     } catch (e, st) {
       log('ContactsReconciliationService: Error reconciling contacts: $e',
@@ -155,7 +179,32 @@ class ContactsReconciliationService {
     }
   }
 
+  /// تطهير الرموز والفواصل غير الرقمية
   static String sanitizeNumber(String phone) {
     return phone.replaceAll(RegExp(r'[\s\(\)\-\.]'), '').trim();
+  }
+
+  /// استخراج الأرقام فقط (Digits Only)
+  static String cleanDigits(String phone) {
+    return phone.replaceAll(RegExp(r'\D'), '');
+  }
+
+  /// مطابقة ذكية بين رقمين تتجاوز بادئات الدول وصيغ الاتصال المحلية
+  static bool numbersMatch(String a, String b) {
+    final da = cleanDigits(a);
+    final db = cleanDigits(b);
+    if (da == db) return true;
+    if (da.isEmpty || db.isEmpty) return false;
+
+    // إذا كان كلاهما يحتوي 7 أرقام فأكثر، نقارن آخر 7 إلى 9 أرقام
+    if (da.length >= 7 && db.length >= 7) {
+      final minLen = math.min(math.min(da.length, db.length), 9);
+      for (var len = minLen; len >= 7; len--) {
+        final subA = da.substring(da.length - len);
+        final subB = db.substring(db.length - len);
+        if (subA == subB) return true;
+      }
+    }
+    return false;
   }
 }

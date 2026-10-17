@@ -26,13 +26,16 @@ class DeviceContactRecord {
   const DeviceContactRecord({
     required this.name,
     required this.phoneNumber,
+    this.allPhoneNumbers = const [],
   });
 
   final String name;
   final String phoneNumber;
+  final List<String> allPhoneNumbers;
 
   @override
-  String toString() => 'DeviceContactRecord(name: $name, phone: $phoneNumber)';
+  String toString() =>
+      'DeviceContactRecord(name: $name, primaryPhone: $phoneNumber, total: ${allPhoneNumbers.length})';
 }
 
 class HardwareClient {
@@ -46,7 +49,18 @@ class HardwareClient {
 
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
-  /// جلب جهات الاتصال المسجلة في الهاتف (للهواتف فقط، مع تجاوز آمن على سطح المكتب)
+  /// فحص حالة إذن جهات الاتصال مع دعم الأذونات المحدودة (Limited Permissions)
+  Future<bool> hasContactsPermission() async {
+    if (!_isMobile) return true;
+    try {
+      final status = await FlutterContacts.permissions.request(PermissionType.read);
+      return status == PermissionStatus.granted || status == PermissionStatus.limited;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// جلب جهات الاتصال المسجلة في الهاتف بدقة مع دمج الأرقام المتعددة لكل جهة اتصال
   Future<List<DeviceContactRecord>> getDeviceContacts() async {
     if (!_isMobile) {
       log('HardwareClient: Desktop environment. Mobile contact store bypassed.');
@@ -55,35 +69,52 @@ class HardwareClient {
 
     try {
       final status = await FlutterContacts.permissions.request(PermissionType.read);
-      if (status != PermissionStatus.granted) {
-        log('HardwareClient: Read contacts permission denied by user.');
+      if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
+        log('HardwareClient: Read contacts permission denied by user (Status: $status).');
         return [];
       }
 
+      // 🛡️ طلب كل من الاسم ورقم الهاتف معاً لتفادي فراغ displayName
       final rawContacts = await FlutterContacts.getAll(
-        properties: {ContactProperty.phone},
+        properties: {ContactProperty.name, ContactProperty.phone},
       );
 
       final List<DeviceContactRecord> records = [];
 
       for (final contact in rawContacts) {
-        final displayName = (contact.displayName ?? '').trim();
+        // استخراج الاسم النظيف
+        String displayName = (contact.displayName ?? '').trim();
+        if (displayName.isEmpty) {
+          final first = contact.name.first.trim();
+          final last = contact.name.last.trim();
+          displayName = '$first $last'.trim();
+        }
+
+        // إذا كان الاسم فارغاً تماماً أو لا توجد أي أرقام هواتف، نتجاوز جهة الاتصال
         if (displayName.isEmpty || contact.phones.isEmpty) continue;
 
+        // تنظيف وفلترة جميع أرقام الهواتف التابعة لهذا الشخص
+        final List<String> validNumbers = [];
         for (final phone in contact.phones) {
-          final cleanNumber = phone.number.replaceAll(RegExp(r'[\s\(\)\-\.]'), '').trim();
-          if (cleanNumber.length >= 3) {
-            records.add(
-              DeviceContactRecord(
-                name: displayName,
-                phoneNumber: cleanNumber,
-              ),
-            );
+          final cleanNumber = sanitizePhoneNumber(phone.number);
+          if (cleanNumber.length >= 3 && !validNumbers.contains(cleanNumber)) {
+            validNumbers.add(cleanNumber);
           }
         }
+
+        if (validNumbers.isEmpty) continue;
+
+        // 🌟 دمج جميع الأرقام في سجل واحد وتحديد الرقم الأساسي بدلاً من تكرار الاسم
+        records.add(
+          DeviceContactRecord(
+            name: displayName,
+            phoneNumber: validNumbers.first,
+            allPhoneNumbers: validNumbers,
+          ),
+        );
       }
 
-      log('HardwareClient: Successfully fetched ${records.length} contact records from phone.');
+      log('HardwareClient: Successfully fetched ${records.length} unique contacts from device phonebook.');
       return records;
     } catch (e, st) {
       log('HardwareClient: Error reading phone contacts: $e', stackTrace: st);
@@ -103,7 +134,7 @@ class HardwareClient {
 
     try {
       final status = await FlutterContacts.permissions.request(PermissionType.readWrite);
-      if (status != PermissionStatus.granted) {
+      if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
         log('HardwareClient: Write contacts permission denied by user.');
         return false;
       }
@@ -111,6 +142,7 @@ class HardwareClient {
       final nameParts = name.trim().split(' ');
       final firstName = nameParts.first;
       final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      final cleanNumber = sanitizePhoneNumber(phoneNumber);
 
       final newContact = Contact(
         name: Name(
@@ -118,17 +150,22 @@ class HardwareClient {
           last: lastName.isNotEmpty ? lastName : null,
         ),
         phones: [
-          Phone(number: phoneNumber.trim()),
+          Phone(number: cleanNumber),
         ],
       );
 
       await FlutterContacts.create(newContact);
-      log('HardwareClient: Contact successfully written to Android phonebook: $name');
+      log('HardwareClient: Contact successfully written to native phonebook: $name ($cleanNumber)');
       return true;
     } catch (e, st) {
       log('HardwareClient: Error writing contact to device phonebook: $e', stackTrace: st);
       return false;
     }
+  }
+
+  /// تطهير وتوحيد صيغة رقم الهاتف
+  static String sanitizePhoneNumber(String phone) {
+    return phone.replaceAll(RegExp(r'[\s\(\)\-\.]'), '').trim();
   }
 
   /// جلب مستوى البطارية وحالتها كنص مقروء للمستخدم
@@ -259,7 +296,6 @@ class HardwareClient {
     if (cleanTarget.isEmpty) return false;
 
     if (Platform.isWindows) {
-      // 🛡️ حماية ضد Command Injection: رفض أي مدخل يحتوي على محارف التحكم في الـ Shell
       final dangerousPattern = RegExp(r'[&|;`$<>^%!\n\r]');
       if (dangerousPattern.hasMatch(cleanTarget)) {
         log('HardwareClient: [Security Alert] Blocked malicious characters in openApp: $cleanTarget');
@@ -267,7 +303,6 @@ class HardwareClient {
       }
 
       try {
-        // نستخدم "" كأول معامل لتفادي اعتبار المسارات المقتبسة كـ Window Title في cmd start
         final result = await Process.run('cmd', ['/c', 'start', '""', cleanTarget]);
         return result.exitCode == 0;
       } catch (e) {
@@ -292,7 +327,6 @@ class HardwareClient {
   Future<bool> lockScreen() async {
     if (Platform.isWindows) {
       try {
-        // 🪟 قفل كمبيوتر ويندوز فورياً عبر API النظام
         await Process.run('rundll32.exe', ['user32.dll,LockWorkStation']);
         return true;
       } catch (e) {
