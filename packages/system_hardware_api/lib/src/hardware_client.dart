@@ -61,6 +61,7 @@ class HardwareClient {
   }
 
   /// جلب جهات الاتصال المسجلة في الهاتف بدقة مع دمج الأرقام المتعددة لكل جهة اتصال
+  /// جلب جهات الاتصال المسجلة في الهاتف بدقة مع دمج الأرقام المتعددة لكل جهة اتصال
   Future<List<DeviceContactRecord>> getDeviceContacts() async {
     if (!_isMobile) {
       log('HardwareClient: Desktop environment. Mobile contact store bypassed.');
@@ -82,11 +83,11 @@ class HardwareClient {
       final List<DeviceContactRecord> records = [];
 
       for (final contact in rawContacts) {
-        // استخراج الاسم النظيف
+        // استخراج الاسم النظيف مع حماية كاملة من الـ null
         String displayName = (contact.displayName ?? '').trim();
         if (displayName.isEmpty) {
-          final first = contact.name.first.trim();
-          final last = contact.name.last.trim();
+          final first = contact.name?.first?.trim() ?? '';
+          final last = contact.name?.last?.trim() ?? '';
           displayName = '$first $last'.trim();
         }
 

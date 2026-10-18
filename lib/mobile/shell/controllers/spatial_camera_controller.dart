@@ -5,30 +5,21 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/topology/topology.dart';
-import 'package:beacon_os/mobile/shell/controllers/handlers/spatial_elevator_handler.dart';
 import 'package:beacon_os/mobile/shell/controllers/handlers/spatial_pan_handler.dart';
 import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/widgets.dart';
 
-enum TwoFingerGestureMode {
-  undecided,
-  elevator, // Z-Axis (Pinch/Spread لمصعد الطوابق فقط)
-  pan, // XY-Axis (تمرير ديكارتي حر بين الغرف)
-}
-
+/// وحدة التحكم بكاميرا الفضاء المعزولة.
+///
+/// تم عزل مسار التنقل بين الغرف (XY Pan) بالكامل عن مسار الطوابق (Z Axis)
+/// لضمان استقرار حركة الغرف ونعومتها بنسبة 100% دون أي تداخل فيزيائي.
 class SpatialCameraController extends ChangeNotifier {
   SpatialCameraController({
     required TickerProvider vsync,
     SoundController? soundController,
     HapticManager? hapticManager,
-    SpatialElevatorHandler? elevatorHandler,
     SpatialPanHandler? panHandler,
   })  : _sound = soundController ?? SoundController.instance,
-        _elevatorHandler = elevatorHandler ??
-            SpatialElevatorHandler(
-              soundController: soundController,
-              hapticManager: hapticManager,
-            ),
         _panHandler = panHandler ??
             SpatialPanHandler(
               soundController: soundController,
@@ -43,54 +34,54 @@ class SpatialCameraController extends ChangeNotifier {
   }
 
   final SoundController _sound;
-  final SpatialElevatorHandler _elevatorHandler;
   final SpatialPanHandler _panHandler;
 
   late final AnimationController _panX;
   late final AnimationController _panY;
   late final AnimationController _floorZ;
 
-  TwoFingerGestureMode _gestureMode = TwoFingerGestureMode.undecided;
-  bool _isTransitioningViaGesture = false;
+  // ===========================================================================
+  // 🛡️ مؤشرات حركة الغرف (Pan Pipeline - Isolated & Protected)
+  // ===========================================================================
   bool _isSettlingPan = false;
-  bool _sessionInitialized = false;
+  bool _isPanSessionActive = false;
   Timer? _settleSafetyTimer;
 
-  // عتبة المصعد تكون واضحة ومقصودة (Pinch متعمد في المكان)
-  static const double _elevatorScaleThreshold = 0.18;
+  // ===========================================================================
+  // 🏢 مؤشرات حركة الطوابق (Z-Axis Pipeline - Independent)
+  // ===========================================================================
+  bool _isFloorAnimating = false;
 
   double get currentZ => _floorZ.value;
   Offset get panOffset => Offset(_panX.value, _panY.value);
 
-  /// تُعتبر الكاميرا نشطة طالما أن المستخدم يلمس الشاشة أو أن النابض في مرحلة الانزلاق الحتمي (Glide Lock)
-  bool get isGestureActive =>
-      _gestureMode != TwoFingerGestureMode.undecided ||
-      _isSettlingPan ||
-      _isTransitioningViaGesture;
+  /// هل حركة الغرف نشطة حالياً (إما لمس مباشر أو انزلاق مغناطيسي نحو الغرفة)
+  bool get isPanActive => _isPanSessionActive || _isSettlingPan;
 
-  bool get isSettling => _isSettlingPan || _isTransitioningViaGesture;
+  /// هل هناك أي حركة نشطة في الكاميرا
+  bool get isGestureActive => isPanActive || _isFloorAnimating;
+
+  bool get isSettling => _isSettlingPan;
+
+  // ===========================================================================
+  // 🧭 مسار التنقل الديكارتي بين الغرف (XY Pan - 100% Pure & Fast)
+  // ===========================================================================
 
   void onScaleStart(ScaleStartDetails details, {required int floorLevel}) {
-    _gestureMode = TwoFingerGestureMode.undecided;
-    _sessionInitialized = false;
-
-    // 🛡️ حماية حاسمة: لا نوقف حركة الكاميرا عند اللمس بإصبع واحد (كالقوائم والأزرار)
-    // نوقفها فقط عندما يتأكد هبوط إصبعين للملاحة الفضائية
+    // 🛡️ حماية: لا نوقف حركة الكاميرا إلا عند ثبوت لمس إصبعين للملاحة الفضائية
     if (details.pointerCount >= 2) {
-      _startSession(floorLevel);
+      _startPanSession(floorLevel);
     }
   }
 
-  void _startSession(int floorLevel) {
-    if (_sessionInitialized) return;
-    _sessionInitialized = true;
+  void _startPanSession(int floorLevel) {
+    if (_isPanSessionActive) return;
+    _isPanSessionActive = true;
 
     _cancelSettle();
     _panX.stop();
     _panY.stop();
-    _floorZ.stop();
 
-    _elevatorHandler.onScaleStart(_floorZ.value);
     _panHandler.onScaleStart(
       startPanX: _panX.value,
       startPanY: _panY.value,
@@ -106,49 +97,24 @@ class SpatialCameraController extends ChangeNotifier {
     required ValueChanged<SpatialDirection> onWhisperDirection,
     bool isWhisperEnabled = false,
   }) {
-    // تفعيل الجلسة فور وصول الإصبع الثاني
-    if (!_sessionInitialized && details.pointerCount >= 2) {
-      _startSession(state.currentFloor);
+    if (!_isPanSessionActive && details.pointerCount >= 2) {
+      _startPanSession(state.currentFloor);
     }
 
-    if (!_sessionInitialized) return;
+    if (!_isPanSessionActive) return;
 
-    // تمييز فوري دون أي تجميد
-    if (_gestureMode == TwoFingerGestureMode.undecided) {
-      final scaleDelta = (details.scale - 1.0).abs();
-      final moveDistance = details.focalPointDelta.distance;
+    // ⚡ توجيه مباشر وفوري لحركة الغرف دون أي شروط أو فحص لمصعد الطوابق
+    final update = _panHandler.handlePanUpdate(
+      focalPointDelta: details.focalPointDelta,
+      state: state,
+      topology: topology,
+      screenSize: screenSize,
+      onWhisperDirection: onWhisperDirection,
+      isWhisperEnabled: isWhisperEnabled,
+    );
 
-      if (scaleDelta >= _elevatorScaleThreshold && moveDistance < 3.0) {
-        _gestureMode = TwoFingerGestureMode.elevator;
-        _panHandler.stopRadarAndWhisper();
-      } else {
-        _gestureMode = TwoFingerGestureMode.pan;
-      }
-    }
-
-    // 🏢 مصعد الطوابق
-    if (_gestureMode == TwoFingerGestureMode.elevator) {
-      _floorZ.value = _elevatorHandler.handleScaleUpdate(
-        scaleFactor: details.scale,
-        topology: topology,
-      );
-      return;
-    }
-
-    // 🧭 التمرير الفضائي الحر في بعدين
-    if (_gestureMode == TwoFingerGestureMode.pan) {
-      final update = _panHandler.handlePanUpdate(
-        focalPointDelta: details.focalPointDelta,
-        state: state,
-        topology: topology,
-        screenSize: screenSize,
-        onWhisperDirection: onWhisperDirection,
-        isWhisperEnabled: isWhisperEnabled,
-      );
-
-      _panX.value = update.newPanX;
-      _panY.value = update.newPanY;
-    }
+    _panX.value = update.newPanX;
+    _panY.value = update.newPanY;
   }
 
   void onScaleEnd({
@@ -157,81 +123,44 @@ class SpatialCameraController extends ChangeNotifier {
     required SpatialTopology topology,
     required Size screenSize,
     required ValueChanged<SpatialCoordinate> onTargetCoordinateSelected,
-    required ValueChanged<int> onTargetFloorSelected,
+    ValueChanged<int>? onTargetFloorSelected,
   }) {
+    if (!_isPanSessionActive) return;
+
     _panHandler.stopRadarAndWhisper();
-    _sessionInitialized = false;
+    _isPanSessionActive = false;
 
-    // 1. إفلات مصعد الطوابق
-    if (_gestureMode == TwoFingerGestureMode.elevator) {
-      _gestureMode = TwoFingerGestureMode.undecided;
-      _isTransitioningViaGesture = true;
+    // 🎯 حسم هبوط الغرفة الحتمي والمعزول (Discrete Magnetic Snapping)
+    final landing = _panHandler.resolvePanLanding(
+      velocity: details.velocity.pixelsPerSecond,
+      panX: _panX.value,
+      panY: _panY.value,
+      state: state,
+      topology: topology,
+      screenSize: screenSize,
+    );
 
-      final landing = _elevatorHandler.calculateLanding(
-        currentZ: _floorZ.value,
-        scaleVelocity: details.scaleVelocity,
-        topology: topology,
-      );
+    final finalX = -landing.destination.x * screenSize.width;
+    final finalY = landing.destination.y * screenSize.height;
 
-      _floorZ
-          .animateWith(
-        SpatialPhysics.createZAxisSimulation(
-          start: _floorZ.value,
-          end: landing.targetZ,
-          velocity: landing.velocity,
-        ),
-      )
-          .whenComplete(() {
-        _floorZ.value = landing.targetZ;
-        _isTransitioningViaGesture = false;
-        notifyListeners();
-      });
+    // 🔒 تفعيل قفل الانزلاق لحماية حركة النابض
+    _startPanSettling(
+      targetX: finalX,
+      targetY: finalY,
+      velocityX: landing.velocityX,
+      velocityY: landing.velocityY,
+    );
 
-      if (landing.targetFloor != state.currentFloor) {
-        onTargetFloorSelected(landing.targetFloor);
-      }
-      return;
+    if (landing.destination != state.currentCoordinate) {
+      onTargetCoordinateSelected(landing.destination);
+    } else if (landing.shouldPlayBoundaryBump) {
+      _sound.playBoundaryBump();
     }
 
-    // 2. إفلات السحب الفضائي بين الغرف (Magnetic Discrete Snapping)
-    if (_gestureMode == TwoFingerGestureMode.pan) {
-      _gestureMode = TwoFingerGestureMode.undecided;
-
-      final landing = _panHandler.resolvePanLanding(
-        velocity: details.velocity.pixelsPerSecond,
-        panX: _panX.value,
-        panY: _panY.value,
-        state: state,
-        topology: topology,
-        screenSize: screenSize,
-      );
-
-      final finalX = -landing.destination.x * screenSize.width;
-      final finalY = landing.destination.y * screenSize.height;
-
-      // 🔒 تفعيل قفل الانزلاق لحماية حركة النابض من أي مقاطعة خارجية
-      _startPanSettling(
-        targetX: finalX,
-        targetY: finalY,
-        velocityX: landing.velocityX,
-        velocityY: landing.velocityY,
-      );
-
-      if (landing.destination != state.currentCoordinate) {
-        onTargetCoordinateSelected(landing.destination);
-      } else if (landing.shouldPlayBoundaryBump) {
-        _sound.playBoundaryBump();
-      }
-
-      _panHandler.reset();
-      return;
-    }
-
-    _gestureMode = TwoFingerGestureMode.undecided;
     _panHandler.reset();
   }
 
-  /// إطلاق محاكاة الانزلاق الحتمي نحو الهدف مع صمام أمان زمني
+  /// إطلاق محاكاة الانزلاق نحو الغرفة المستهدفة مع صمام أمان زمني
   void _startPanSettling({
     required double targetX,
     required double targetY,
@@ -241,7 +170,6 @@ class SpatialCameraController extends ChangeNotifier {
     _isSettlingPan = true;
     _settleSafetyTimer?.cancel();
 
-    // صمام أمان (Watchdog): يضمن فك القفل واستقرار الكاميرا حتى لو تأخرت محاكاة النابض
     _settleSafetyTimer = Timer(const Duration(milliseconds: 380), () {
       _finalizePanSettling(targetX, targetY);
     });
@@ -283,15 +211,14 @@ class SpatialCameraController extends ChangeNotifier {
     _isSettlingPan = false;
   }
 
-  /// القفز الحتمي نحو إحداثي معين (يُستدعى برمجياً أو عند الضغط على الـ HUD)
+  /// القفز الحتمي نحو إحداثي غرفة معينة (يُستدعى برمجياً أو عبر الـ HUD)
   void snapToCoordinate(SpatialCoordinate coord, Size screenSize) {
-    // 🛡️ إذا كانت الكاميرا تنزلق بالفعل بفعل إيماءة الإصبعين، لا تقاطع مسارها
+    // 🛡️ إذا كانت الكاميرا تنزلق بالفعل بفعل حركة الإصبعين، لا تقاطع مسارها
     if (_isSettlingPan) return;
 
     final tx = -coord.x * screenSize.width;
     final ty = coord.y * screenSize.height;
 
-    // إذا كانت الكاميرا في مكانها بالفعل بدقة نصف بكسل
     if ((_panX.value - tx).abs() < 0.5 && (_panY.value - ty).abs() < 0.5) {
       _panX.value = tx;
       _panY.value = ty;
@@ -306,18 +233,33 @@ class SpatialCameraController extends ChangeNotifier {
     );
   }
 
+  // ===========================================================================
+  // 🏢 مسار حركة الطوابق الرأسية (Z Axis - Isolated Pipeline)
+  // ===========================================================================
+
+  /// تحريك الارتفاع نحو طابق محدد دون أي تأثير جانبي على حركة الغرف
   void animateToFloor(int targetFloor) {
-    if (_isTransitioningViaGesture) return;
     final targetZ = targetFloor.toDouble();
-    if ((_floorZ.value - targetZ).abs() > 0.001) {
-      _floorZ.animateWith(
-        SpatialPhysics.createZAxisSimulation(
-          start: _floorZ.value,
-          end: targetZ,
-          velocity: 0,
-        ),
-      );
+    if ((_floorZ.value - targetZ).abs() <= 0.001) {
+      _floorZ.value = targetZ;
+      return;
     }
+
+    _isFloorAnimating = true;
+    _floorZ
+        .animateWith(
+          SpatialPhysics.createZAxisSimulation(
+            start: _floorZ.value,
+            end: targetZ,
+            velocity: 0,
+          ),
+        )
+        .whenComplete(() {
+          // 🔒 إغلاق حتمي للقيمة وتحديث الواجهة لضمان الاستقرار التام
+          _floorZ.value = targetZ;
+          _isFloorAnimating = false;
+          notifyListeners();
+        });
   }
 
   @override

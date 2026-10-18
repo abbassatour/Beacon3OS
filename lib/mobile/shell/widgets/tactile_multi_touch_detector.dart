@@ -10,14 +10,11 @@ import 'package:flutter/widgets.dart';
 /// - ثلاث نقرات سريعة: نداء استغاثة الطوارئ SOS.
 /// - ضغط مطول بإصبع واحد (> 650ms): استدعاء المساعد الصوتي دون اعتراض نقرات القوائم.
 /// - نقرتان بإصبعين: إعلان الموقع والمستوى الحالي (Orientation Ping).
-/// - سحب بثلاثة أصابع: مصعد الطوابق السريع (اختياري).
 class TactileMultiTouchDetector extends StatefulWidget {
   const TactileMultiTouchDetector({
     required this.child,
     this.onTripleTapSos,
     this.onOrientationPing,
-    this.onThreeFingerSwipeUp,
-    this.onThreeFingerSwipeDown,
     this.onHoldToSpeakStart,
     this.onHoldToSpeakEnd,
     this.onHoldToSpeakCancel,
@@ -27,8 +24,6 @@ class TactileMultiTouchDetector extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTripleTapSos;
   final VoidCallback? onOrientationPing;
-  final VoidCallback? onThreeFingerSwipeUp;
-  final VoidCallback? onThreeFingerSwipeDown;
   final VoidCallback? onHoldToSpeakStart;
   final VoidCallback? onHoldToSpeakEnd;
   final VoidCallback? onHoldToSpeakCancel;
@@ -46,8 +41,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
   static const double _holdCancelSlop = 8.5; // إلغاء فوري عند بدء تمرير القوائم
 
   int _activePointers = 0;
-  final Map<int, double> _threeFingerStartPointers = {};
-  bool _threeFingerActionFired = false;
 
   Timer? _holdToSpeakTimer;
   bool _isHoldingToSpeak = false;
@@ -71,19 +64,11 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
     _activePointers++;
     _pointerDownPos = event.position;
 
-    if (_activePointers <= 3) {
-      _threeFingerStartPointers[event.pointer] = event.position.dy;
-    }
-
-    if (_activePointers == 3) {
-      _holdToSpeakTimer?.cancel();
-      _singleTapCount = 0; // 👈 تصفير
-      SoundController.instance.stopSpatialRadar();
-      _threeFingerActionFired = false;
-    } else if (_activePointers >= 2) {
-      // 🛡️ فور وجود إصبعين فأكثر، نقوم بتصفير عداد نقرات الـ SOS لمنع الإنذار الكاذب!
+    if (_activePointers >= 2) {
+      // 🛡️ فور وجود إصبعين فأكثر، نقوم بتصفير عداد نقرات الـ SOS وإلغاء استماع المساعد
       _singleTapCount = 0;
       _holdToSpeakTimer?.cancel();
+      SoundController.instance.stopSpatialRadar();
       if (_isHoldingToSpeak) {
         _isHoldingToSpeak = false;
         widget.onHoldToSpeakCancel?.call();
@@ -124,23 +109,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
   }
 
   void _onPointerMove(PointerMoveEvent event) {
-    // معالجة إيماءات الثلاثة أصابع
-    if (_activePointers == 3 && !_threeFingerActionFired) {
-      final startY = _threeFingerStartPointers[event.pointer];
-      if (startY != null) {
-        final deltaY = event.position.dy - startY;
-        if (deltaY < -75.0) {
-          _threeFingerActionFired = true;
-          widget.onThreeFingerSwipeUp?.call();
-          return;
-        } else if (deltaY > 75.0) {
-          _threeFingerActionFired = true;
-          widget.onThreeFingerSwipeDown?.call();
-          return;
-        }
-      }
-    }
-
     // إذا تحرك الإصبعان أكثر من 3.5 بكسل، فهو سحب فضائي للتنقل -> إلغاء النقر المزدوج
     if (_activePointers >= 2 && event.delta.distance > 3.5) {
       _hasTwoFingerMoved = true;
@@ -156,7 +124,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
   }
 
   void _onPointerUp(PointerUpEvent event) {
-    _threeFingerStartPointers.remove(event.pointer);
     _holdToSpeakTimer?.cancel();
 
     if (_isHoldingToSpeak) {
@@ -187,8 +154,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
     if (_activePointers == 0) {
       _hasTwoFingerMoved = false;
       _pointerDownPos = null;
-      _threeFingerActionFired = false;
-      _threeFingerStartPointers.clear();
       SoundController.instance.stopSpatialRadar();
     }
   }
@@ -201,8 +166,6 @@ class _TactileMultiTouchDetectorState extends State<TactileMultiTouchDetector> {
     }
     _activePointers = (_activePointers - 1).clamp(0, 10);
     _pointerDownPos = null;
-    _threeFingerActionFired = false;
-    _threeFingerStartPointers.clear();
     SoundController.instance.stopSpatialRadar();
   }
 

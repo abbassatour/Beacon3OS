@@ -129,7 +129,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           previous.currentCoordinate != current.currentCoordinate ||
           previous.currentFloor != current.currentFloor,
       listener: (context, state) {
-        // 🔒 لا نقاطع محاكاة الانزلاق الجارية بفعل إيماءة الأصابع
+        // 🔒 حماية الكاميرا: عدم مقاطعة النابض إذا كان المستخدم يسحب أو النابض ينزلق
         if (!_cameraController.isGestureActive) {
           _cameraController.snapToCoordinate(
             state.currentCoordinate,
@@ -144,10 +144,11 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           child: CornerSwipeDetector(
             onCornerSwipe: voiceCubit.startSession,
             child: TactileMultiTouchDetector(
+              // 🚨 استغاثة الطوارئ: 3 نقرات سريعة
               onTripleTapSos: () => _triggerTripleTapSos(context),
+              // 🧭 إعلان الموقع للكفيف: نقرتان بإصبعين
               onOrientationPing: shellCubit.announceCurrentLocation,
-              onThreeFingerSwipeUp: shellCubit.ascend,
-              onThreeFingerSwipeDown: shellCubit.descend,
+              // 🎙️ المساعد الصوتي الحسي: ضغط مطول بإصبع واحد
               onHoldToSpeakStart: voiceCubit.startSession,
               onHoldToSpeakEnd: () =>
                   voiceCubit.stopAndExecute(context: context),
@@ -195,13 +196,15 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                         final upperFloor =
                             currentZ.ceil().clamp(minF, maxF);
 
+                        final activeFloor =
+                            currentZ.round().clamp(minF, maxF);
+
+                        // 📐 ترتيب ذكي: الطابق النشط يُرسم دوماً في قمة الـ Stack لمنع الحجب
                         final visibleFloors = <int>{lowerFloor, upperFloor}
                             .where(topology.hasFloor)
                             .toList()
-                          ..sort((a, b) => b.compareTo(a));
-
-                        final activeFloor =
-                            currentZ.round().clamp(minF, maxF);
+                          ..sort((a, b) => (a == activeFloor ? 1 : 0)
+                              .compareTo(b == activeFloor ? 1 : 0));
 
                         return Stack(
                           children: [

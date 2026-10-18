@@ -1,13 +1,14 @@
 // lib/mobile/shell/controllers/handlers/spatial_elevator_handler.dart
 import 'package:beacon_os/core/audio/sound_controller.dart';
+import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/topology/spatial_topology.dart';
 
 /// معالج فيزياء وإيماءات مصعد الطوابق الرأسي (Z-Axis Multi-Floor Elevator).
 ///
-/// يدير حسابات التكبير والتصغير بإصبعين، ومقاومة الحدود المطاطية (Rubber-Banding)،
-/// وإطلاق نبضات الاهتزاز عند منتصف الطوابق مع إمكانية حقن التبعيات للاختبارات المعزولة.
+/// تم ضبط المعالج ليعمل في مسار معزول تماماً عن حركة الغرف (Pan)،
+/// ويدير حسابات الارتفاع الرأسي، ومقاومة الحدود، ونبضات التثبيت الحسي.
 class SpatialElevatorHandler {
   SpatialElevatorHandler({
     SoundController? soundController,
@@ -22,10 +23,10 @@ class SpatialElevatorHandler {
   bool _boundaryBumpFired = false;
   bool _hapticDetentFired = false;
 
-  /// القيمة الابتدائية للعمق Z عند بداية لمس الإصبعين
+  /// القيمة الابتدائية للعمق Z عند بداية جلسة المصعد
   double get initialScale => _initialScale;
 
-  /// تهيئة الجلسة عند بدء لمس الإصبعين
+  /// تهيئة الجلسة عند بداية حركة المصعد الرأسي
   void onScaleStart(double currentZ) {
     _initialScale = currentZ;
     _boundaryBumpFired = false;
@@ -40,6 +41,7 @@ class SpatialElevatorHandler {
     final minFloor = topology.minFloor.toDouble();
     final maxFloor = topology.maxFloor.toDouble();
 
+    // تحويل نسبة المباعدة/التقريب إلى إزاحة في عمق Z
     final scaleDelta = (scaleFactor - 1.0) * 1.5;
     final rawZ = _initialScale + scaleDelta;
 
@@ -73,7 +75,7 @@ class SpatialElevatorHandler {
       _boundaryBumpFired = false;
     }
 
-    // إطلاق نبضة اهتزازية خفيفة عند بلوغ منتصف المسافة بين الطابقين
+    // إطلاق نبضة اهتزازية خفيفة عند بلوغ منتصف المسافة بين الطابقين (0.5)
     final currentBaseFloor = computedZ.floorToDouble();
     final midPoint = currentBaseFloor + 0.50;
 
@@ -83,15 +85,15 @@ class SpatialElevatorHandler {
         _haptics.selectionClick();
         _hapticDetentFired = true;
       }
-    } else if ((computedZ < midPoint - 0.15 && _initialScale < midPoint) ||
-        (computedZ > midPoint + 0.15 && _initialScale >= midPoint)) {
+    } else if ((computedZ < midPoint - 0.12 && _initialScale < midPoint) ||
+        (computedZ > midPoint + 0.12 && _initialScale >= midPoint)) {
       _hapticDetentFired = false;
     }
 
     return computedZ;
   }
 
-  /// حساب استقرار الطابق النهائي المستهدف وسرعة الانزلاق عند رفع الأصابع
+  /// 🎯 حساب استقرار الطابق النهائي المستهدف وسرعة الانزلاق عند الإفلات
   ({int targetFloor, double targetZ, double velocity}) calculateLanding({
     required double currentZ,
     required double scaleVelocity,
@@ -107,9 +109,10 @@ class SpatialElevatorHandler {
     int targetFloor;
     final deltaFromInitial = currentZ - _initialScale;
 
-    if (deltaFromInitial > 0.40 || vz > 0.5) {
+    // ⚡ عتبة حساسة وطبيعية (0.20 بدلاً من 0.40 المفرطة) لضمان حسم الهبوط بدقة
+    if (deltaFromInitial > 0.20 || vz > 0.4) {
       targetFloor = (_initialScale + 1).round();
-    } else if (deltaFromInitial < -0.40 || vz < -0.5) {
+    } else if (deltaFromInitial < -0.20 || vz < -0.4) {
       targetFloor = (_initialScale - 1).round();
     } else {
       targetFloor = projectedZ.round();
