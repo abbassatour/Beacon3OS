@@ -25,14 +25,27 @@ class AgendaEngineCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Default Task Priority',
-                style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              Expanded(
+                child: Text(
+                  'Default Task Priority',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               DropdownButton<String>(
                 value: state.defaultPriority,
                 dropdownColor: colors.surface,
-                style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
                 items: const [
                   DropdownMenuItem(value: 'high', child: Text('High')),
                   DropdownMenuItem(value: 'medium', child: Text('Medium')),
@@ -53,7 +66,11 @@ class AgendaEngineCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Auto-Archive Completed Priorities',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Instantly hide finished tasks from Cockpit canvas.',
@@ -70,7 +87,11 @@ class AgendaEngineCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Speak Due Dates Aloud',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Voice assistant announces relative deadlines on tap.',

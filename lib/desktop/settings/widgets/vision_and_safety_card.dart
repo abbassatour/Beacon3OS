@@ -25,14 +25,27 @@ class VisionAndSafetyCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Vision Inspection Detail',
-                style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              Expanded(
+                child: Text(
+                  'Vision Inspection Detail',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               DropdownButton<String>(
                 value: state.visionInspectionDetail,
                 dropdownColor: colors.surface,
-                style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
                 items: const [
                   DropdownMenuItem(value: 'concise', child: Text('Concise (Fast)')),
                   DropdownMenuItem(value: 'detailed', child: Text('Deep Spatial Inspection')),
@@ -52,7 +65,11 @@ class VisionAndSafetyCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Auto-Dial Emergency Primary Contact',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Immediately place phone call when SOS triggers.',
@@ -69,7 +86,11 @@ class VisionAndSafetyCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Share Live GPS on SOS',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Generate Google Maps link for rescue radar.',

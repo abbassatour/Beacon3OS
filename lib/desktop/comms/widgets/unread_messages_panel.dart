@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/comms/widgets/unread_messages_panel.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_cubit.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_state.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,7 @@ class UnreadMessagesPanel extends StatelessWidget {
     final cubit = context.read<DesktopCommsCubit>();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -27,31 +28,35 @@ class UnreadMessagesPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'MESSAGES VAULT (${state.unreadMessages.length})',
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.1,
+              Expanded(
+                child: Text(
+                  'MESSAGES VAULT (${state.unreadMessages.length})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
-              Icon(Icons.mark_chat_unread_rounded, size: 16, color: colors.primary),
+              Icon(Icons.mark_chat_unread_rounded, size: 15, color: colors.primary),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(
             child: state.unreadMessages.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 32),
-                        const SizedBox(height: 8),
+                        const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 28),
+                        const SizedBox(height: 6),
                         Text(
                           'Quiet Vault\nZero unread messages.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
                         ),
                       ],
                     ),
@@ -61,8 +66,8 @@ class UnreadMessagesPanel extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final msg = state.unreadMessages[index];
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: context.scaffoldBg.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
@@ -74,16 +79,21 @@ class UnreadMessagesPanel extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  msg.senderName,
-                                  style: TextStyle(
-                                    color: colors.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                Expanded(
+                                  child: Text(
+                                    msg.senderName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.5,
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                   decoration: BoxDecoration(
                                     color: colors.primary.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(4),
@@ -92,7 +102,7 @@ class UnreadMessagesPanel extends StatelessWidget {
                                     msg.platform.toUpperCase(),
                                     style: TextStyle(
                                       color: colors.primary,
-                                      fontSize: 9,
+                                      fontSize: 8.5,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -104,9 +114,9 @@ class UnreadMessagesPanel extends StatelessWidget {
                               msg.messageText,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10.5),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
@@ -120,7 +130,7 @@ class UnreadMessagesPanel extends StatelessWidget {
                                   'Mark as Read',
                                   style: TextStyle(
                                     color: colors.primary,
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

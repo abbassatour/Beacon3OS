@@ -17,7 +17,7 @@ class DeepWorkSection extends StatelessWidget {
     final cubit = context.read<DesktopFocusCubit>();
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -27,10 +27,10 @@ class DeepWorkSection extends StatelessWidget {
         children: [
           // عداد المؤقت الرقمي
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: context.scaffoldBg.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: colors.outline.withValues(alpha: 0.4)),
             ),
             child: Column(
@@ -39,66 +39,68 @@ class DeepWorkSection extends StatelessWidget {
                   state.isRunning ? 'DEEP WORK CYCLE RUNNING' : 'POMODORO TIMER',
                   style: TextStyle(
                     color: state.isRunning ? colors.primary : colors.onSurfaceVariant,
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  state.formattedRemainingTime,
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontSize: 64,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -2,
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    state.formattedRemainingTime,
+                    style: TextStyle(
+                      color: colors.onSurface,
+                      fontSize: 56,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -2,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: state.progress,
-                    minHeight: 6,
+                    minHeight: 5,
                     backgroundColor: colors.surface,
                     color: colors.primary,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // أزرار فترات التركيز السريعة
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // 🌟 استخدام Wrap لمنع أي طفح في أزرار الفترات
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [15, 25, 45, 60, 90].map((mins) {
                     final isSelected = state.selectedDurationMinutes == mins;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: InkWell(
-                        onTap: state.isRunning ? null : () => cubit.selectDuration(mins),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected ? colors.primary : colors.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected ? colors.primary : colors.outline,
-                            ),
+                    return InkWell(
+                      onTap: state.isRunning ? null : () => cubit.selectDuration(mins),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isSelected ? colors.primary : colors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? colors.primary : colors.outline,
                           ),
-                          child: Text(
-                            '${mins}m',
-                            style: TextStyle(
-                              color: isSelected ? colors.surface : colors.onSurface,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                            ),
+                        ),
+                        child: Text(
+                          '${mins}m',
+                          style: TextStyle(
+                            color: isSelected ? colors.surface : colors.onSurface,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11.5,
                           ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
                 // أزرار التحكم
                 Row(
@@ -108,29 +110,29 @@ class DeepWorkSection extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: state.isRunning ? colors.secondary : colors.primary,
                         foregroundColor: colors.surface,
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       icon: Icon(
                         state.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                        size: 20,
+                        size: 18,
                       ),
                       label: Text(
                         state.isRunning ? 'Pause' : 'Start Focus',
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                       ),
                       onPressed: state.isRunning ? cubit.pauseTimer : cubit.startTimer,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colors.onSurface,
                         side: BorderSide(color: colors.outline),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       onPressed: cubit.resetTimer,
                     ),
                   ],
@@ -138,7 +140,7 @@ class DeepWorkSection extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
 
           // سجل الجلسات المكتملة اليوم
           Expanded(
@@ -148,28 +150,33 @@ class DeepWorkSection extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'TODAY COMPLETED SESSIONS (${state.todaySessions.length})',
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
+                    Expanded(
+                      child: Text(
+                        'TODAY COMPLETED SESSIONS (${state.todaySessions.length})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
-                      'Auto-logged to vault',
-                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                      'Auto-logged',
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: state.todaySessions.isEmpty
                       ? Center(
                           child: Text(
-                            'Complete a focus cycle to see your deep work record here.',
-                            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                            'Complete a focus cycle to see your record here.',
+                            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
                           ),
                         )
                       : ListView.builder(
@@ -178,7 +185,7 @@ class DeepWorkSection extends StatelessWidget {
                             final session = state.todaySessions[index];
                             return Container(
                               margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: context.scaffoldBg.withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(10),
@@ -187,25 +194,32 @@ class DeepWorkSection extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        '${session.durationMinutes} Minutes Focus Cycle',
-                                        style: TextStyle(
-                                          color: colors.onSurface,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_rounded, color: Colors.green, size: 15),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '${session.durationMinutes}m Focus Cycle',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: colors.onSurface,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Text(
                                     DateFormat('h:mm a').format(session.completedAt.toLocal()),
                                     style: TextStyle(
                                       color: colors.onSurfaceVariant,
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                     ),
                                   ),
                                 ],

@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/agenda/widgets/agenda_header.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_cubit.dart';
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_state.dart';
 import 'package:flutter/material.dart';
@@ -15,41 +16,57 @@ class AgendaHeader extends StatelessWidget {
     final cubit = context.read<DesktopAgendaCubit>();
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.calendar_today_rounded, color: colors.primary, size: 24),
-                const SizedBox(width: 10),
-                Text(
-                  'AGENDA & ZEN TASK BOARD',
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+        // 🌟 جعل العنوان والوصف مرنين لمنع طفح الـ 376 بيكسل
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    color: colors.primary,
+                    size: 24,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Keyboard-driven priority board, real-time sync with mobile phonebook & alarms.',
-              style: TextStyle(
-                color: colors.onSurfaceVariant,
-                fontSize: 12,
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'AGENDA & ZEN TASK BOARD',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Keyboard-driven priority board, real-time sync with mobile phonebook & alarms.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 16),
+        // أدوات الفلترة والبحث في اليمين بحجم متكيف
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 240,
-              height: 40,
+              width: 200,
+              height: 38,
               child: TextField(
                 onChanged: cubit.setSearchQuery,
                 decoration: InputDecoration(
@@ -68,22 +85,28 @@ class AgendaHeader extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: colors.outline.withValues(alpha: 0.6)),
+                    borderSide: BorderSide(
+                      color: colors.outline.withValues(alpha: 0.6),
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: colors.outline.withValues(alpha: 0.6)),
+                    borderSide: BorderSide(
+                      color: colors.outline.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: colors.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.outline.withValues(alpha: 0.6)),
+                border: Border.all(
+                  color: colors.outline.withValues(alpha: 0.6),
+                ),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(

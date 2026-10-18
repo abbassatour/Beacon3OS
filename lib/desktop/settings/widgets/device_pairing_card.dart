@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+﻿// lib/desktop/settings/widgets/device_pairing_card.dart
+import 'dart:async';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
@@ -164,8 +165,11 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Text(
                 'Relay Mode Status:',
@@ -207,6 +211,8 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                         const SizedBox(height: 2),
                         Text(
                           _linkedVaultId ?? 'Remote Sovereign Node',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.onSurface,
                             fontSize: 12,
@@ -217,6 +223,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.error,
@@ -224,6 +231,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     icon: const Icon(Icons.link_off_rounded, size: 16),
                     label: const Text('Unpair', style: TextStyle(fontSize: 12)),
@@ -253,29 +261,31 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SPEAK TO BEACON PHONE:',
-                          style: TextStyle(
-                            color: colors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.1,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SPEAK TO BEACON PHONE:',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '"Pair ${_generatedPairingCode!.substring(0, 3)} ${_generatedPairingCode!.substring(3, 6)}"',
-                          style: TextStyle(
-                            color: colors.onSurface,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'monospace',
+                          const SizedBox(height: 2),
+                          Text(
+                            '"Pair ${_generatedPairingCode!.substring(0, 3)} ${_generatedPairingCode!.substring(3, 6)}"',
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'monospace',
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     Row(
                       children: [

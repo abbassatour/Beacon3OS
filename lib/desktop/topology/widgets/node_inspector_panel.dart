@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/topology/widgets/node_inspector_panel.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_cubit.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_state.dart';
@@ -57,7 +58,6 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
     final cubit = context.read<DesktopTopologyCubit>();
     final node = widget.state.selectedNode;
 
-    // 👈 استخدام Material يحل تحذيرات الـ ListTile الستة
     return Material(
       color: colors.surface,
       shape: RoundedRectangleBorder(
@@ -66,7 +66,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(18),
         child: node == null
             ? _buildEmptyInspector(context)
             : SingleChildScrollView(
@@ -76,34 +76,42 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              node.moduleId.moduleIcon,
-                              color: colors.primary,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'ROOM INSPECTOR',
-                              style: TextStyle(
-                                color: colors.onSurface,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.1,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                node.moduleId.moduleIcon,
+                                color: colors.primary,
+                                size: 22,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'ROOM INSPECTOR',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: colors.onSurface,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 20),
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           onPressed: () => cubit.selectNode(null),
                         ),
                       ],
                     ),
-                    const Divider(height: 24),
+                    const Divider(height: 20),
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: context.scaffoldBg,
                         borderRadius: BorderRadius.circular(12),
@@ -112,10 +120,10 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'MODULE IDENTIFIER: ${node.moduleId.toUpperCase()}',
+                            'MODULE: ${node.moduleId.toUpperCase()}',
                             style: TextStyle(
                               color: colors.primary,
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -124,7 +132,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                             'Coordinates: X = ${node.x}, Y = ${node.y}',
                             style: TextStyle(
                               color: colors.onSurface,
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -132,27 +140,27 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                             'Floor Level: Floor ${node.floorLevel}',
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     Text(
                       'COORDINATE NUDGE',
                       style: TextStyle(
                         color: colors.onSurfaceVariant,
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Center(
                       child: SizedBox(
-                        width: 130,
-                        height: 110,
+                        width: 120,
+                        height: 100,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -204,19 +212,20 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     Text(
                       'CUSTOM ROOM TITLE',
                       style: TextStyle(
                         color: colors.onSurfaceVariant,
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     TextField(
                       controller: _titleController,
+                      style: TextStyle(color: colors.onSurface, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: node.moduleId.defaultTitle,
                         filled: true,
@@ -226,8 +235,8 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                           borderSide: BorderSide(color: colors.outline),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                          horizontal: 10,
+                          vertical: 8,
                         ),
                       ),
                     ),
@@ -239,6 +248,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       onPressed: () {
                         cubit.updateNodeTitle(
@@ -252,7 +262,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                           ),
                         );
                       },
-                      child: const Text('Save Title'),
+                      child: const Text('Save Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -273,8 +283,8 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 20, color: colors.onSurface),
+          padding: const EdgeInsets.all(5),
+          child: Icon(icon, size: 18, color: colors.onSurface),
         ),
       ),
     );
@@ -290,39 +300,39 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
         Icon(
           Icons.touch_app_rounded,
           color: colors.onSurfaceVariant.withValues(alpha: 0.5),
-          size: 44,
+          size: 38,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Text(
           'SELECT A ROOM',
           style: TextStyle(
             color: colors.onSurface,
             fontWeight: FontWeight.w900,
-            fontSize: 14,
+            fontSize: 13,
             letterSpacing: 1.1,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
-          'Click any room on the grid to inspect details, tweak coordinate offsets, or rename it.',
+          'Click any room on the grid to inspect details or nudge coordinates.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: colors.onSurfaceVariant,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         const Divider(),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Text(
           'ROOMS ON THIS FLOOR (${widget.state.currentFloorNodes.length})',
           style: TextStyle(
             color: colors.onSurfaceVariant,
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Expanded(
           child: ListView(
             children: widget.state.currentFloorNodes.map((node) {
@@ -331,13 +341,13 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                 child: ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(node.moduleId.moduleIcon, size: 18),
+                  leading: Icon(node.moduleId.moduleIcon, size: 16),
                   title: Text(
                     node.customTitle ?? node.moduleId.defaultTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -346,7 +356,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                     style: TextStyle(
                       color: colors.primary,
                       fontWeight: FontWeight.w900,
-                      fontSize: 11,
+                      fontSize: 10.5,
                     ),
                   ),
                   onTap: () => cubit.selectNode(node.id),

@@ -69,7 +69,7 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
                 : (widget.isCenter
                     ? colors.secondary.withValues(alpha: 0.05)
                     : context.scaffoldBg.withValues(alpha: 0.5)),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _isHoveredOver
                   ? colors.primary
@@ -94,35 +94,45 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
 
     String? cardinalHint;
     if (widget.isCenter) cardinalHint = 'ORIGIN';
-    if (widget.x == 0 && widget.y == 1) cardinalHint = 'NORTH [UP]';
-    if (widget.x == 0 && widget.y == -1) cardinalHint = 'SOUTH [DOWN]';
-    if (widget.x == 1 && widget.y == 0) cardinalHint = 'EAST [RIGHT]';
-    if (widget.x == -1 && widget.y == 0) cardinalHint = 'WEST [LEFT]';
+    if (widget.x == 0 && widget.y == 1) cardinalHint = 'NORTH';
+    if (widget.x == 0 && widget.y == -1) cardinalHint = 'SOUTH';
+    if (widget.x == 1 && widget.y == 0) cardinalHint = 'EAST';
+    if (widget.x == -1 && widget.y == 0) cardinalHint = 'WEST';
 
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '(${widget.x}, ${widget.y})',
-            style: TextStyle(
-              color: colors.onSurfaceVariant.withValues(alpha: 0.6),
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (cardinalHint != null) ...[
-            const SizedBox(height: 2),
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(
-              cardinalHint,
+              '(${widget.x}, ${widget.y})',
               style: TextStyle(
-                color: widget.isCenter ? colors.secondary : colors.onSurfaceVariant,
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
+                color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
               ),
             ),
+            if (cardinalHint != null) ...[
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  cardinalHint,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: widget.isCenter
+                        ? colors.secondary
+                        : colors.onSurfaceVariant,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -138,25 +148,25 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
       feedback: Material(
         color: Colors.transparent,
         child: Container(
-          width: 130,
-          height: 90,
-          padding: const EdgeInsets.all(12),
+          width: 120,
+          height: 80,
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: colors.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: colors.primary, width: 2),
             boxShadow: [
               BoxShadow(
                 color: colors.primary.withValues(alpha: 0.3),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: colors.primary, size: 24),
+              Icon(icon, color: colors.primary, size: 20),
               const SizedBox(height: 4),
               Text(
                 title,
@@ -164,7 +174,7 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: colors.onSurface,
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -177,7 +187,7 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
         child: _buildRoomCardContent(context, node, icon, title),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: () => cubit.selectNode(node.id),
         child: _buildRoomCardContent(context, node, icon, title),
       ),
@@ -192,47 +202,57 @@ class _SpatialCellSlotState extends State<SpatialCellSlot> {
   ) {
     final colors = context.colors;
 
+    // 🌟 حواشٍ مدروسة وتغليف مرن ينهي طفح الـ 5.2 و 6.2 و 8.9 بيكسل نهائياً
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: colors.primary, size: 18),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${node.x},${node.y}',
-                  style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
+              Icon(icon, color: colors.primary, size: 13),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    '${node.x},${node.y}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          Text(
-            title,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: colors.onSurface,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Center(
+              child: Text(
+                title,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
             ),
           ),
           Icon(
             Icons.drag_indicator_rounded,
-            size: 14,
-            color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+            size: 11,
+            color: colors.onSurfaceVariant.withValues(alpha: 0.4),
           ),
         ],
       ),

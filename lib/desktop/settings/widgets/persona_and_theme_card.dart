@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/widgets/persona_and_theme_card.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
@@ -27,14 +28,21 @@ class PersonaAndThemeCard extends StatelessWidget {
         children: [
           Text(
             'Active Interaction Persona',
-            style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              color: colors.onSurface,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: ChoiceChip(
-                  label: const Center(child: Text('Blind Accessible')),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Blind Accessible'),
+                  ),
                   selected: isBlindMode,
                   onSelected: (val) {
                     if (val) {
@@ -48,7 +56,10 @@ class PersonaAndThemeCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: ChoiceChip(
-                  label: const Center(child: Text('Digital Minimalist')),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Digital Minimalist'),
+                  ),
                   selected: !isBlindMode,
                   onSelected: (val) {
                     if (val) {
@@ -67,7 +78,11 @@ class PersonaAndThemeCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'High Contrast OLED Theme',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Pure black canvas with neon cyan and yellow tokens.',

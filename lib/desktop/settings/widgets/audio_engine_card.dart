@@ -26,7 +26,11 @@ class AudioEngineCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Spatial Audio Cues',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Harmonic compass chimes when navigating rooms.',
@@ -39,12 +43,15 @@ class AudioEngineCard extends StatelessWidget {
             ),
           ),
           const Divider(),
-          // 🧭 🌟 زر التبديل الجديد لهمس الغرف لسطح المكتب
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Spatial Room Whisper',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Whisper upcoming room name via TTS when panning compass.',
@@ -61,7 +68,11 @@ class AudioEngineCard extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               'Tactile Haptics',
-              style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             subtitle: Text(
               'Vibrations on mobile transitions and mic pulses.',
@@ -77,12 +88,21 @@ class AudioEngineCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Speech Rate (${(state.speechRate * 2).toStringAsFixed(1)}x)',
-                style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 13),
+              Expanded(
+                child: Text(
+                  'Speech Rate (${(state.speechRate * 2).toStringAsFixed(1)}x)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               SizedBox(
-                width: 140,
+                width: 130,
                 child: Slider(
                   value: state.speechRate.clamp(0.3, 1.0),
                   min: 0.3,

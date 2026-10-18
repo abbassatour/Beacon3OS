@@ -1,4 +1,4 @@
-﻿// lib/desktop/view/desktop_comms_view.dart
+﻿// lib/desktop/comms/view/desktop_comms_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_cubit.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_state.dart';
@@ -46,35 +46,65 @@ class _DesktopCommsContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. Ø±Ø£Ø³ Ø§Ù„ØµÙØ­Ø©: Ø§Ù„Ø¹Ù†Ø§ÙˆÙŠÙ† ÙˆØ£Ø²Ø±Ø§Ø± Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª
+                // 1. رأس الصفحة
                 CommsHeader(state: state),
                 const SizedBox(height: 20),
 
-                // 2. Ø§Ù„Ù…Ø­ØªÙˆÙ‰ Ø§Ù„Ù…Ù‚Ø³ÙˆÙ… Ø¹Ù„Ù‰ 3 Ù„ÙˆØ­Ø§Øª
+                // 2. شبكة الألواح المتجاوبة التي تمنع طفح القاع والعرض
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Ø§Ù„Ù„ÙˆØ­Ø© 1: Ø¬Ù‡Ø§Øª Ø§ØªØµØ§Ù„ Ø§Ù„Ø·ÙˆØ§Ø±Ø¦ ÙˆØ§Ù„Ø±Ø§Ø¯Ø§Ø± Ø§Ù„Ù„Ø§Ù…Ø±ÙƒØ²ÙŠ
-                      Expanded(
-                        flex: 5,
-                        child: EmergencyRadarPanel(state: state),
-                      ),
-                      const SizedBox(width: 18),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // إذا كان العرض ضيقاً (< 880px)، نوزع الألواح على عمودين لتفادي التزاحم
+                      if (constraints.maxWidth < 880) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              flex: 6,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    flex: 6,
+                                    child: EmergencyRadarPanel(state: state),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Expanded(
+                                    flex: 4,
+                                    child: UnreadMessagesPanel(state: state),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              flex: 5,
+                              child: DirectoryPanel(state: state),
+                            ),
+                          ],
+                        );
+                      }
 
-                      // Ø§Ù„Ù„ÙˆØ­Ø© 2: Ø¯Ù„ÙŠÙ„ Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ Ø§Ù„Ø´Ø§Ù…Ù„
-                      Expanded(
-                        flex: 4,
-                        child: DirectoryPanel(state: state),
-                      ),
-                      const SizedBox(width: 18),
-
-                      // Ø§Ù„Ù„ÙˆØ­Ø© 3: Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„Ø®Ø²Ù†Ø© Ø§Ù„ÙˆØ§Ø±Ø¯Ø©
-                      Expanded(
-                        flex: 3,
-                        child: UnreadMessagesPanel(state: state),
-                      ),
-                    ],
+                      // التوزيع الثلاثي القياسي للشاشات الواسعة
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: EmergencyRadarPanel(state: state),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 4,
+                            child: DirectoryPanel(state: state),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 3,
+                            child: UnreadMessagesPanel(state: state),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/settings/view/desktop_settings_view.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_cubit.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/agenda_engine_card.dart';
@@ -56,12 +57,14 @@ class _DesktopSettingsContent extends StatelessWidget {
                 SettingsHeader(state: state),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // 🌟 تجاوب ذكي: إذا كانت الشاشة أقل من 840 بيكسل يتحول لعمود واحد مرن
+                      final isSingleColumn = constraints.maxWidth < 840;
+
+                      if (isSingleColumn) {
+                        return SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
                           child: Column(
                             children: [
                               SovereignIdentityCard(state: state),
@@ -71,13 +74,7 @@ class _DesktopSettingsContent extends StatelessWidget {
                               PersonaAndThemeCard(state: state),
                               const SizedBox(height: 16),
                               AudioEngineCard(state: state),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            children: [
+                              const SizedBox(height: 16),
                               AgendaEngineCard(state: state),
                               const SizedBox(height: 16),
                               FocusEngineCard(state: state),
@@ -85,9 +82,43 @@ class _DesktopSettingsContent extends StatelessWidget {
                               VisionAndSafetyCard(state: state),
                             ],
                           ),
+                        );
+                      }
+
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  SovereignIdentityCard(state: state),
+                                  const SizedBox(height: 16),
+                                  const DevicePairingCard(),
+                                  const SizedBox(height: 16),
+                                  PersonaAndThemeCard(state: state),
+                                  const SizedBox(height: 16),
+                                  AudioEngineCard(state: state),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  AgendaEngineCard(state: state),
+                                  const SizedBox(height: 16),
+                                  FocusEngineCard(state: state),
+                                  const SizedBox(height: 16),
+                                  VisionAndSafetyCard(state: state),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],

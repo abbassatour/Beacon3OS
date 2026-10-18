@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/comms/widgets/emergency_radar_panel.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_cubit.dart';
 import 'package:beacon_os/desktop/comms/cubit/desktop_comms_state.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,7 @@ class EmergencyRadarPanel extends StatelessWidget {
     final cubit = context.read<DesktopCommsCubit>();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -26,10 +27,10 @@ class EmergencyRadarPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: colors.error.withValues(alpha: state.isBroadcastingSos ? 0.15 : 0.05),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.error.withValues(alpha: 0.4)),
             ),
             child: Column(
@@ -37,65 +38,76 @@ class EmergencyRadarPanel extends StatelessWidget {
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: 18,
                       backgroundColor: colors.error,
                       child: Icon(
                         state.isBroadcastingSos
                             ? Icons.wifi_tethering_rounded
                             : Icons.warning_amber_rounded,
                         color: colors.surface,
-                        size: 22,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             state.isBroadcastingSos
-                                ? 'BROADCASTING TEST RADAR...'
+                                ? 'BROADCASTING RADAR...'
                                 : 'EMERGENCY RADAR ACTIVE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: colors.error,
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.1,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Triple-tap on phone sounds alarm & anchors GPS to Arbitrum ledger.',
+                            'Triple-tap on phone sounds alarm & anchors GPS to Arbitrum.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: colors.onSurface,
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 6),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.error,
                         foregroundColor: colors.surface,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      icon: const Icon(Icons.satellite_alt_rounded, size: 16),
+                      icon: const Icon(Icons.satellite_alt_rounded, size: 14),
                       label: const Text(
-                        'Test SOS',
+                        'Test',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                       ),
                       onPressed: state.isBroadcastingSos ? null : cubit.triggerTestSosBroadcast,
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Row(
+                const SizedBox(height: 8),
+                // 🌟 استخدام Wrap لمنع طفح شارة الـ Arbitrum
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
@@ -104,20 +116,19 @@ class EmergencyRadarPanel extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.verified_rounded, size: 12, color: Colors.green),
+                          Icon(Icons.verified_rounded, size: 11, color: Colors.green),
                           SizedBox(width: 4),
                           Text(
-                            'Arbitrum Sepolia Attested (L2)',
+                            'Arbitrum Sepolia L2',
                             style: TextStyle(
                               color: Colors.green,
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Text(
                       'Tamper-proof GPS beacon',
                       style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
@@ -127,33 +138,38 @@ class EmergencyRadarPanel extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'EMERGENCY DISPATCH CONTACTS (${state.emergencyContacts.length})',
-                style: TextStyle(
-                  color: colors.error,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.1,
+              Expanded(
+                child: Text(
+                  'EMERGENCY CONTACTS (${state.emergencyContacts.length})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.error,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
+              const SizedBox(width: 6),
               Text(
-                'Receives live GPS alert',
-                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                'Live GPS alert',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(
             child: state.emergencyContacts.isEmpty
                 ? Center(
                     child: Text(
-                      'No emergency contacts registered.\nPromote standard contacts to emergency priority.',
+                      'No emergency contacts registered.\nPromote contacts from directory.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
                     ),
                   )
                 : ListView.builder(
@@ -161,52 +177,64 @@ class EmergencyRadarPanel extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final contact = state.emergencyContacts[index];
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: colors.error.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: colors.error.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
-                              radius: 18,
+                              radius: 15,
                               backgroundColor: colors.error.withValues(alpha: 0.15),
-                              child: Icon(Icons.shield_rounded, color: colors.error, size: 18),
+                              child: Icon(Icons.shield_rounded, color: colors.error, size: 15),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     contact.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: colors.onSurface,
-                                      fontSize: 14,
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
                                   Text(
-                                    '${contact.relationship ?? 'Emergency Primary'} - ${contact.phoneNumber}',
-                                    style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                                    '${contact.relationship ?? 'Emergency'} - ${contact.phoneNumber}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
                                   ),
                                 ],
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.phone_rounded, color: colors.primary, size: 18),
+                              icon: Icon(Icons.phone_rounded, color: colors.primary, size: 16),
                               tooltip: 'Dial Number',
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(),
                               onPressed: () => launchUrl(Uri.parse('tel:${contact.phoneNumber}')),
                             ),
+                            const SizedBox(width: 4),
                             IconButton(
-                              icon: Icon(Icons.star_rounded, color: colors.error, size: 20),
-                              tooltip: 'Demote to regular contact',
+                              icon: Icon(Icons.star_rounded, color: colors.error, size: 18),
+                              tooltip: 'Demote to regular',
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(),
                               onPressed: () => cubit.toggleEmergencyStatus(contact),
                             ),
+                            const SizedBox(width: 4),
                             IconButton(
-                              icon: Icon(Icons.delete_outline_rounded, color: colors.error, size: 18),
+                              icon: Icon(Icons.delete_outline_rounded, color: colors.error, size: 16),
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(),
                               onPressed: () => cubit.deleteContact(contact),
                             ),
                           ],

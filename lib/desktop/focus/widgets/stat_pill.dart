@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/focus/widgets/stat_pill.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class StatPill extends StatelessWidget {
@@ -20,24 +21,26 @@ class StatPill extends StatelessWidget {
     final colors = context.colors;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: colors.outline.withValues(alpha: 0.7)),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: accentColor),
-          const SizedBox(width: 8),
+          Icon(icon, size: 15, color: accentColor),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
                   color: colors.onSurfaceVariant,
-                  fontSize: 9,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -45,7 +48,7 @@ class StatPill extends StatelessWidget {
                 value,
                 style: TextStyle(
                   color: colors.onSurface,
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),
               ),

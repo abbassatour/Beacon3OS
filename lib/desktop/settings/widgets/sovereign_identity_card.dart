@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/services/web3_service.dart';
+﻿// lib/desktop/settings/widgets/sovereign_identity_card.dart
+import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/settings/cubit/desktop_settings_state.dart';
 import 'package:beacon_os/desktop/settings/widgets/settings_card.dart';
@@ -31,10 +32,12 @@ class SovereignIdentityCard extends StatelessWidget {
                   color: Colors.green,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Arbitrum Sepolia L2: Active & Verified',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: colors.onSurface,
                     fontWeight: FontWeight.bold,
@@ -42,6 +45,7 @@ class SovereignIdentityCard extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -84,6 +88,8 @@ class SovereignIdentityCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         web3.walletAddressHex,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: colors.onSurface,
                           fontSize: 12,

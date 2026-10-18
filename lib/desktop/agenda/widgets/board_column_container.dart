@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/agenda/widgets/board_column_container.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class BoardColumnContainer extends StatelessWidget {
@@ -33,24 +34,30 @@ class BoardColumnContainer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(icon, color: accentColor, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$title ($count)',
-                      style: TextStyle(
-                        color: colors.onSurface,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
+                // 🌟 جعل العنوان مرناً لمنع الطفح عند صغر عرض العمود
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(icon, color: accentColor, size: 15),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '$title ($count)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10.5,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 if (headerAction != null) headerAction!,
               ],
@@ -71,20 +78,20 @@ Widget buildEmptyColumnPlaceholder({
 }) {
   return Center(
     child: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
             color: colors.onSurfaceVariant.withValues(alpha: 0.4),
-            size: 36,
+            size: 32,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11.5),
           ),
         ],
       ),
