@@ -23,7 +23,7 @@
       <header class="echo-status-bar">
         <div class="status-left">
           <span class="echo-brand">amazon <strong>alexa+</strong></span>
-          <span class="device-tag">Echo Show Simulation</span>
+          <span class="device-tag">Echo Show 15 Simulation</span>
         </div>
         <div class="status-center" id="echoClock">12:00 PM</div>
         <div class="status-right">
@@ -42,7 +42,7 @@
           <div class="idle-date" id="bigDate">Monday, October 12</div>
           <div class="idle-prompt">
             <span class="mic-hint-icon">🎙️</span>
-            <p>Say <strong>"Alexa, find my Beacon phone"</strong> or choose a test prompt below</p>
+            <p>Say <strong>"Alexa, find my Beacon phone"</strong> or select an evaluation preset below</p>
           </div>
         </div>
 
@@ -64,7 +64,7 @@
 
       </section>
 
-      <!-- Interactive Living Room Prompt Pills -->
+      <!-- Interactive Living Room Prompt Pills (Judge Evaluation Suite) -->
       <footer class="echo-controls">
         <div class="prompt-pills">
           <button class="pill" onclick="sendPreset('Alexa, find my Beacon phone!')">
@@ -73,11 +73,20 @@
           <button class="pill" onclick="sendPreset('Alexa, trigger emergency SOS')">
             🚨 "Trigger Emergency SOS"
           </button>
-          <button class="pill" onclick="sendPreset('Alexa, check phone telemetry and battery')">
-            🔋 "Check phone battery"
-          </button>
           <button class="pill" onclick="sendPreset('Alexa, what is my daily briefing?')">
             📋 "Daily briefing"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, simulate courier delivery')">
+            📦 "Simulate courier arrival"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, inspect front door camera')">
+            📹 "Inspect front door"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, simulate night prowler in backyard')">
+            🐾 "Simulate night prowler"
+          </button>
+          <button class="pill" onclick="sendPreset('Alexa, check phone telemetry and battery')">
+            🔋 "Check phone battery"
           </button>
           <button class="pill" onclick="sendPreset('Alexa, add task: Review Hackathon Submission')">
             ✍️ "Add agenda task"
@@ -101,7 +110,7 @@
       <div class="alexa-light-bar" id="lightBar"></div>
     </main>
 
-    <!-- RIGHT: Live MCP Protocol & JSON-RPC Inspector (Judges' Window) -->
+    <!-- RIGHT: Live MCP Protocol & JSON-RPC Inspector (Judges' Protocol Window) -->
     <aside class="protocol-inspector">
       <div class="inspector-header">
         <div>
@@ -119,7 +128,7 @@
       <div class="logs-container" id="logsContainer">
         <div class="log-entry system">
           <span class="log-tag">READY</span>
-          <span class="log-desc">Streamable HTTP Inspector initialized. Ready to capture JSON-RPC calls.</span>
+          <span class="log-desc">Streamable HTTP Inspector initialized. Ready to capture live JSON-RPC calls.</span>
         </div>
       </div>
     </aside>

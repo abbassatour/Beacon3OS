@@ -126,7 +126,10 @@ class Web3Service {
       final file = _getFallbackFile();
       if (file != null && await file.exists()) {
         final content = (await file.readAsString()).trim();
-        if (content.isNotEmpty) return content;
+        if (content.isNotEmpty) {
+          log('Web3Service: 📂 Loaded sovereign identity key from: ${file.path}');
+          return content;
+        }
       }
     } catch (e) {
       log('Web3Service: File key read note: $e');
@@ -139,20 +142,25 @@ class Web3Service {
     try {
       final file = _getFallbackFile();
       if (file != null) {
-        await file.parent.create(recursive: true);
-        await file.writeAsString(keyHex);
+        if (!await file.parent.exists()) {
+          await file.parent.create(recursive: true);
+        }
+        await file.writeAsString(keyHex, flush: true);
+        log('Web3Service: 💾 Successfully persisted sovereign identity key to: ${file.path}');
       }
     } catch (e) {
       log('Web3Service: File key write note: $e');
     }
   }
 
+  /// تحديد مسار الملف الآمن ديناميكياً مع دعم جميع النكهات (Development, Staging, Production)
   File? _getFallbackFile() {
     try {
       if (Platform.isAndroid) {
-        return File(
-          '/data/user/0/com.beaconos.beacon_os/app_flutter/sovereign_identity.key',
-        );
+        return _resolveAndroidKeyFile();
+      } else if (Platform.isIOS) {
+        final home = Platform.environment['HOME'] ?? '.';
+        return File('$home/Documents/sovereign_identity.key');
       } else if (Platform.isWindows) {
         final appData = Platform.environment['APPDATA'] ?? '.';
         return File('$appData/BeaconOS/sovereign_identity.key');
@@ -163,6 +171,47 @@ class Web3Service {
     } catch (_) {
       return null;
     }
+  }
+
+  /// اكتشاف مسار التطبيق الفعلي على أندرويد بدقة دون الاعتماد على مسار ثابت
+  File _resolveAndroidKeyFile() {
+    String? packageName;
+    try {
+      final cmdline = File('/proc/self/cmdline');
+      if (cmdline.existsSync()) {
+        final content = cmdline.readAsStringSync();
+        final parts = content.split('\x00');
+        if (parts.isNotEmpty && parts.first.trim().isNotEmpty) {
+          packageName = parts.first.trim();
+        }
+      }
+    } catch (_) {}
+
+    // فحص النكهات المحتملة بالترتيب
+    final candidates = [
+      if (packageName != null) packageName,
+      'com.beaconos.beacon_os.dev',
+      'com.beaconos.beacon_os.stg',
+      'com.beaconos.beacon_os',
+    ];
+
+    for (final pkg in candidates) {
+      // فحص مجلدات التطبيق الحقيقية التي يمتلك صلاحية الوصول إليها
+      for (final subDir in ['files', 'app_flutter']) {
+        final userDir = Directory('/data/user/0/$pkg/$subDir');
+        if (userDir.existsSync()) {
+          return File('${userDir.path}/sovereign_identity.key');
+        }
+        final dataDir = Directory('/data/data/$pkg/$subDir');
+        if (dataDir.existsSync()) {
+          return File('${dataDir.path}/sovereign_identity.key');
+        }
+      }
+    }
+
+    // إذا لم تكن المجلدات الفرعية قد أُنشئت بعد، نعتمد المجلد الأساسي للحزمة النشطة
+    final targetPkg = packageName ?? 'com.beaconos.beacon_os.dev';
+    return File('/data/user/0/$targetPkg/files/sovereign_identity.key');
   }
 
   /// جلب رصيد المحفظة بالـ ETH على شبكة Arbitrum Sepolia

@@ -22,7 +22,9 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
 
     _contactsSub = _commsRepo.watchContacts().listen(
       (contactList) async {
+        if (isClosed) return;
         final unread = await _commsRepo.getUnreadMessages();
+        if (isClosed) return;
         emit(
           state.copyWith(
             status: DesktopCommsStatus.success,
@@ -33,12 +35,14 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
       },
       onError: (Object error) {
         log('DesktopCommsCubit: Error watching contacts: $error');
-        emit(
-          state.copyWith(
-            status: DesktopCommsStatus.error,
-            errorMessage: error.toString(),
-          ),
-        );
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              status: DesktopCommsStatus.error,
+              errorMessage: error.toString(),
+            ),
+          );
+        }
       },
     );
   }
@@ -62,21 +66,24 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
       );
     } catch (e) {
       log('DesktopCommsCubit: Error adding contact: $e');
-      emit(state.copyWith(errorMessage: 'Failed to add contact: $e'));
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Failed to add contact: $e'));
+      }
     }
   }
 
+  /// تبديل حالة الطوارئ لجهة الاتصال دون حذف السجل أو تغيير الـ UUID
   Future<void> toggleEmergencyStatus(ContactEntity contact) async {
     try {
-      await _commsRepo.deleteContact(contact.id);
-      await _commsRepo.saveContact(
-        name: contact.name,
-        phoneNumber: contact.phoneNumber,
-        relationship: contact.relationship,
+      await _commsRepo.toggleEmergencyStatus(
+        contact.id,
         isEmergency: !contact.isEmergency,
       );
     } catch (e) {
       log('DesktopCommsCubit: Error toggling emergency contact: $e');
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Failed to update contact status: $e'));
+      }
     }
   }
 
@@ -85,6 +92,9 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
       await _commsRepo.deleteContact(contact.id);
     } catch (e) {
       log('DesktopCommsCubit: Error deleting contact: $e');
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Failed to delete contact: $e'));
+      }
     }
   }
 
@@ -93,11 +103,21 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     emit(state.copyWith(isSyncingContacts: true));
 
     try {
-      await _commsRepo.syncDeviceContactsToVault();
+      final result = await _commsRepo.syncDeviceContactsToVault();
+      if (result.permissionDenied && !isClosed) {
+        emit(state.copyWith(
+          errorMessage: 'Contacts permission denied or not supported on this platform.',
+        ));
+      }
     } catch (e) {
       log('DesktopCommsCubit: Contacts sync error: $e');
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Sync error: $e'));
+      }
     } finally {
-      emit(state.copyWith(isSyncingContacts: false));
+      if (!isClosed) {
+        emit(state.copyWith(isSyncingContacts: false));
+      }
     }
   }
 
@@ -105,7 +125,9 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     try {
       await _commsRepo.markMessagesAsRead(msg.contactIdentifier);
       final unread = await _commsRepo.getUnreadMessages();
-      emit(state.copyWith(unreadMessages: unread));
+      if (!isClosed) {
+        emit(state.copyWith(unreadMessages: unread));
+      }
     } catch (e) {
       log('DesktopCommsCubit: Error marking message read: $e');
     }
@@ -124,12 +146,19 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
         batteryLevel: 95,
       );
 
-      emit(state.copyWith(lastSosAlertId: alertId));
+      if (!isClosed) {
+        emit(state.copyWith(lastSosAlertId: alertId));
+      }
       await Future<void>.delayed(const Duration(seconds: 3));
     } catch (e) {
       log('DesktopCommsCubit: Error triggering test SOS: $e');
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: 'Failed to broadcast SOS: $e'));
+      }
     } finally {
-      emit(state.copyWith(isBroadcastingSos: false));
+      if (!isClosed) {
+        emit(state.copyWith(isBroadcastingSos: false));
+      }
     }
   }
 

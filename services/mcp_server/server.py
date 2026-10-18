@@ -140,6 +140,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
     if supabase:
         try:
+            # 1. إدراج استغاثة في جدول sos_alerts
             sos_record = {
                 "status": "active",
                 "latitude": default_lat,
@@ -153,6 +154,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
             supabase.table("sos_alerts").insert(sos_record).execute()
 
+            # 2. إرسال أمر تنبيه فوري للهاتف وسائر شاشات المنزل
             action_record = {
                 "action_type": "TRIGGER_SOS",
                 "payload": {
@@ -193,6 +195,7 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
     tasks_count = 0
     top_task = "Zero pending tasks! Agenda is clear."
     next_alarm = "No active alarms"
+    tasks_list = []
 
     if supabase:
         try:
@@ -205,6 +208,7 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
             tasks_count = len(tasks)
             if tasks:
                 top_task = tasks[0]["title"]
+                tasks_list = [{"title": t["title"], "priority": t.get("priority", "medium")} for t in tasks]
 
             alarm_query = supabase.table("alarms").select("hour, minute, label").eq("is_active", True)
             if target_user_id:
@@ -230,9 +234,11 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
         "speech": speech,
         "ui_card": {
             "type": "daily_agenda",
+            "title": "TODAY AGENDA & PRIORITIES",
             "top_task": top_task,
             "tasks_count": tasks_count,
-            "next_alarm": next_alarm
+            "next_alarm": next_alarm,
+            "tasks": tasks_list
         }
     }
 
@@ -263,9 +269,11 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
         "speech": f"I added '{title}' to your Beacon agenda with {priority} priority.",
         "ui_card": {
             "type": "task_confirmation",
+            "title": "AGENDA ITEM CREATED",
             "task_title": title,
             "priority": priority,
-            "synced_to_vault": True
+            "synced_to_vault": True,
+            "timestamp": datetime.utcnow().isoformat()
         }
     }
 
@@ -298,6 +306,7 @@ async def tool_beacon_get_device_telemetry(args: Dict[str, Any]) -> Dict[str, An
         "speech": speech,
         "ui_card": {
             "type": "telemetry_gauge",
+            "title": "DEVICE HARDWARE TELEMETRY",
             "battery_level": battery_level,
             "profile": profile,
             "high_contrast": "Active" if high_contrast else "Warm Paper",
@@ -308,19 +317,41 @@ async def tool_beacon_get_device_telemetry(args: Dict[str, Any]) -> Dict[str, An
 
 async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any]:
     camera_name = args.get("camera_name", "Front Door").strip()
+    raw_user_id = args.get("user_id")
+    target_user_id = _resolve_target_user_id(raw_user_id)
     logger.info(f"📹 Action: INSPECT_RING_CAMERA for: {camera_name}")
 
-    speech = (
-        f"I am inspecting the {camera_name} camera feed. "
-        "The area is well lit, no moving obstacles detected, and pathway is completely clear."
-    )
+    description = f"The {camera_name} is well lit. Pathway is unobstructed, and no moving hazards or obstacles are detected."
+
+    # 🌟 بث فحص الكاميرا إلى جدول remote_actions لتستجيب شاشات المنزل فوراً
+    if supabase:
+        try:
+            action_payload = {
+                "action_type": "INSPECT_CAMERA",
+                "payload": {
+                    "is_ring": True,
+                    "device_label": camera_name,
+                    "description": description
+                },
+                "status": "pending",
+                "created_at": datetime.utcnow().isoformat()
+            }
+            if target_user_id:
+                action_payload["user_id"] = target_user_id
+            supabase.table("remote_actions").insert(action_payload).execute()
+        except Exception as e:
+            logger.error(f"Failed to log INSPECT_CAMERA in remote_actions: {e}")
+
+    speech = f"I am inspecting the {camera_name} feed. {description}"
     return {
         "speech": speech,
         "ui_card": {
             "type": "ring_camera_feed",
+            "title": f"PERIMETER FEED • {camera_name.upper()}",
             "camera_name": camera_name,
-            "status": "Live - Gemini 2.0 Inspected",
-            "description": "Area clear. No packages or vehicles detected in driveway."
+            "status": "Live • Gemini 2.0 Inspected",
+            "description": description,
+            "timestamp": datetime.utcnow().isoformat()
         }
     }
 
@@ -329,30 +360,22 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
     scenario = args.get("scenario", "courier_delivery").strip()
     raw_user_id = args.get("user_id")
     target_user_id = _resolve_target_user_id(raw_user_id)
-    logger.info(f"🔔 Action: SIMULATE_RING_SCENARIO -> {scenario} for target: {target_user_id or 'BROADCAST'}")
+    logger.info(f"🔔 Action: SIMULATE_RING_SCENARIO -> {scenario}")
 
-    target_label = "Front Door"
-    scenario_description = "Activity detected at front door."
+    scenario_map = {
+        "courier_delivery": ("Front Door", "Amazon courier standing at front porch placing a package."),
+        "night_prowler": ("Backyard", "Motion detected near backyard fence: A small stray cat moving across lawn."),
+        "baby_crying": ("Nursery", "Movement in nursery: Baby is stirring and sitting up in crib."),
+        "car_arriving": ("Garage Driveway", "Vehicle entering driveway: Silver sedan parking in front of garage."),
+        "friendly_neighbor": ("Front Door", "Your neighbor Sarah is at the front door waving and smiling.")
+    }
 
-    if scenario == "courier_delivery":
-        target_label = "Front Door"
-        scenario_description = "Amazon delivery courier placing a cardboard parcel at the porch."
-    elif scenario == "night_prowler":
-        target_label = "Backyard"
-        scenario_description = "Motion detected near backyard fence: A small stray cat moving across the lawn."
-    elif scenario == "baby_crying":
-        target_label = "Nursery"
-        scenario_description = "Movement in nursery: Baby is stirring and sitting up in the crib."
-    elif scenario == "car_arriving":
-        target_label = "Garage Driveway"
-        scenario_description = "Vehicle entering driveway: Silver sedan parking in front of garage."
-    elif scenario == "friendly_neighbor":
-        target_label = "Front Door"
-        scenario_description = "Neighbor Sarah is at the front door waving and smiling."
+    device_label, description = scenario_map.get(
+        scenario,
+        ("Front Door", "Activity detected in camera perimeter.")
+    )
 
-    clean_name = scenario.replace("_", " ")
-
-    # 🚀 إدراج السجل في remote_actions لبثه فورياً للهاتف والتلفاز
+    # 🌟 بث تنبيه الكاميرا إلى جدول remote_actions ليشعل نغمة وشارة الـ TV والموبايل الحية
     if supabase:
         try:
             action_payload = {
@@ -360,30 +383,31 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
                 "payload": {
                     "is_ring": True,
                     "scenario": scenario,
-                    "device_label": target_label,
-                    "description": scenario_description,
-                    "triggered_from": "alexa_mcp"
+                    "device_label": device_label,
+                    "description": description
                 },
                 "status": "pending",
                 "created_at": datetime.utcnow().isoformat()
             }
             if target_user_id:
                 action_payload["user_id"] = target_user_id
-
             supabase.table("remote_actions").insert(action_payload).execute()
-            logger.info(f"✅ RING_ALERT dispatched to remote_actions for {target_label} ({clean_name})")
+            logger.info("RING_ALERT logged to remote_actions for live device trigger.")
         except Exception as e:
-            logger.error(f"Failed to dispatch RING_ALERT to Supabase: {e}")
+            logger.error(f"Failed to log RING_ALERT in remote_actions: {e}")
 
-    speech = f"Simulating {clean_name} scenario. Ring alert dispatched across BeaconOS living room screens."
+    clean_name = scenario.replace("_", " ").title()
+    speech = f"Simulating {clean_name} at {device_label}. {description}"
     return {
         "speech": speech,
         "ui_card": {
             "type": "ring_event_simulation",
-            "scenario": scenario,
-            "device_label": target_label,
-            "description": scenario_description,
-            "status": "Dispatched across Living Room Screens"
+            "title": f"RING EVENT • {device_label.upper()}",
+            "scenario": clean_name,
+            "device_label": device_label,
+            "description": description,
+            "status": "Event Dispatched Live to BeaconOS",
+            "timestamp": datetime.utcnow().isoformat()
         }
     }
 
@@ -606,7 +630,6 @@ async def handle_streamable_post(request: Request):
             status_code=400
         )
 
-# نقطة صحة الخادم لفحص الربط السريع
 @app.get("/health")
 async def health_check():
     return {
