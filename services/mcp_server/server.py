@@ -8,7 +8,7 @@ Echo Show Multimodal integration and BeaconOS sovereign phone actuation.
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from dotenv import load_dotenv
@@ -92,6 +92,8 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
     
     logger.info(f"📍 Action: LOCATE_DEVICE dispatched for target: {target_user_id or 'BROADCAST'}")
 
+    now_utc_str = datetime.now(timezone.utc).isoformat()
+
     if supabase:
         try:
             action_payload = {
@@ -103,7 +105,7 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
                     "triggered_from": "alexa_living_room"
                 },
                 "status": "pending",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": now_utc_str
             }
             if target_user_id:
                 action_payload["user_id"] = target_user_id
@@ -122,7 +124,7 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
             "pulse_rate": "high",
             "siren_frequency": "3000Hz - Maximum Volume",
             "flashlight": "Strobe Active",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_utc_str
         }
     }
 
@@ -137,6 +139,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
     default_lat = 52.3676
     default_lng = 4.9041
+    now_utc_str = datetime.now(timezone.utc).isoformat()
 
     if supabase:
         try:
@@ -147,7 +150,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
                 "longitude": default_lng,
                 "battery_level": 95,
                 "google_maps_url": f"https://maps.google.com/?q={default_lat},{default_lng}",
-                "triggered_at": datetime.utcnow().isoformat()
+                "triggered_at": now_utc_str
             }
             if target_user_id:
                 sos_record["user_id"] = target_user_id
@@ -164,7 +167,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
                     "longitude": default_lng
                 },
                 "status": "pending",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": now_utc_str
             }
             if target_user_id:
                 action_record["user_id"] = target_user_id
@@ -248,6 +251,7 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
     priority = args.get("priority", "medium").lower()
     raw_user_id = args.get("user_id")
     target_user_id = _resolve_target_user_id(raw_user_id)
+    now_utc_str = datetime.now(timezone.utc).isoformat()
 
     if supabase:
         try:
@@ -255,7 +259,7 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
                 "title": title,
                 "priority": priority,
                 "is_completed": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": now_utc_str
             }
             if target_user_id:
                 payload["user_id"] = target_user_id
@@ -273,7 +277,7 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
             "task_title": title,
             "priority": priority,
             "synced_to_vault": True,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_utc_str
         }
     }
 
@@ -322,6 +326,7 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
     logger.info(f"📹 Action: INSPECT_RING_CAMERA for: {camera_name}")
 
     description = f"The {camera_name} is well lit. Pathway is unobstructed, and no moving hazards or obstacles are detected."
+    now_utc_str = datetime.now(timezone.utc).isoformat()
 
     # 🌟 بث فحص الكاميرا إلى جدول remote_actions لتستجيب شاشات المنزل فوراً
     if supabase:
@@ -334,7 +339,7 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
                     "description": description
                 },
                 "status": "pending",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": now_utc_str
             }
             if target_user_id:
                 action_payload["user_id"] = target_user_id
@@ -351,7 +356,7 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
             "camera_name": camera_name,
             "status": "Live • Gemini 2.0 Inspected",
             "description": description,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_utc_str
         }
     }
 
@@ -374,6 +379,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
         scenario,
         ("Front Door", "Activity detected in camera perimeter.")
     )
+    now_utc_str = datetime.now(timezone.utc).isoformat()
 
     # 🌟 بث تنبيه الكاميرا إلى جدول remote_actions ليشعل نغمة وشارة الـ TV والموبايل الحية
     if supabase:
@@ -387,7 +393,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
                     "description": description
                 },
                 "status": "pending",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": now_utc_str
             }
             if target_user_id:
                 action_payload["user_id"] = target_user_id
@@ -407,7 +413,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
             "device_label": device_label,
             "description": description,
             "status": "Event Dispatched Live to BeaconOS",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_utc_str
         }
     }
 
@@ -439,7 +445,7 @@ async def handle_streamable_get(request: Request):
             "params": {
                 "server": "BeaconOS-LivingRoom-Bridge",
                 "spec": SPEC_VERSION,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
         yield f"data: {json.dumps(init_event)}\n\n"
@@ -636,7 +642,7 @@ async def health_check():
         "status": "healthy",
         "supabase_connected": supabase is not None,
         "spec_version": SPEC_VERSION,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 if __name__ == "__main__":

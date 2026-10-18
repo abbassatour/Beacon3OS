@@ -4,7 +4,7 @@ import 'dart:developer';
 
 import 'package:beacon_os/desktop/agenda/cubit/desktop_agenda_state.dart';
 import 'package:bloc/bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
   DesktopAgendaCubit({
@@ -76,7 +76,7 @@ class DesktopAgendaCubit extends Cubit<DesktopAgendaState> {
       await _taskRepo.createTask(
         title: text,
         priority: priority,
-        dueDate: dueDate,
+        dueDate: dueDate?.toUtc(),
       );
     } catch (e) {
       log('DesktopAgendaCubit: Error creating task: $e');

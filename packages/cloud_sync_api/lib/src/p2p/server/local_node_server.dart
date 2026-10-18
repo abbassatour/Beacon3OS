@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:cloud_sync_api/src/p2p/models/p2p_message.dart';
 
 /// خادم المقابس المحلي المدمج (Embedded Local WebSocket Server)
+/// تم ضبط توقيت مصافحة الخادم ليعتمد التوقيت العالمي الموحد (UTC).
 class LocalNodeServer {
   LocalNodeServer({this.basePort = 8492});
 
@@ -74,7 +75,7 @@ class LocalNodeServer {
       type: P2pMessageType.handshake,
       payload: {
         'status': 'accepted',
-        'server_time': DateTime.now().toIso8601String(),
+        'server_time': DateTime.now().toUtc().toIso8601String(),
       },
       senderType: 'server',
     );

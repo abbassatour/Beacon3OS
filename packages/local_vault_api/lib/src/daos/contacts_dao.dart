@@ -41,6 +41,8 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
     String? id,
   }) async {
     final contactId = id ?? _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.contacts).insert(
       ContactsCompanion.insert(
         id: contactId,
@@ -48,18 +50,21 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
         phoneNumber: phoneNumber,
         relationship: Value(relationship),
         isEmergency: Value(isEmergency),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return contactId;
   }
 
   Future<void> softDeleteContact(String contactId) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(attachedDatabase.contacts)
           ..where((c) => c.id.equals(contactId)))
         .write(
       ContactsCompanion(
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
+        deletedAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );
@@ -100,6 +105,8 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
     bool isOutgoing = false,
   }) async {
     final msgId = _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.messagesVault).insert(
       MessagesVaultCompanion.insert(
         id: msgId,
@@ -108,6 +115,9 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
         messageText: messageText,
         platform: Value(platform),
         isOutgoing: Value(isOutgoing),
+        timestamp: Value(nowUtc),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return msgId;
@@ -117,9 +127,10 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
     return (update(attachedDatabase.messagesVault)
           ..where((m) => m.contactIdentifier.equals(contactIdentifier)))
         .write(
-      const MessagesVaultCompanion(
-        isRead: Value(true),
-        isSynced: Value(false),
+      MessagesVaultCompanion(
+        isRead: const Value(true),
+        isSynced: const Value(false),
+        updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
   }
@@ -131,7 +142,11 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> {
           .get();
 
   Future<int> insertNotification(NotificationsDigestCompanion notif) =>
-      into(attachedDatabase.notificationsDigest).insert(notif);
+      into(attachedDatabase.notificationsDigest).insert(
+        notif.copyWith(
+          receivedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
 
   Future<void> markAllNotificationsAsRead() =>
       (update(attachedDatabase.notificationsDigest)

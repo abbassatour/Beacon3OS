@@ -27,19 +27,26 @@ class RingDao extends DatabaseAccessor<AppDatabase> with _$RingDaoMixin {
             ..where((d) => d.id.equals(id) & d.deletedAt.isNull()))
           .getSingleOrNull();
 
-  Future<void> upsertDevice(RingDevicesCompanion device) =>
-      into(ringDevices).insertOnConflictUpdate(device);
+  Future<void> upsertDevice(RingDevicesCompanion device) {
+    final nowUtc = DateTime.now().toUtc();
+    return into(ringDevices).insertOnConflictUpdate(
+      device.copyWith(
+        updatedAt: Value(nowUtc),
+      ),
+    );
+  }
 
   Future<void> updateDeviceActivity({
     required String id,
     DateTime? lastDingAt,
     DateTime? lastMotionAt,
   }) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(ringDevices)..where((d) => d.id.equals(id))).write(
       RingDevicesCompanion(
-        lastDingAt: lastDingAt != null ? Value(lastDingAt) : const Value.absent(),
-        lastMotionAt: lastMotionAt != null ? Value(lastMotionAt) : const Value.absent(),
-        updatedAt: Value(DateTime.now()),
+        lastDingAt: lastDingAt != null ? Value(lastDingAt.toUtc()) : const Value.absent(),
+        lastMotionAt: lastMotionAt != null ? Value(lastMotionAt.toUtc()) : const Value.absent(),
+        updatedAt: Value(nowUtc),
       ),
     );
   }
@@ -52,7 +59,7 @@ class RingDao extends DatabaseAccessor<AppDatabase> with _$RingDaoMixin {
     return (update(ringDevices)..where((d) => d.id.equals(id))).write(
       RingDevicesCompanion(
         isMotionEnabled: Value(isMotionEnabled),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
   }
@@ -65,7 +72,7 @@ class RingDao extends DatabaseAccessor<AppDatabase> with _$RingDaoMixin {
     return (update(ringDevices)..where((d) => d.id.equals(id))).write(
       RingDevicesCompanion(
         isOnline: Value(isOnline),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
   }
@@ -77,8 +84,19 @@ class RingDao extends DatabaseAccessor<AppDatabase> with _$RingDaoMixin {
             ..limit(limit))
           .watch();
 
-  Future<void> insertEvent(RingEventsCompanion event) =>
-      into(ringEvents).insert(event);
+  Future<void> insertEvent(RingEventsCompanion event) {
+    final nowUtc = DateTime.now().toUtc();
+    return into(ringEvents).insert(
+      event.copyWith(
+        timestamp: event.timestamp.present
+            ? Value(event.timestamp.value.toUtc())
+            : Value(nowUtc),
+        createdAt: event.createdAt.present
+            ? Value(event.createdAt.value.toUtc())
+            : Value(nowUtc),
+      ),
+    );
+  }
 
   Future<void> markEventAsRead(String eventId) {
     return (update(ringEvents)..where((e) => e.id.equals(eventId)))

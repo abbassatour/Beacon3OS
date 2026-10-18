@@ -10,7 +10,11 @@
 .svn/
 migrate_working_dir/
 clean.js
-
+# AI Context Bundles
+ai_context/
+pack.ps1
+repomix-output.*
+.repomix/**
 # IntelliJ related
 *.iml
 *.ipr

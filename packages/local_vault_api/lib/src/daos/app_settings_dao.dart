@@ -44,8 +44,12 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase> {
 
     if (existing != null) return existing;
 
+    final nowUtc = DateTime.now().toUtc();
     await into(attachedDatabase.appSettings).insert(
-      AppSettingsCompanion.insert(id: defaultSettingsId),
+      AppSettingsCompanion.insert(
+        id: defaultSettingsId,
+        updatedAt: Value(nowUtc),
+      ),
       mode: InsertMode.insertOrIgnore,
     );
     return (select(attachedDatabase.appSettings)
@@ -58,7 +62,7 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase> {
           ..where((s) => s.id.equals(defaultSettingsId)))
         .write(
       updated.copyWith(
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
         isSynced: const Value(false),
       ),
     );

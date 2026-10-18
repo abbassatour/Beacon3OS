@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/focus/widgets/deep_work_section.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/focus/cubit/desktop_focus_cubit.dart';
 import 'package:beacon_os/desktop/focus/cubit/desktop_focus_state.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +25,7 @@ class DeepWorkSection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Ø¹Ø¯Ø§Ø¯ Ø§Ù„Ù…Ø¤Ù‚Øª Ø§Ù„Ø±Ù‚Ù…ÙŠ
+          // عداد المؤقت الرقمي
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -65,7 +66,7 @@ class DeepWorkSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Ø£Ø²Ø±Ø§Ø± ÙØªØ±Ø§Øª Ø§Ù„ØªØ±ÙƒÙŠØ² Ø§Ù„Ø³Ø±ÙŠØ¹Ø©
+                // أزرار فترات التركيز السريعة
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [15, 25, 45, 60, 90].map((mins) {
@@ -99,7 +100,7 @@ class DeepWorkSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Ø£Ø²Ø±Ø§Ø± Ø§Ù„ØªØ­ÙƒÙ…
+                // أزرار التحكم
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -139,7 +140,7 @@ class DeepWorkSection extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // Ø³Ø¬Ù„ Ø§Ù„Ø¬Ù„Ø³Ø§Øª Ø§Ù„Ù…ÙƒØªÙ…Ù„Ø© Ø§Ù„ÙŠÙˆÙ…
+          // سجل الجلسات المكتملة اليوم
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -201,7 +202,7 @@ class DeepWorkSection extends StatelessWidget {
                                     ],
                                   ),
                                   Text(
-                                    DateFormat('h:mm a').format(session.completedAt),
+                                    DateFormat('h:mm a').format(session.completedAt.toLocal()),
                                     style: TextStyle(
                                       color: colors.onSurfaceVariant,
                                       fontSize: 11,

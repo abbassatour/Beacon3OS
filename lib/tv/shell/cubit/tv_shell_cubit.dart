@@ -215,10 +215,11 @@ class TvShellCubit extends Cubit<TvShellState> {
       if (events.isEmpty || isClosed) return;
 
       final latest = events.first;
-      final now = DateTime.now();
+      final nowUtc = DateTime.now().toUtc();
 
-      // إظهار التنبيه إذا كان الحدث جديداً (أقل من 15 ثانية) ولم يقرأ بعد
-      if (!latest.isRead && now.difference(latest.timestamp).inSeconds < 15) {
+      // إظهار التنبيه إذا كان الحدث جديداً (أقل من 15 ثانية) بتوقيت موحد ولم يقرأ بعد
+      final diffSeconds = nowUtc.difference(latest.timestamp.toUtc()).inSeconds.abs();
+      if (!latest.isRead && diffSeconds < 15) {
         wakeFromAmbient();
         _sound.play(SoundCue.wake);
 

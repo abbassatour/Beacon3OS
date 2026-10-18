@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:cloud_sync_api/src/p2p/models/local_node_info.dart';
 
 /// محرك الاستكشاف المحلي الصامت عبر UDP (Zero-Config UDP Discovery)
+/// تم ضبط طوابع توقيت حزم الاستكشاف لتعمل بالتوقيت العالمي الموحد (UTC).
 class LocalNodeDiscovery {
   LocalNodeDiscovery({this.discoveryPort = 8491});
 
@@ -31,7 +32,7 @@ class LocalNodeDiscovery {
       _socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         discoveryPort,
-        reuseAddress: true, // 👈 تم حذف reusePort لتفادي خطأ لينكس وأندرويد
+        reuseAddress: true,
       );
       _socket!.broadcastEnabled = true;
 
@@ -114,12 +115,12 @@ class LocalNodeDiscovery {
     final payload = jsonEncode({
       'protocol': discoveryProtocol,
       'action': 'DISCOVER_NODES',
-      'timestamp': DateTime.now().toIso8601String(),
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
     });
 
     final bytes = utf8.encode(payload);
     await _sendToBroadcastAddresses(bytes);
-    log('LocalNodeDiscovery: 🔍 Sent discovery probe on local network.');
+    log('LocalNodeDiscovery: 🔍 Sent discovery probe on local network (UTC).');
   }
 
   /// إرسال الحزمة للبث العام وعناوين الشبكات الفرعية (Subnet Broadcasts)

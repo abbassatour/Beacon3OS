@@ -235,11 +235,15 @@ class PerimeterCubit extends Cubit<PerimeterState> {
     await _ringRepo.triggerSimulatedScenario(scenario);
   }
 
-  /// قراءة تنبيه أو حدث أمني محدد بصوت عالٍ
+  /// قراءة تنبيه أو حدث أمني محدد بصوت عالٍ بالتوقيت المحلي الصحيح
   Future<void> readEventAloud(RingEventEntity event) async {
     _haptics.selectionClick();
-    final timeStr =
-        '${event.timestamp.hour % 12 == 0 ? 12 : event.timestamp.hour % 12}:${event.timestamp.minute.toString().padLeft(2, '0')} ${event.timestamp.hour >= 12 ? 'PM' : 'AM'}';
+    final localTime = event.timestamp.toLocal();
+    final hour12 = localTime.hour % 12 == 0 ? 12 : localTime.hour % 12;
+    final minStr = localTime.minute.toString().padLeft(2, '0');
+    final period = localTime.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour12:$minStr $period';
+
     final desc = event.aiSceneDescription?.isNotEmpty == true
         ? event.aiSceneDescription!
         : 'Activity logged at ${event.deviceLabel}.';

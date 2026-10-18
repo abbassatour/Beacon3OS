@@ -2,7 +2,7 @@
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 /// معالج قراءة واستعراض المهام والأولويات
 class ReadTasksIntentHandler extends VoiceIntentHandler {
@@ -120,7 +120,7 @@ class SaveTaskIntentHandler extends VoiceIntentHandler {
 
     DateTime? dueDate;
     if (params.containsKey('due_date') && params['due_date'] != null) {
-      dueDate = DateTime.tryParse(params['due_date'].toString());
+      dueDate = DateTime.tryParse(params['due_date'].toString())?.toUtc();
     }
 
     final id = await tasksRepo.createTask(
@@ -251,7 +251,7 @@ class CompleteTaskIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    TaskEntity? matchedTask; // ✅ استخدام الكيان النقي
+    TaskEntity? matchedTask;
     final taskId = params['task_id'] as String?;
     if (taskId != null && taskId.isNotEmpty) {
       matchedTask = pending.where((t) => t.id == taskId).firstOrNull;
@@ -323,7 +323,7 @@ class DeleteTaskIntentHandler extends VoiceIntentHandler {
 
     final pending = await tasksRepo.getPendingTasks();
 
-    TaskEntity? matchedTask; // ✅ استخدام الكيان النقي
+    TaskEntity? matchedTask;
     final taskId = params['task_id'] as String?;
     if (taskId != null && taskId.isNotEmpty) {
       matchedTask = pending.where((t) => t.id == taskId).firstOrNull;
@@ -394,12 +394,12 @@ class UpdateTaskIntentHandler extends VoiceIntentHandler {
     String? newPriority = params['priority'] as String?;
     DateTime? newDueDate;
     if (params['due_date'] != null) {
-      newDueDate = DateTime.tryParse(params['due_date'].toString());
+      newDueDate = DateTime.tryParse(params['due_date'].toString())?.toUtc();
     }
 
     final pending = await tasksRepo.getPendingTasks();
 
-    TaskEntity? targetTask; // ✅ استخدام الكيان النقي
+    TaskEntity? targetTask;
     if (taskId != null && taskId.isNotEmpty) {
       targetTask = await tasksRepo.getTaskById(taskId);
     }
@@ -487,7 +487,7 @@ class DeleteMemoIntentHandler extends VoiceIntentHandler {
     final memoId = params['memo_id'] as String?;
     final memos = await tasksRepo.watchMemos().first;
 
-    VoiceMemoEntity? targetMemo; // ✅ استخدام الكيان النقي
+    VoiceMemoEntity? targetMemo;
     if (memoId != null && memoId.isNotEmpty) {
       targetMemo = memos.where((m) => m.id == memoId).firstOrNull;
     }

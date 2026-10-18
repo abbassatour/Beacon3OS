@@ -2,7 +2,7 @@
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 class DismissibleTaskCard extends StatelessWidget {
   const DismissibleTaskCard({
@@ -13,7 +13,7 @@ class DismissibleTaskCard extends StatelessWidget {
     super.key,
   });
 
-  final TaskEntity task; // ✅ الكيان النقي
+  final TaskEntity task;
   final VoidCallback onDismissed;
   final VoidCallback onToggle;
   final VoidCallback onReadAloud;
@@ -125,7 +125,7 @@ class DismissibleTaskCard extends StatelessWidget {
                           if (task.dueDate != null) ...[
                             const SizedBox(height: 3),
                             Text(
-                              'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!)}',
+                              'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!.toLocal())}',
                               style: TextStyle(
                                 color: colors.onSurfaceVariant,
                                 fontSize: 11,

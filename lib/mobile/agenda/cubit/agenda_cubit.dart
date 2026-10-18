@@ -6,7 +6,7 @@ import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 class AgendaCubit extends Cubit<AgendaState> {
   AgendaCubit({
@@ -75,7 +75,7 @@ class AgendaCubit extends Cubit<AgendaState> {
 
     await _taskRepo.createTask(
       title: title,
-      dueDate: dueDate,
+      dueDate: dueDate?.toUtc(),
       priority: effectivePriority,
     );
     await _assistant.speak('Task created: $title with $effectivePriority priority.');
@@ -108,7 +108,7 @@ class AgendaCubit extends Cubit<AgendaState> {
 
     if (settings.speakDueDatesAloud && task.dueDate != null) {
       final now = DateTime.now();
-      final due = task.dueDate!;
+      final due = task.dueDate!.toLocal();
       final timeStr = DateFormat('h:mm a').format(due);
 
       if (due.year == now.year && due.month == now.month && due.day == now.day) {

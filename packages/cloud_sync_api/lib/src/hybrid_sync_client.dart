@@ -15,6 +15,7 @@ enum SyncTransportMode {
 
 /// منسق المزامنة الهجين (Hybrid Sync Orchestrator)
 /// يجمع بين السيادة والسرعة الخاطفة محلياً، والتغطية العالمية سحابياً.
+/// تم ضبط كافة عمليات المعالجة الزمنية لتعمل بالتوقيت العالمي الموحد (UTC).
 class HybridSyncClient {
   HybridSyncClient({
     CloudSyncClient? cloudSyncClient,
@@ -209,7 +210,7 @@ class HybridSyncClient {
     log('HybridSync: LAN unreachable. Routing Locate Phone via Cloud Relay...');
     try {
       await _cloud.acknowledgeRemoteAction(
-        'req_${DateTime.now().millisecondsSinceEpoch}',
+        'req_${DateTime.now().toUtc().millisecondsSinceEpoch}',
         status: 'pending',
       );
       return true;
@@ -323,7 +324,7 @@ class HybridSyncClient {
               id: actionId,
               type: mappedType,
               payload: payload,
-              timestamp: DateTime.now(),
+              timestamp: DateTime.now().toUtc(),
               senderType: 'cloud',
             );
 
@@ -337,7 +338,7 @@ class HybridSyncClient {
 
   bool _isDuplicate(String messageId) {
     if (messageId.isEmpty) return false;
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
 
     if (_seenMessageIds.containsKey(messageId)) {
       log('HybridSync: 🛡️ Duplicate suppressed for ID: $messageId');
@@ -352,7 +353,7 @@ class HybridSyncClient {
     _deduplicationCleanupTimer?.cancel();
     _deduplicationCleanupTimer =
         Timer.periodic(const Duration(minutes: 1), (_) {
-      final now = DateTime.now();
+      final now = DateTime.now().toUtc();
       _seenMessageIds.removeWhere((_, expiry) => now.isAfter(expiry));
     });
   }

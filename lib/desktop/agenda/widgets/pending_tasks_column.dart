@@ -5,12 +5,12 @@ import 'package:beacon_os/desktop/agenda/widgets/board_column_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 class PendingTasksColumn extends StatelessWidget {
   const PendingTasksColumn({required this.tasks, super.key});
 
-  final List<TaskEntity> tasks; // ✅
+  final List<TaskEntity> tasks;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +91,7 @@ class PendingTasksColumn extends StatelessWidget {
                     if (task.dueDate != null) ...[
                       const SizedBox(width: 8),
                       Text(
-                        'Due: ${DateFormat('MMM d, h:mm a').format(task.dueDate!)}',
+                        'Due: ${DateFormat('MMM d, h:mm a').format(task.dueDate!.toLocal())}',
                         style: TextStyle(
                           color: colors.onSurfaceVariant,
                           fontSize: 10,

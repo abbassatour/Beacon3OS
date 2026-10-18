@@ -8,6 +8,7 @@ import 'package:cloud_sync_api/src/p2p/models/p2p_message.dart';
 enum LocalClientState { disconnected, connecting, connected }
 
 /// عميل المقابس المحلي الفائق السرعة (Local WebSocket Client)
+/// تم ضبط توقيت نبضات القلب الترددية ليعتمد التوقيت العالمي الموحد (UTC).
 class LocalNodeClient {
   LocalNodeClient();
 
@@ -93,7 +94,7 @@ class LocalNodeClient {
       if (_socket != null && _socket!.readyState == WebSocket.open) {
         final ping = P2pMessage.create(
           type: P2pMessageType.ping,
-          payload: {'timestamp': DateTime.now().toIso8601String()},
+          payload: {'timestamp': DateTime.now().toUtc().toIso8601String()},
         );
         _socket!.add(ping.encode());
       } else {

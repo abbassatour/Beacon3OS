@@ -574,7 +574,7 @@ class PerimeterFloor0View extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            DateFormat('h:mm a').format(event.timestamp),
+                            DateFormat('h:mm a').format(event.timestamp.toLocal()),
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
                               fontSize: 11,

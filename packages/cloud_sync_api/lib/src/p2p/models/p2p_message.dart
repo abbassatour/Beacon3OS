@@ -15,6 +15,7 @@ enum P2pMessageType {
 }
 
 /// كبسولة الرسائل المحلية الموحدة (Self-Contained P2P Message Envelope)
+/// تم ضبط كافة طوابع التوقيت الزمنية لتعمل بالتوقيت العالمي الموحد (UTC).
 class P2pMessage {
   const P2pMessage({
     required this.id,
@@ -40,11 +41,12 @@ class P2pMessage {
     String? senderType,
     String? customId,
   }) {
+    final nowUtc = DateTime.now().toUtc();
     return P2pMessage(
-      id: customId ?? '${DateTime.now().microsecondsSinceEpoch}_${type.name}',
+      id: customId ?? '${nowUtc.microsecondsSinceEpoch}_${type.name}',
       type: type,
       payload: payload,
-      timestamp: DateTime.now(),
+      timestamp: nowUtc,
       senderId: senderId,
       senderType: senderType,
     );
@@ -57,15 +59,21 @@ class P2pMessage {
       orElse: () => P2pMessageType.unknown,
     );
 
+    DateTime parsedTimestamp = DateTime.now().toUtc();
+    if (json['timestamp'] != null) {
+      final parsed = DateTime.tryParse(json['timestamp'] as String);
+      if (parsed != null) {
+        parsedTimestamp = parsed.toUtc();
+      }
+    }
+
     return P2pMessage(
-      id: json['id'] as String? ?? '${DateTime.now().millisecondsSinceEpoch}',
+      id: json['id'] as String? ?? '${DateTime.now().toUtc().millisecondsSinceEpoch}',
       type: p2pType,
       payload: json['payload'] is Map<String, dynamic>
           ? json['payload'] as Map<String, dynamic>
           : <String, dynamic>{},
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
-          : DateTime.now(),
+      timestamp: parsedTimestamp,
       senderId: json['sender_id'] as String?,
       senderType: json['sender_type'] as String?,
     );
@@ -76,7 +84,7 @@ class P2pMessage {
       'id': id,
       'type': type.name,
       'payload': payload,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': timestamp.toUtc().toIso8601String(),
       if (senderId != null) 'sender_id': senderId,
       if (senderType != null) 'sender_type': senderType,
     };

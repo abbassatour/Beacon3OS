@@ -126,7 +126,7 @@ class CockpitCubit extends Cubit<CockpitState> {
     await _haptics.successNotification();
     final priorityText = 'Priority: ${task.priority}.';
     final dueText = task.dueDate != null
-        ? 'Due: ${DateFormat('h:mm a').format(task.dueDate!)}.'
+        ? 'Due: ${DateFormat('h:mm a').format(task.dueDate!.toLocal())}.'
         : 'No deadline.';
     await _assistantRepo.speak('${task.title}. $priorityText $dueText');
   }

@@ -540,7 +540,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                       if (task.dueDate != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!)}',
+                          'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!.toLocal())}',
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 11,
@@ -666,7 +666,6 @@ class _SpatialNavigationGuideFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          // 👈 استخدام Wrap مرن يلغي تماماً خطأ الـ 37 بكسل
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 12,

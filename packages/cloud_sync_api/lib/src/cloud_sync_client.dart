@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// عميل المزامنة السحابية وبث الرادار لمنظومة BeaconOS عبر Supabase.
 /// يدعم معمارية UUID والحذف الناعم والدفع الجماعي (Batch Operations)
 /// والبث اللحظي (Realtime Streams)، وبروتوكول الاقتران السيادي بدون حسابات.
+/// تم ضبط كافة التواريخ لتعمل بالتوقيت العالمي الموحد (UTC).
 class CloudSyncClient {
   CloudSyncClient();
 
@@ -89,7 +90,9 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
-      final payload = Map<String, dynamic>.from(settingsData)..['user_id'] = userId;
+      final payload = Map<String, dynamic>.from(settingsData)
+        ..['user_id'] = userId
+        ..['updated_at'] = DateTime.now().toUtc().toIso8601String();
       await client.from('app_settings').upsert(payload);
       log('CloudSyncClient: Settings synced to cloud.');
     } catch (e) {
@@ -97,7 +100,7 @@ class CloudSyncClient {
     }
   }
 
-  Future<Map<String, dynamic>?> fetchCloudSettings() async {
+  Future<Map<String, dynamic>>? fetchCloudSettings() async {
     final client = _client;
     final userId = currentUser?.id;
     if (client == null || userId == null) return null;
@@ -139,7 +142,8 @@ class CloudSyncClient {
         'phone_number': phoneNumber.trim(),
         'relationship': relationship?.trim(),
         'is_emergency': isEmergency,
-        'deleted_at': deletedAt?.toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Contact synced to cloud: $name');
     } catch (e) {
@@ -158,6 +162,7 @@ class CloudSyncClient {
         return {
           ...contact,
           'user_id': userId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         };
       }).toList();
 
@@ -207,7 +212,8 @@ class CloudSyncClient {
 
     try {
       await client.from('contacts').update({
-        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', contactId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Failed to soft delete contact: $e');
@@ -221,8 +227,10 @@ class CloudSyncClient {
     if (client == null || userId == null || contactIds.isEmpty) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('contacts').update({
-        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_at': nowUtc,
+        'updated_at': nowUtc,
       }).inFilter('id', contactIds).eq('user_id', userId);
       log('CloudSyncClient: ⚡ Batch soft-deleted ${contactIds.length} contacts in cloud.');
     } catch (e) {
@@ -266,6 +274,9 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final effectiveTimestamp =
+          (timestamp?.toUtc() ?? DateTime.now().toUtc()).toIso8601String();
+
       await client.from('messages_vault').upsert({
         'id': id,
         'user_id': userId,
@@ -274,9 +285,9 @@ class CloudSyncClient {
         'message_text': messageText.trim(),
         'platform': platform.toLowerCase(),
         'is_outgoing': isOutgoing,
-        'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
+        'timestamp': effectiveTimestamp,
         'is_read': isRead,
-        'deleted_at': deletedAt?.toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Message logged in cloud ($platform: $senderName)');
     } catch (e) {
@@ -354,10 +365,11 @@ class CloudSyncClient {
         'id': id,
         'user_id': userId,
         'title': title.trim(),
-        'due_date': dueDate?.toIso8601String(),
+        'due_date': dueDate?.toUtc().toIso8601String(),
         'priority': priority,
         'is_completed': isCompleted,
-        'deleted_at': deletedAt?.toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Task synced: $title');
     } catch (e) {
@@ -403,7 +415,8 @@ class CloudSyncClient {
 
     try {
       await client.from('tasks').update({
-        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', taskId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete task error: $e');
@@ -430,7 +443,8 @@ class CloudSyncClient {
         'user_id': userId,
         'title': title.trim(),
         'content': content.trim(),
-        'deleted_at': deletedAt?.toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Memo synced: $title');
     } catch (e) {
@@ -457,7 +471,8 @@ class CloudSyncClient {
 
     try {
       await client.from('voice_memos').update({
-        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', memoId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete memo error: $e');
@@ -490,7 +505,8 @@ class CloudSyncClient {
         'label': label.trim(),
         'days_of_week': daysOfWeek,
         'is_active': isActive,
-        'deleted_at': deletedAt?.toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Alarm synced: $hour:$minute');
     } catch (e) {
@@ -505,7 +521,8 @@ class CloudSyncClient {
 
     try {
       await client.from('alarms').update({
-        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', alarmId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete alarm error: $e');
@@ -523,12 +540,15 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final effectiveCompletedAt =
+          (completedAt?.toUtc() ?? DateTime.now().toUtc()).toIso8601String();
+
       await client.from('focus_sessions').upsert({
         'id': id,
         'user_id': userId,
         'duration_minutes': durationMinutes,
         'session_type': sessionType,
-        'completed_at': (completedAt ?? DateTime.now()).toIso8601String(),
+        'completed_at': effectiveCompletedAt,
       });
       log('CloudSyncClient: Focus session logged ($durationMinutes mins)');
     } catch (e) {
@@ -553,6 +573,8 @@ class CloudSyncClient {
 
     try {
       final googleMapsUrl = 'https://maps.google.com/?q=$latitude,$longitude';
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
       await client.from('sos_alerts').insert({
         'id': id,
         'user_id': userId,
@@ -561,7 +583,9 @@ class CloudSyncClient {
         'battery_level': batteryLevel,
         'status': status,
         'google_maps_url': googleMapsUrl,
-        'triggered_at': DateTime.now().toIso8601String(),
+        'triggered_at': nowUtc,
+        'created_at': nowUtc,
+        'updated_at': nowUtc,
       });
 
       log('CloudSyncClient: Emergency SOS alert broadcasted to cloud radar.');
@@ -587,12 +611,15 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('vision_scans').upsert({
         'id': id,
         'user_id': userId,
         'mode': mode,
         'prompt': prompt,
         'description': description,
+        'created_at': nowUtc,
+        'updated_at': nowUtc,
       });
       log('CloudSyncClient: Vision scan backed up.');
     } catch (e) {
@@ -630,8 +657,8 @@ class CloudSyncClient {
         'custom_title': customTitle,
         'config_json': configJson,
         'is_visible': isVisible,
-        'deleted_at': deletedAt?.toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
       log('CloudSyncClient: Spatial node synced [$id -> ($x, $y, F$floorLevel)]');
     } catch (e) {
@@ -716,7 +743,8 @@ class CloudSyncClient {
     if (client == null) return null;
 
     try {
-      final actionId = 'action_${DateTime.now().millisecondsSinceEpoch}';
+      final nowUtc = DateTime.now().toUtc();
+      final actionId = 'action_${nowUtc.millisecondsSinceEpoch}';
       final effectiveUserId = targetUserId ?? currentUser?.id;
 
       await client.from('remote_actions').insert({
@@ -725,7 +753,7 @@ class CloudSyncClient {
         'payload': payload,
         'status': 'pending',
         'user_id': effectiveUserId,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': nowUtc.toIso8601String(),
       });
       log('CloudSyncClient: Dispatched remote action [$actionType] with ID: $actionId');
       return actionId;
@@ -743,7 +771,7 @@ class CloudSyncClient {
     try {
       await client.from('remote_actions').update({
         'status': status,
-        'acknowledged_at': DateTime.now().toIso8601String(),
+        'acknowledged_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', actionId);
       log('CloudSyncClient: Remote action [$actionId] marked as $status.');
     } catch (e) {
@@ -764,17 +792,20 @@ class CloudSyncClient {
     if (client == null) return false;
 
     try {
+      final nowUtc = DateTime.now().toUtc();
+      // مهلة صلاحية الكود 10 دقائق بالتوقيت العالمي
+      final expiresUtc = nowUtc.add(const Duration(minutes: 10));
+
       await client.from('pairing_sessions').upsert({
         'pairing_code': pairingCode,
         'target_device_type': targetDeviceType,
         'status': 'waiting',
         'vault_id': null,
-        'created_at': DateTime.now().toIso8601String(),
-        'expires_at': DateTime.now()
-            .add(const Duration(minutes: 5))
-            .toIso8601String(),
+        'created_at': nowUtc.toIso8601String(),
+        'expires_at': expiresUtc.toIso8601String(),
       }, onConflict: 'pairing_code');
-      log('CloudSyncClient: 🔗 Pairing session created for code: $pairingCode');
+
+      log('CloudSyncClient: 🔗 Pairing session created for code: $pairingCode (Expires UTC: ${expiresUtc.toIso8601String()})');
       return true;
     } catch (e, st) {
       log('CloudSyncClient: Failed to create pairing session: $e', stackTrace: st);
@@ -803,13 +834,18 @@ class CloudSyncClient {
     if (client == null) return false;
 
     try {
-      final now = DateTime.now().toIso8601String();
+      // نمنح هامش تسامح زمني قدره دقيقتان لمراعاة فروق التوقيت البسيطة بين ساعات الأجهزة المختلفة
+      final thresholdUtc = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(minutes: 2))
+          .toIso8601String();
+
       final records = await client
           .from('pairing_sessions')
           .select()
           .eq('pairing_code', pairingCode)
           .eq('status', 'waiting')
-          .gt('expires_at', now);
+          .gt('expires_at', thresholdUtc);
 
       if (records.isEmpty) {
         log('CloudSyncClient: Pairing code $pairingCode not found or expired.');

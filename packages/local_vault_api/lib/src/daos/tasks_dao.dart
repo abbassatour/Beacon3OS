@@ -38,12 +38,16 @@ class TasksDao extends DatabaseAccessor<AppDatabase> {
     String? id,
   }) async {
     final taskId = id ?? _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.tasks).insert(
       TasksCompanion.insert(
         id: taskId,
         title: title,
-        dueDate: Value(dueDate),
+        dueDate: Value(dueDate?.toUtc()),
         priority: Value(priority),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return taskId;
@@ -54,7 +58,7 @@ class TasksDao extends DatabaseAccessor<AppDatabase> {
         .write(
       TasksCompanion(
         isCompleted: Value(isCompleted),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
         isSynced: const Value(false),
       ),
     );
@@ -73,20 +77,21 @@ class TasksDao extends DatabaseAccessor<AppDatabase> {
         title: title != null ? Value(title) : const Value.absent(),
         dueDate: clearDueDate
             ? const Value(null)
-            : (dueDate != null ? Value(dueDate) : const Value.absent()),
+            : (dueDate != null ? Value(dueDate.toUtc()) : const Value.absent()),
         priority: priority != null ? Value(priority) : const Value.absent(),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
         isSynced: const Value(false),
       ),
     );
   }
 
   Future<void> softDeleteTask(String taskId) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(attachedDatabase.tasks)..where((t) => t.id.equals(taskId)))
         .write(
       TasksCompanion(
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
+        deletedAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );
@@ -109,23 +114,28 @@ class TasksDao extends DatabaseAccessor<AppDatabase> {
     String? id,
   }) async {
     final memoId = id ?? _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.voiceMemos).insert(
       VoiceMemosCompanion.insert(
         id: memoId,
         title: title,
         content: content,
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return memoId;
   }
 
   Future<void> softDeleteMemo(String memoId) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(attachedDatabase.voiceMemos)
           ..where((m) => m.id.equals(memoId)))
         .write(
       VoiceMemosCompanion(
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
+        deletedAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );

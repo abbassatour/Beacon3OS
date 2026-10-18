@@ -24,12 +24,16 @@ class FocusDao extends DatabaseAccessor<AppDatabase> {
     String? id,
   }) async {
     final alarmId = id ?? _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.alarms).insert(
       AlarmsCompanion.insert(
         id: alarmId,
         hour: hour,
         minute: minute,
         label: Value(label),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return alarmId;
@@ -40,18 +44,19 @@ class FocusDao extends DatabaseAccessor<AppDatabase> {
         .write(
       AlarmsCompanion(
         isActive: Value(isActive),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
         isSynced: const Value(false),
       ),
     );
   }
 
   Future<void> softDeleteAlarm(String alarmId) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(attachedDatabase.alarms)..where((a) => a.id.equals(alarmId)))
         .write(
       AlarmsCompanion(
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
+        deletedAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );
@@ -62,22 +67,30 @@ class FocusDao extends DatabaseAccessor<AppDatabase> {
 
   // --- Focus Sessions ---
   Stream<List<FocusSession>> watchTodayFocusSessions() {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
+    // حساب بداية اليوم حسب توقيت المستخدم المحلي، ثم تحويل النقطة الزمنية إلى UTC
+    final nowLocal = DateTime.now();
+    final startOfLocalDay = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final startOfDayUtc = startOfLocalDay.toUtc();
+
     return (select(attachedDatabase.focusSessions)
           ..where((s) =>
               s.deletedAt.isNull() &
-              s.completedAt.isBiggerOrEqualValue(startOfDay))
+              s.completedAt.isBiggerOrEqualValue(startOfDayUtc))
           ..orderBy([(s) => OrderingTerm.desc(s.completedAt)]))
         .watch();
   }
 
   Future<String> insertFocusSession(int durationMinutes, {String? id}) async {
     final sessionId = id ?? _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.focusSessions).insert(
       FocusSessionsCompanion.insert(
         id: sessionId,
         durationMinutes: durationMinutes,
+        completedAt: Value(nowUtc),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return sessionId;

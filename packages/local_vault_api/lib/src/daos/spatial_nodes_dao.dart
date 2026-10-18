@@ -31,16 +31,18 @@ class SpatialNodesDao extends DatabaseAccessor<AppDatabase> {
         x: Value(x),
         y: Value(y),
         floorLevel: Value(floorLevel),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
         isSynced: const Value(false),
       ),
     );
   }
 
   Future<void> upsertSpatialNode(SpatialNodesCompanion node) {
+    final nowUtc = DateTime.now().toUtc();
     return into(attachedDatabase.spatialNodes).insert(
       node.copyWith(
-        updatedAt: Value(DateTime.now()),
+        createdAt: node.createdAt.present ? node.createdAt : Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
       mode: InsertMode.insertOrReplace,
@@ -48,11 +50,12 @@ class SpatialNodesDao extends DatabaseAccessor<AppDatabase> {
   }
 
   Future<void> softDeleteSpatialNode(String id) {
+    final nowUtc = DateTime.now().toUtc();
     return (update(attachedDatabase.spatialNodes)..where((n) => n.id.equals(id)))
         .write(
       SpatialNodesCompanion(
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
+        deletedAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );

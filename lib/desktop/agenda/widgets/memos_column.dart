@@ -5,12 +5,12 @@ import 'package:beacon_os/desktop/agenda/widgets/board_column_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي
+import 'package:launcher_repository/launcher_repository.dart';
 
 class MemosColumn extends StatelessWidget {
   const MemosColumn({required this.memos, super.key});
 
-  final List<VoiceMemoEntity> memos; // ✅
+  final List<VoiceMemoEntity> memos;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class MemosColumn extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        DateFormat('MMM d, h:mm a').format(memo.createdAt),
+                        DateFormat('MMM d, h:mm a').format(memo.createdAt.toLocal()),
                         style: TextStyle(
                           color: colors.onSurfaceVariant.withValues(alpha: 0.6),
                           fontSize: 10,

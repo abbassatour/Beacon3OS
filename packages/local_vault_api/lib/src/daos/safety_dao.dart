@@ -17,6 +17,8 @@ class SafetyDao extends DatabaseAccessor<AppDatabase> {
     String status = 'active',
   }) async {
     final alertId = _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.sosAlerts).insert(
       SosAlertsCompanion.insert(
         id: alertId,
@@ -25,6 +27,9 @@ class SafetyDao extends DatabaseAccessor<AppDatabase> {
         batteryLevel: Value(batteryLevel),
         googleMapsUrl: googleMapsUrl,
         status: Value(status),
+        triggeredAt: Value(nowUtc),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return alertId;
@@ -37,12 +42,16 @@ class SafetyDao extends DatabaseAccessor<AppDatabase> {
     required String description,
   }) async {
     final scanId = _uuid.v4();
+    final nowUtc = DateTime.now().toUtc();
+
     await into(attachedDatabase.visionScans).insert(
       VisionScansCompanion.insert(
         id: scanId,
         mode: mode,
         prompt: prompt,
         description: description,
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
       ),
     );
     return scanId;

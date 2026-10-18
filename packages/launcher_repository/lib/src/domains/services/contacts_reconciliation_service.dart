@@ -106,6 +106,8 @@ class ContactsReconciliationService {
           // إذا لم نجد تطابقاً بالرقم، نفحص تطابق الاسم بدقة
           matched ??= nameIndex[record.name.trim().toLowerCase()];
 
+          final nowUtc = DateTime.now().toUtc();
+
           // 3. اتخاذ القرار (تحديث السجل الحالي أم إضافة جديد)
           if (matched != null) {
             matchedExistingIds.add(matched.id);
@@ -120,7 +122,7 @@ class ContactsReconciliationService {
                 ContactsCompanion(
                   name: Value(record.name.trim()),
                   phoneNumber: Value(cleanPrimaryPhone),
-                  updatedAt: Value(DateTime.now()),
+                  updatedAt: Value(nowUtc),
                   isSynced: const Value(false),
                 ),
                 where: (tbl) => tbl.id.equals(matched!.id),
@@ -137,6 +139,8 @@ class ContactsReconciliationService {
                 name: record.name.trim(),
                 phoneNumber: cleanPrimaryPhone,
                 isEmergency: const Value(false),
+                createdAt: Value(nowUtc),
+                updatedAt: Value(nowUtc),
                 isSynced: const Value(false),
               ),
             );
@@ -148,8 +152,8 @@ class ContactsReconciliationService {
               name: record.name.trim(),
               phoneNumber: cleanPrimaryPhone,
               isEmergency: false,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
+              createdAt: nowUtc,
+              updatedAt: nowUtc,
               isSynced: false,
             );
           }
