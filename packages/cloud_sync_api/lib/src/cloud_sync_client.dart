@@ -100,7 +100,7 @@ class CloudSyncClient {
     }
   }
 
-  Future<Map<String, dynamic>>? fetchCloudSettings() async {
+  Future<Map<String, dynamic>?> fetchCloudSettings() async {
     final client = _client;
     final userId = currentUser?.id;
     if (client == null || userId == null) return null;

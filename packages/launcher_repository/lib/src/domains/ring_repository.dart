@@ -213,11 +213,12 @@ class RingRepositoryImpl implements RingRepository {
         analysis.toLowerCase().contains('transparent') ||
         analysis.toLowerCase().contains('could not')) {
       if (_ringClient is RingSimulatorClient) {
-        final mockDesc = (_ringClient as RingSimulatorClient).getBaselineDescription(deviceId);
+        final mockDesc = _ringClient.getBaselineDescription(deviceId);
         if (mockDesc != null) {
           analysis = mockDesc;
         }
       }
+
       analysis ??= 'Live view at $label is clear. No immediate obstacles detected.';
     }
 

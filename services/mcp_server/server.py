@@ -8,6 +8,7 @@ Echo Show Multimodal integration and BeaconOS sovereign phone actuation.
 import os
 import json
 import logging
+import uuid 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
@@ -97,6 +98,7 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
     if supabase:
         try:
             action_payload = {
+                "id": f"act_{uuid.uuid4().hex[:12]}",
                 "action_type": "LOCATE_DEVICE",
                 "payload": {
                     "reason": reason,
@@ -145,6 +147,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
         try:
             # 1. إدراج استغاثة في جدول sos_alerts
             sos_record = {
+                "id": f"sos_{uuid.uuid4().hex[:12]}",
                 "status": "active",
                 "latitude": default_lat,
                 "longitude": default_lng,
@@ -159,6 +162,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
             # 2. إرسال أمر تنبيه فوري للهاتف وسائر شاشات المنزل
             action_record = {
+                "id": f"act_{uuid.uuid4().hex[:12]}",
                 "action_type": "TRIGGER_SOS",
                 "payload": {
                     "emergency_type": emergency_type,
