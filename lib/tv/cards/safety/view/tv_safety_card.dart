@@ -78,8 +78,8 @@ class TvSafetyCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: colors.onSurface,
-                        fontSize: 15.5, // 👈 خط مريح جداً للقراءة من مسافة 3 أمتار
-                        height: 1.45,
+                        fontSize: 13.5, // 👈 خط مريح جداً للقراءة من مسافة 3 أمتار
+                        height: 1.35,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

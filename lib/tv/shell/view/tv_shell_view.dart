@@ -25,6 +25,16 @@ class _TvShellViewState extends State<TvShellView> {
   final FocusNode _skipPairingFocus = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    // 🌟 تفعيل الفوكس للبطاقة الأولى فور تحميل الشاشة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _handleFocusTransitions(context.read<TvShellCubit>().state);
+    });
+  }
+
+  @override
   void dispose() {
     _locateCardFocus.dispose();
     _sosCardFocus.dispose();
@@ -38,9 +48,19 @@ class _TvShellViewState extends State<TvShellView> {
   void _handleFocusTransitions(TvShellState state) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (state.isDashboard && !_locateCardFocus.hasFocus) {
-        _locateCardFocus.requestFocus();
-      } else if (state.isPairing && !_refreshCodeFocus.hasFocus) {
+      if (state.isDashboard) {
+        // إذا لم تكن أي من البطاقات محددة بالفعل، يتم توجيه الفوكس للبطاقة الأولى
+        final bool anyCardHasFocus = _locateCardFocus.hasFocus ||
+            _sosCardFocus.hasFocus ||
+            _agendaFocus.hasFocus ||
+            _alarmsFocus.hasFocus;
+
+        if (!anyCardHasFocus) {
+          _locateCardFocus.requestFocus();
+        }
+      } else if (state.isPairing &&
+          !_refreshCodeFocus.hasFocus &&
+          !_skipPairingFocus.hasFocus) {
         _refreshCodeFocus.requestFocus();
       }
     });
@@ -65,12 +85,13 @@ class _TvShellViewState extends State<TvShellView> {
             }
           },
           child: Focus(
-            autofocus: true,
+            // 🚨 كان autofocus: true يحتكر الفوكس ويمنع وصول الأسهم للبطاقات
+            canRequestFocus: false, // 👈 يمنع احتكار الفوكس ويسمح للبطاقات بالتحكم
             onKeyEvent: (node, event) {
               if (event is KeyDownEvent) {
                 cubit.wakeFromAmbient();
               }
-              return KeyEventResult.ignored;
+              return KeyEventResult.ignored; // السماح بمرور الأحداث للأزرار والبطاقات
             },
             child: Scaffold(
               backgroundColor: context.scaffoldBg,

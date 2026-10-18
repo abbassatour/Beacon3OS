@@ -833,31 +833,34 @@ class CloudSyncClient {
     final client = _client;
     if (client == null) return false;
 
-    try {
-      // نمنح هامش تسامح زمني قدره دقيقتان لمراعاة فروق التوقيت البسيطة بين ساعات الأجهزة المختلفة
-      final thresholdUtc = DateTime.now()
-          .toUtc()
-          .subtract(const Duration(minutes: 2))
-          .toIso8601String();
+    // تنظيف الكود من أي مسافات أو رموز لضمان مطابقة الـ 6 أرقام فقط
+    final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
+    if (cleanCode.length != 6) {
+      log('CloudSyncClient: Invalid pairing code length: "$cleanCode"');
+      return false;
+    }
 
+    try {
+      // 🌟 فحص الكود بالاعتماد على الحالة النشطة فقط (waiting)
+      // تم إلغاء المقارنة الزمنية المباشرة لمنع فشل الاقتران بسبب اختلاف تواريخ المحاكيات عن الكمبيوتر
       final records = await client
           .from('pairing_sessions')
           .select()
-          .eq('pairing_code', pairingCode)
-          .eq('status', 'waiting')
-          .gt('expires_at', thresholdUtc);
+          .eq('pairing_code', cleanCode)
+          .eq('status', 'waiting');
 
       if (records.isEmpty) {
-        log('CloudSyncClient: Pairing code $pairingCode not found or expired.');
+        log('CloudSyncClient: Pairing code $cleanCode not found or already paired/claimed.');
         return false;
       }
 
+      // اعتماد الاقتران وحقن معرف الخزنة السيادية وتحويل الحالة إلى paired
       await client.from('pairing_sessions').update({
         'vault_id': vaultId,
         'status': 'paired',
-      }).eq('pairing_code', pairingCode);
+      }).eq('pairing_code', cleanCode);
 
-      log('CloudSyncClient: ✅ Successfully claimed pairing session for $pairingCode with Vault: $vaultId');
+      log('CloudSyncClient: ✅ Successfully claimed pairing session for $cleanCode with Vault: $vaultId');
       return true;
     } catch (e, st) {
       log('CloudSyncClient: Error claiming pairing session: $e', stackTrace: st);

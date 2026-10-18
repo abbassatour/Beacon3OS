@@ -139,7 +139,13 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
                 ],
               ),
               const Divider(height: 20, thickness: 1.2),
-              Expanded(child: widget.child),
+              Expanded(
+                child: Focus(
+                  canRequestFocus: false,
+                  descendantsAreFocusable: false, // 👈 يمنع العناصر الداخلية من خطف الفوكس
+                  child: widget.child,
+                ),
+              ),
             ],
           ),
         ),

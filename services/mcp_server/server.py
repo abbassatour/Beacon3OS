@@ -98,6 +98,7 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
     if supabase:
         try:
             action_payload = {
+
                 "id": f"act_{uuid.uuid4().hex[:12]}",
                 "action_type": "LOCATE_DEVICE",
                 "payload": {
@@ -336,6 +337,7 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
     if supabase:
         try:
             action_payload = {
+                "id": f"act_{uuid.uuid4().hex[:12]}", 
                 "action_type": "INSPECT_CAMERA",
                 "payload": {
                     "is_ring": True,
@@ -389,6 +391,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
     if supabase:
         try:
             action_payload = {
+                "id": f"act_{uuid.uuid4().hex[:12]}", 
                 "action_type": "RING_ALERT",
                 "payload": {
                     "is_ring": True,
