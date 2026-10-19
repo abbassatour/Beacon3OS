@@ -16,7 +16,7 @@ class FloorNavigationIntentHandler extends VoiceIntentHandler {
 
   @override
   RegExp get fastPathPattern => RegExp(
-        r'^(?:go to|enter|open|show|switch to)\s+(?:floor\s+)?(?:minus\s+one|-1|vault|mesh|archive|settings|engine|floor\s+one|floor\s+1|cockpit|ground floor|floor\s+zero|floor\s+0)\b',
+        r'^(?:go to|enter|open|show|switch to|descend to|descend|ascend to|ascend|go down to|go down|go up to|go up|take elevator to|take elevator down|take elevator up)\s*(?:the\s+)?(?:floor\s+)?(?:minus\s+one|-1|vault|mesh|archive|settings|engine|floor\s+one|floor\s+1|cockpit|ground floor|ground|floor\s+zero|floor\s+0)?\b',
         caseSensitive: false,
       );
 
@@ -40,14 +40,19 @@ class FloorNavigationIntentHandler extends VoiceIntentHandler {
 
     int targetFloor = 0;
 
-    if (query.contains('-1') ||
+    // ⚡ التوجيه الذكي للطوابق عبر المسار السريع
+    if (query.contains('descend') ||
+        query.contains('down') ||
+        query.contains('-1') ||
         query.contains('minus one') ||
         query.contains('vault') ||
         query.contains('mesh') ||
         query.contains('archive') ||
         params['target_floor'] == -1) {
       targetFloor = -1;
-    } else if (query.contains('settings') ||
+    } else if (query.contains('ascend') ||
+        query.contains('up') ||
+        query.contains('settings') ||
         query.contains('engine') ||
         query.contains('tuning') ||
         query.contains('floor 1') ||

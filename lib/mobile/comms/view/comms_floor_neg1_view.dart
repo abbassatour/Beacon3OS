@@ -232,6 +232,18 @@ class CommsFloorNeg1View extends StatelessWidget {
             StreamBuilder<List<SosAlertRecord>>(
               stream: commsRepo.watchSosHistory(),
               builder: (context, snapshot) {
+                // 🛡️ حماية من الوميض البصري عند بداية الاتصال بقاعدة البيانات
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
+                      ),
+                    ),
+                  );
+                }
+
                 final alerts = snapshot.data ?? [];
 
                 if (alerts.isEmpty) {
@@ -352,9 +364,14 @@ class CommsFloorNeg1View extends StatelessWidget {
                                           ),
                                           icon: const Icon(Icons.map_rounded, size: 14),
                                           label: const Text('Open Map', style: TextStyle(fontSize: 11.5)),
-                                          onPressed: () {
+                                          onPressed: () async {
                                             if (alert.googleMapsUrl.startsWith('http')) {
-                                              launchUrl(Uri.parse(alert.googleMapsUrl));
+                                              final uri = Uri.parse(alert.googleMapsUrl);
+                                              // 🌐 دعم أندرويد الحديث بفتح التطبيق الخارجي مباشرة
+                                              await launchUrl(
+                                                uri,
+                                                mode: LaunchMode.externalApplication,
+                                              );
                                             }
                                           },
                                         ),

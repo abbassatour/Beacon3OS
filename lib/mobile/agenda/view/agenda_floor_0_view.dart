@@ -1,11 +1,13 @@
 // lib/mobile/agenda/view/agenda_floor_0_view.dart
 import 'package:beacon_os/core/theme/app_theme.dart';
+import 'package:beacon_os/core/topology/spatial_direction.dart';
 import 'package:beacon_os/mobile/agenda/cubit/agenda_cubit.dart';
 import 'package:beacon_os/mobile/agenda/cubit/agenda_state.dart';
 import 'package:beacon_os/mobile/agenda/widgets/add_memo_dialog.dart';
 import 'package:beacon_os/mobile/agenda/widgets/add_task_dialog.dart';
 import 'package:beacon_os/mobile/agenda/widgets/dismissible_memo_card.dart';
 import 'package:beacon_os/mobile/agenda/widgets/dismissible_task_card.dart';
+import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,6 +21,15 @@ class AgendaFloor0View extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final returnHint = CompassDirection.west.returnGestureHint;
+
+    // 🛡️ فحص خيار الأرشفة التلقائية بأمان تام
+    bool autoArchive = true;
+    try {
+      final prefState = context.watch<PreferencesCubit>().state;
+      autoArchive = prefState.autoArchiveCompleted;
+    } catch (_) {
+      autoArchive = true;
+    }
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -214,7 +225,12 @@ class AgendaFloor0View extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (state.completedTasks.isNotEmpty) ...[
+
+                // =========================================================================
+                // 📂 قسم المهام المكتملة: معالجة ذكية للأرشفة
+                // =========================================================================
+                if (!autoArchive && state.completedTasks.isNotEmpty) ...[
+                  // 1. إذا كان خيار الأرشفة معطلاً: نعرض المهام المكتملة في الطابق 0
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
@@ -256,7 +272,65 @@ class AgendaFloor0View extends StatelessWidget {
                       ),
                     ),
                   ),
+                ] else if (autoArchive && state.completedTasks.isNotEmpty) ...[
+                  // 2. إذا كانت الأرشفة مفعلة: تبقى واجهة اليوم نقية مع زر أنيق للذهاب للأرشيف
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          try {
+                            context.read<SpatialShellCubit>().jumpToFloor(-1);
+                          } catch (_) {}
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          decoration: BoxDecoration(
+                            color: colors.surface.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: colors.outline.withValues(alpha: 0.6)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.inventory_2_outlined, size: 16, color: Colors.green),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    '${state.completedTasks.length} COMPLETED ARCHIVED ON FLOOR -1',
+                                    style: TextStyle(
+                                      color: colors.onSurfaceVariant,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'View Archive',
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_downward_rounded, size: 15, color: colors.primary),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
+
                 const SliverToBoxAdapter(child: SizedBox(height: 60)),
               ],
             );

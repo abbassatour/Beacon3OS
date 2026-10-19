@@ -163,6 +163,18 @@ class VisionFloorNeg1View extends StatelessWidget {
             StreamBuilder<List<VisionScanRecord>>(
               stream: settingsRepo.watchVisionScans(limit: 40),
               builder: (context, snapshot) {
+                // 🛡️ معالجة انتظار البيانات لمنع الوميض الخاطف
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
+                      ),
+                    ),
+                  );
+                }
+
                 final scans = snapshot.data ?? [];
 
                 if (scans.isEmpty) {
@@ -305,6 +317,14 @@ class VisionFloorNeg1View extends StatelessWidget {
                                             );
                                             await HapticManager.instance.successNotification();
                                             await SoundController.instance.play(SoundCue.success);
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Saved to notes vault!'),
+                                                  duration: Duration(seconds: 1),
+                                                ),
+                                              );
+                                            }
                                             await assistant.speak('Saved to notes.');
                                           },
                                         ),

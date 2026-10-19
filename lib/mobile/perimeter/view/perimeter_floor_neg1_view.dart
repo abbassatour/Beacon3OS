@@ -96,6 +96,7 @@ class _PerimeterFloorNeg1ViewState extends State<PerimeterFloorNeg1View> {
             StreamBuilder<List<RingEventEntity>>(
               stream: ringRepo.watchRecentEvents(limit: 50),
               builder: (context, snapshot) {
+                final isWaiting = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
                 final events = snapshot.data ?? [];
                 final dingCount = events.where((e) => e.eventType == 'ding').length;
                 final motionCount = events.where((e) => e.eventType == 'motion').length;
@@ -115,7 +116,7 @@ class _PerimeterFloorNeg1ViewState extends State<PerimeterFloorNeg1View> {
                         children: [
                           _buildStatItem(
                             label: 'TOTAL EVENTS',
-                            value: '${events.length}',
+                            value: isWaiting ? '...' : '${events.length}',
                             color: colors.primary,
                           ),
                           Container(
@@ -125,7 +126,7 @@ class _PerimeterFloorNeg1ViewState extends State<PerimeterFloorNeg1View> {
                           ),
                           _buildStatItem(
                             label: 'DOORBELL DINGS',
-                            value: '$dingCount',
+                            value: isWaiting ? '...' : '$dingCount',
                             color: colors.secondary,
                           ),
                           Container(
@@ -135,7 +136,7 @@ class _PerimeterFloorNeg1ViewState extends State<PerimeterFloorNeg1View> {
                           ),
                           _buildStatItem(
                             label: 'MOTION ALERTS',
-                            value: '$motionCount',
+                            value: isWaiting ? '...' : '$motionCount',
                             color: Colors.green,
                           ),
                         ],
@@ -170,6 +171,18 @@ class _PerimeterFloorNeg1ViewState extends State<PerimeterFloorNeg1View> {
             StreamBuilder<List<RingEventEntity>>(
               stream: ringRepo.watchRecentEvents(limit: 50),
               builder: (context, snapshot) {
+                // 🛡️ معالجة انتظار البيانات لمنع الوميض الخاطف
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
+                      ),
+                    ),
+                  );
+                }
+
                 final allEvents = snapshot.data ?? [];
                 final filtered = allEvents.where((e) {
                   if (_selectedFilter == 'all') return true;

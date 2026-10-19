@@ -53,13 +53,10 @@ class AgendaCubit extends Cubit<AgendaState> {
     final statusWord = task.isCompleted ? 'marked pending' : 'completed';
     await _assistant.speak('Task $statusWord: ${task.title}');
 
-    if (!task.isCompleted) {
-      final settings = await _settings.getSettings();
-      if (settings.autoArchiveCompleted) {
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-        await _taskRepo.deleteTask(task.id);
-      }
-    }
+    // 🛡️ ملاحظة هندسية حاسمة:
+    // تم إلغاء استدعاء deleteTask التدميري هنا.
+    // المهمة تظل محفوظة في الخزنة مع (isCompleted = true) لتظهر دائماً
+    // في طابق الأرشيف (Floor -1) مع إمكانية استعادتها أو حذفها يدوياً.
   }
 
   Future<void> addNewTask({

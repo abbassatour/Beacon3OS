@@ -5,23 +5,33 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/physics/spatial_physics.dart';
 import 'package:beacon_os/core/topology/topology.dart';
+import 'package:beacon_os/mobile/shell/controllers/handlers/spatial_elevator_handler.dart';
 import 'package:beacon_os/mobile/shell/controllers/handlers/spatial_pan_handler.dart';
 import 'package:beacon_os/mobile/shell/cubit/spatial_shell_state.dart';
 import 'package:flutter/widgets.dart';
 
-/// وحدة التحكم بكاميرا الفضاء المعزولة.
-///
-/// تم عزل مسار التنقل بين الغرف (XY Pan) بالكامل عن مسار الطوابق (Z Axis)
-/// لضمان استقرار حركة الغرف ونعومتها بنسبة 100% دون أي تداخل فيزيائي.
+enum _ActiveGestureType {
+  undecided,
+  panning,
+  elevator,
+}
+
+/// وحدة التحكم بكاميرا الفضاء المعزولة والمدعومة بمصعد الطوابق الرأسي
 class SpatialCameraController extends ChangeNotifier {
   SpatialCameraController({
     required TickerProvider vsync,
     SoundController? soundController,
     HapticManager? hapticManager,
     SpatialPanHandler? panHandler,
+    SpatialElevatorHandler? elevatorHandler,
   })  : _sound = soundController ?? SoundController.instance,
         _panHandler = panHandler ??
             SpatialPanHandler(
+              soundController: soundController,
+              hapticManager: hapticManager,
+            ),
+        _elevatorHandler = elevatorHandler ??
+            SpatialElevatorHandler(
               soundController: soundController,
               hapticManager: hapticManager,
             ) {
@@ -35,58 +45,62 @@ class SpatialCameraController extends ChangeNotifier {
 
   final SoundController _sound;
   final SpatialPanHandler _panHandler;
+  final SpatialElevatorHandler _elevatorHandler;
 
   late final AnimationController _panX;
   late final AnimationController _panY;
   late final AnimationController _floorZ;
 
   // ===========================================================================
-  // 🛡️ مؤشرات حركة الغرف (Pan Pipeline - Isolated & Protected)
+  // 🛡️ مؤشرات حركة الغرف والمصعد
   // ===========================================================================
   bool _isSettlingPan = false;
   bool _isPanSessionActive = false;
   Timer? _settleSafetyTimer;
-
-  // ===========================================================================
-  // 🏢 مؤشرات حركة الطوابق (Z-Axis Pipeline - Independent)
-  // ===========================================================================
   bool _isFloorAnimating = false;
+
+  _ActiveGestureType _gestureType = _ActiveGestureType.undecided;
+  double _accumulatedPanDistance = 0.0;
 
   double get currentZ => _floorZ.value;
   Offset get panOffset => Offset(_panX.value, _panY.value);
 
-  /// هل حركة الغرف نشطة حالياً (إما لمس مباشر أو انزلاق مغناطيسي نحو الغرفة)
+  /// هل حركة الغرف نشطة حالياً
   bool get isPanActive => _isPanSessionActive || _isSettlingPan;
 
   /// هل هناك أي حركة نشطة في الكاميرا
-  bool get isGestureActive => isPanActive || _isFloorAnimating;
+  bool get isGestureActive =>
+      isPanActive || _isFloorAnimating || (_gestureType == _ActiveGestureType.elevator);
 
   bool get isSettling => _isSettlingPan;
 
   // ===========================================================================
-  // 🧭 مسار التنقل الديكارتي بين الغرف (XY Pan - 100% Pure & Fast)
+  // 🧭 مسار الإيماءات المشترك (Pan vs Elevator)
   // ===========================================================================
 
   void onScaleStart(ScaleStartDetails details, {required int floorLevel}) {
-    // 🛡️ حماية: لا نوقف حركة الكاميرا إلا عند ثبوت لمس إصبعين للملاحة الفضائية
     if (details.pointerCount >= 2) {
-      _startPanSession(floorLevel);
+      _startGestureSession(floorLevel);
     }
   }
 
-  void _startPanSession(int floorLevel) {
+  void _startGestureSession(int floorLevel) {
     if (_isPanSessionActive) return;
     _isPanSessionActive = true;
+    _gestureType = _ActiveGestureType.undecided;
+    _accumulatedPanDistance = 0.0;
 
     _cancelSettle();
     _panX.stop();
     _panY.stop();
+    _floorZ.stop();
 
     _panHandler.onScaleStart(
       startPanX: _panX.value,
       startPanY: _panY.value,
       floorLevel: floorLevel,
     );
+    _elevatorHandler.onScaleStart(_floorZ.value);
   }
 
   void onScaleUpdate({
@@ -98,23 +112,46 @@ class SpatialCameraController extends ChangeNotifier {
     bool isWhisperEnabled = false,
   }) {
     if (!_isPanSessionActive && details.pointerCount >= 2) {
-      _startPanSession(state.currentFloor);
+      _startGestureSession(state.currentFloor);
     }
 
     if (!_isPanSessionActive) return;
 
-    // ⚡ توجيه مباشر وفوري لحركة الغرف دون أي شروط أو فحص لمصعد الطوابق
-    final update = _panHandler.handlePanUpdate(
-      focalPointDelta: details.focalPointDelta,
-      state: state,
-      topology: topology,
-      screenSize: screenSize,
-      onWhisperDirection: onWhisperDirection,
-      isWhisperEnabled: isWhisperEnabled,
-    );
+    _accumulatedPanDistance += details.focalPointDelta.distance;
+    final scaleDiff = (details.scale - 1.0).abs();
 
-    _panX.value = update.newPanX;
-    _panY.value = update.newPanY;
+    // 🧠 تصنيف نوع الإيماءة بذكاء وحسم: هل هي حركة مصعد (Pinch/Spread) أم تنقل غرف (Pan)؟
+    if (_gestureType == _ActiveGestureType.undecided) {
+      if (scaleDiff > 0.12) {
+        _gestureType = _ActiveGestureType.elevator;
+        // إيقاف رادار الغرف فوراً ليتفرغ المستخدم للمصعد
+        _panHandler.stopRadarAndWhisper();
+      } else if (_accumulatedPanDistance > 14.0) {
+        _gestureType = _ActiveGestureType.panning;
+      }
+    }
+
+    if (_gestureType == _ActiveGestureType.elevator) {
+      // 🏢 تحديث الارتفاع الرأسي Z للمصعد
+      final newZ = _elevatorHandler.handleScaleUpdate(
+        scaleFactor: details.scale,
+        topology: topology,
+      );
+      _floorZ.value = newZ;
+    } else {
+      // 🧭 تحديث حركة الغرف الديكارتية XY
+      final update = _panHandler.handlePanUpdate(
+        focalPointDelta: details.focalPointDelta,
+        state: state,
+        topology: topology,
+        screenSize: screenSize,
+        onWhisperDirection: onWhisperDirection,
+        isWhisperEnabled: isWhisperEnabled,
+      );
+
+      _panX.value = update.newPanX;
+      _panY.value = update.newPanY;
+    }
   }
 
   void onScaleEnd({
@@ -130,7 +167,27 @@ class SpatialCameraController extends ChangeNotifier {
     _panHandler.stopRadarAndWhisper();
     _isPanSessionActive = false;
 
-    // 🎯 حسم هبوط الغرفة الحتمي والمعزول (Discrete Magnetic Snapping)
+    // 🏢 1. حسم حركة المصعد الرأسي إذا كانت الإيماءة مخصصة للطوابق
+    if (_gestureType == _ActiveGestureType.elevator) {
+      final landing = _elevatorHandler.calculateLanding(
+        currentZ: _floorZ.value,
+        scaleVelocity: details.scaleVelocity,
+        topology: topology,
+      );
+
+      _animateFloorTo(landing.targetZ, velocity: landing.velocity);
+
+      if (landing.targetFloor != state.currentFloor) {
+        onTargetFloorSelected?.call(landing.targetFloor);
+      }
+
+      _elevatorHandler.reset();
+      _panHandler.reset();
+      _gestureType = _ActiveGestureType.undecided;
+      return;
+    }
+
+    // 🎯 2. حسم هبوط الغرفة الحتمي والمعزول (Discrete Magnetic Snapping)
     final landing = _panHandler.resolvePanLanding(
       velocity: details.velocity.pixelsPerSecond,
       panX: _panX.value,
@@ -158,6 +215,8 @@ class SpatialCameraController extends ChangeNotifier {
     }
 
     _panHandler.reset();
+    _elevatorHandler.reset();
+    _gestureType = _ActiveGestureType.undecided;
   }
 
   /// إطلاق محاكاة الانزلاق نحو الغرفة المستهدفة مع صمام أمان زمني
@@ -213,7 +272,6 @@ class SpatialCameraController extends ChangeNotifier {
 
   /// القفز الحتمي نحو إحداثي غرفة معينة (يُستدعى برمجياً أو عبر الـ HUD)
   void snapToCoordinate(SpatialCoordinate coord, Size screenSize) {
-    // 🛡️ إذا كانت الكاميرا تنزلق بالفعل بفعل حركة الإصبعين، لا تقاطع مسارها
     if (_isSettlingPan) return;
 
     final tx = -coord.x * screenSize.width;
@@ -234,12 +292,14 @@ class SpatialCameraController extends ChangeNotifier {
   }
 
   // ===========================================================================
-  // 🏢 مسار حركة الطوابق الرأسية (Z Axis - Isolated Pipeline)
+  // 🏢 مسار حركة الطوابق الرأسية (Z Axis)
   // ===========================================================================
 
-  /// تحريك الارتفاع نحو طابق محدد دون أي تأثير جانبي على حركة الغرف
   void animateToFloor(int targetFloor) {
-    final targetZ = targetFloor.toDouble();
+    _animateFloorTo(targetFloor.toDouble(), velocity: 0.0);
+  }
+
+  void _animateFloorTo(double targetZ, {double velocity = 0.0}) {
     if ((_floorZ.value - targetZ).abs() <= 0.001) {
       _floorZ.value = targetZ;
       return;
@@ -251,11 +311,10 @@ class SpatialCameraController extends ChangeNotifier {
           SpatialPhysics.createZAxisSimulation(
             start: _floorZ.value,
             end: targetZ,
-            velocity: 0,
+            velocity: velocity,
           ),
         )
         .whenComplete(() {
-          // 🔒 إغلاق حتمي للقيمة وتحديث الواجهة لضمان الاستقرار التام
           _floorZ.value = targetZ;
           _isFloorAnimating = false;
           notifyListeners();
@@ -266,6 +325,7 @@ class SpatialCameraController extends ChangeNotifier {
   void dispose() {
     _cancelSettle();
     _panHandler.dispose();
+    _elevatorHandler.reset();
     _panX.dispose();
     _panY.dispose();
     _floorZ.dispose();
