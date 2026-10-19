@@ -36,7 +36,7 @@ abstract class TopologyRepository {
     String? configJson,
   });
 
-  /// استعادة الخريطة وتوزيع الغرف من سحابة Supabase
+  /// استعادة الخريطة وتوزيع الغرف من سحابة Supabase تفاضلياً
   Future<void> restoreTopologyFromCloud();
 
   /// مزامنة أي تعديل على المواقع تم بدون إنترنت
@@ -79,7 +79,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
     required int y,
     required int floorLevel,
   }) async {
-    // 1. التحديث الفوري محلياً في Drift (Offline-First)
+    // 1. التحديث الفوري محلياً في Drift مع طابع UTC
     await _db.updateNodeCoordinates(
       id: id,
       x: x,
@@ -118,6 +118,8 @@ class TopologyRepositoryImpl implements TopologyRepository {
     String? customTitle,
     String? configJson,
   }) async {
+    final nowUtc = DateTime.now().toUtc();
+
     await _db.upsertSpatialNode(
       db.SpatialNodesCompanion.insert(
         id: id,
@@ -127,6 +129,8 @@ class TopologyRepositoryImpl implements TopologyRepository {
         floorLevel: Value(floorLevel),
         customTitle: Value(customTitle),
         configJson: Value(configJson),
+        updatedAt: Value(nowUtc),
+        isSynced: const Value(false),
       ),
     );
 
@@ -176,14 +180,29 @@ class TopologyRepositoryImpl implements TopologyRepository {
           (cloudNodes) async {
             if (cloudNodes.isEmpty) return;
             try {
+              final localNodes = await _db.getAllSpatialNodes();
+              final localMap = {for (final n in localNodes) n.id: n};
+
               await _db.batch((batch) {
                 for (final item in cloudNodes) {
                   final id = item['id'] as String?;
                   if (id == null) continue;
 
+                  final cloudUpdated = item['updated_at'] != null
+                      ? DateTime.tryParse(item['updated_at'] as String)
+                      : null;
                   final deletedAt = item['deleted_at'] != null
                       ? DateTime.tryParse(item['deleted_at'] as String)
                       : null;
+
+                  final local = localMap[id];
+
+                  // فض النزاع وفق مبدأ LWW الزمني
+                  final shouldApply = local == null ||
+                      (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+                      (local.isSynced);
+
+                  if (!shouldApply) continue;
 
                   if (deletedAt != null) {
                     batch.delete(
@@ -202,6 +221,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
                         customTitle: Value(item['custom_title'] as String?),
                         configJson: Value(item['config_json'] as String?),
                         isVisible: Value(item['is_visible'] as bool? ?? true),
+                        updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
                         isSynced: const Value(true),
                       ),
                       mode: InsertMode.insertOrReplace,
@@ -209,7 +229,7 @@ class TopologyRepositoryImpl implements TopologyRepository {
                   }
                 }
               });
-              log('TopologyRepository: ⚡ Realtime topology synced (${cloudNodes.length} nodes).');
+              log('TopologyRepository: ⚡ Realtime topology synced with LWW (${cloudNodes.length} nodes).');
             } catch (e) {
               log('TopologyRepository: Error handling realtime nodes: $e');
             }
@@ -229,29 +249,58 @@ class TopologyRepositoryImpl implements TopologyRepository {
   Future<void> restoreTopologyFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      final cloudNodes = await _cloud.fetchSpatialNodes();
+      // 🔄 استرجاع العقد الفضائية التفاضلي
+      final cloudNodes = await _cloud.fetchSpatialNodesDelta();
       if (cloudNodes.isEmpty) return;
+
+      final localNodes = await _db.getAllSpatialNodes();
+      final localMap = {for (final n in localNodes) n.id: n};
 
       await _db.batch((batch) {
         for (final item in cloudNodes) {
-          batch.insert(
-            _db.spatialNodes,
-            db.SpatialNodesCompanion.insert(
-              id: item['id'] as String,
-              moduleId: item['module_id'] as String,
-              floorLevel: Value(item['floor_level'] as int? ?? 0),
-              x: Value(item['x'] as int? ?? 0),
-              y: Value(item['y'] as int? ?? 0),
-              customTitle: Value(item['custom_title'] as String?),
-              configJson: Value(item['config_json'] as String?),
-              isVisible: Value(item['is_visible'] as bool? ?? true),
-              isSynced: const Value(true),
-            ),
-            mode: InsertMode.insertOrReplace,
-          );
+          final id = item['id'] as String?;
+          if (id == null) continue;
+
+          final deletedAt = item['deleted_at'] != null
+              ? DateTime.tryParse(item['deleted_at'] as String)
+              : null;
+          final cloudUpdated = item['updated_at'] != null
+              ? DateTime.tryParse(item['updated_at'] as String)
+              : null;
+
+          final local = localMap[id];
+
+          if (deletedAt != null) {
+            if (local != null) {
+              batch.delete(_db.spatialNodes, db.SpatialNodesCompanion(id: Value(id)));
+            }
+          } else {
+            final shouldApply = local == null ||
+                (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+                (local.isSynced);
+
+            if (shouldApply) {
+              batch.insert(
+                _db.spatialNodes,
+                db.SpatialNodesCompanion.insert(
+                  id: id,
+                  moduleId: item['module_id'] as String,
+                  floorLevel: Value(item['floor_level'] as int? ?? 0),
+                  x: Value(item['x'] as int? ?? 0),
+                  y: Value(item['y'] as int? ?? 0),
+                  customTitle: Value(item['custom_title'] as String?),
+                  configJson: Value(item['config_json'] as String?),
+                  isVisible: Value(item['is_visible'] as bool? ?? true),
+                  updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
         }
       });
-      log('TopologyRepository: Restored ${cloudNodes.length} nodes from cloud.');
+      log('TopologyRepository: ⚡ Restored and reconciled ${cloudNodes.length} spatial nodes from cloud.');
     } catch (e) {
       log('TopologyRepository: Restore cloud topology error: $e');
     }

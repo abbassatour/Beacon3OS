@@ -68,8 +68,10 @@ class TvShellCubit extends Cubit<TvShellState> {
 
   void _resetScreensaverTimer() {
     _screensaverTimer?.cancel();
+    // 🛡️ حوكمة أمنية: شاشة التوقف التسكينية تنشط فقط عندما يكون التلفاز في Dashboard
+    // يُحظر الدخول في الخمول أثناء شاشة الاقتران (Pairing) ليبقى الكود ظاهراً للمستخدم
     _screensaverTimer = Timer(_screensaverTimeout, () {
-      if (!isClosed && !state.hasActiveAlert) {
+      if (!isClosed && !state.hasActiveAlert && state.isDashboard) {
         emit(state.copyWith(mode: TvMode.ambient));
       }
     });
@@ -257,7 +259,8 @@ class TvShellCubit extends Cubit<TvShellState> {
       final latest = events.first;
       final nowUtc = DateTime.now().toUtc();
 
-      final diffSeconds = nowUtc.difference(latest.timestamp.toUtc()).inSeconds.abs();
+      final diffSeconds =
+          nowUtc.difference(latest.timestamp.toUtc()).inSeconds.abs();
       if (!latest.isRead && diffSeconds < 15) {
         wakeFromAmbient();
         _sound.play(SoundCue.wake);

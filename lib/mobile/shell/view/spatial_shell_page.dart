@@ -1,6 +1,9 @@
 // lib/mobile/shell/view/spatial_shell_page.dart
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:beacon_os/core/audio/sound_controller.dart';
+import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
@@ -129,7 +132,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           previous.currentCoordinate != current.currentCoordinate ||
           previous.currentFloor != current.currentFloor,
       listener: (context, state) {
-        // 🔒 حماية الكاميرا: عدم مقاطعة النابض إذا كان المستخدم يسحب أو النابض ينزلق
         if (!_cameraController.isGestureActive) {
           _cameraController.snapToCoordinate(
             state.currentCoordinate,
@@ -144,11 +146,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           child: CornerSwipeDetector(
             onCornerSwipe: voiceCubit.startSession,
             child: TactileMultiTouchDetector(
-              // 🚨 استغاثة الطوارئ: 3 نقرات سريعة
               onTripleTapSos: () => _triggerTripleTapSos(context),
-              // 🧭 إعلان الموقع للكفيف: نقرتان بإصبعين
               onOrientationPing: shellCubit.announceCurrentLocation,
-              // 🎙️ المساعد الصوتي الحسي: ضغط مطول بإصبع واحد
               onHoldToSpeakStart: voiceCubit.startSession,
               onHoldToSpeakEnd: () =>
                   voiceCubit.stopAndExecute(context: context),
@@ -199,7 +198,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                         final activeFloor =
                             currentZ.round().clamp(minF, maxF);
 
-                        // 📐 ترتيب ذكي: الطابق النشط يُرسم دوماً في قمة الـ Stack لمنع الحجب
                         final visibleFloors = <int>{lowerFloor, upperFloor}
                             .where(topology.hasFloor)
                             .toList()
@@ -233,8 +231,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                             ),
                             const AmbientVoiceOverlay(),
 
-                            // 👈 أضف هذا السطر هنا:
-                            const MouseSpatialController(),
+                            // 🔮 كرة التوجيه والمصعد الفضائي الأنيقة:
+                            const SpatialNavigationOrb(),
                           ],
                         );
                       },
@@ -250,122 +248,320 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
   }
 }
 
+/// 🔮 كرة التوجيه الفضائية التفاعلية (Spatial Gyro Orb)
+/// - اسحب الكرة في أي اتجاه للانتقال بسلاسة بين الغرف
+/// - اضغط ضغطة واحدة لفتح قائمة مصعد الطوابق (Floor 0 / Floor 1)
+/// - اضغط ضغطة مطولة للعودة الفورية لمركز اليوم (Cockpit)
+class SpatialNavigationOrb extends StatefulWidget {
+  const SpatialNavigationOrb({super.key});
 
-/// 🛠️ تحكم مؤقت بالفأرة لاختبار التنقل على الحاسوب والمحاكي
-class MouseSpatialController extends StatelessWidget {
-  const MouseSpatialController({super.key});
+  @override
+  State<SpatialNavigationOrb> createState() => _SpatialNavigationOrbState();
+}
+
+class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
+    with SingleTickerProviderStateMixin {
+  Offset _dragOffset = Offset.zero;
+  bool _isMenuOpen = false;
+  static const double _maxDragRadius = 26.0;
+  static const double _triggerThreshold = 18.0;
 
   @override
   Widget build(BuildContext context) {
-    final shellCubit = context.read<SpatialShellCubit>();
-    final colors = Theme.of(context).colorScheme;
+    final shellCubit = context.watch<SpatialShellCubit>();
+    final currentFloor = shellCubit.state.currentFloor;
+    final colors = context.colors;
 
     return Positioned(
-      bottom: 90,
+      bottom: 84,
       right: 20,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: colors.surface.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colors.primary, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 🏢 قائمة مصعد الطوابق المنبثقة بحركة سلسة
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: animation,
+                  alignment: Alignment.bottomRight,
+                  child: child,
+                ),
+              );
+            },
+            child: _isMenuOpen
+                ? _buildFloorElevatorMenu(context, currentFloor, shellCubit, colors)
+                : const SizedBox.shrink(),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // زر الصعود للطابق العلوي
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _btn(
-                    icon: Icons.keyboard_double_arrow_up_rounded,
-                    tooltip: 'Ascend Floor (Z+)',
-                    color: colors.secondary,
-                    onTap: shellCubit.ascend,
-                  ),
-                  const SizedBox(width: 4),
-                  _btn(
-                    icon: Icons.keyboard_double_arrow_down_rounded,
-                    tooltip: 'Descend Floor (Z-)',
-                    color: colors.secondary,
-                    onTap: shellCubit.descend,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              // سهم الشمال (Focus / Perimeter)
-              _btn(
-                icon: Icons.arrow_upward_rounded,
-                tooltip: 'North (Focus / Alarms)',
-                color: colors.primary,
-                onTap: () => shellCubit.navigateToward(SpatialDirection.north),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // سهم الغرب (Agenda)
-                  _btn(
-                    icon: Icons.arrow_back_rounded,
-                    tooltip: 'West (Agenda & Tasks)',
-                    color: colors.primary,
-                    onTap: () => shellCubit.navigateToward(SpatialDirection.west),
-                  ),
-                  const SizedBox(width: 4),
-                  // زر المركز (Cockpit)
-                  _btn(
-                    icon: Icons.home_rounded,
-                    tooltip: 'Origin (Cockpit)',
-                    color: colors.onSurface,
-                    onTap: shellCubit.returnToCenter,
-                  ),
-                  const SizedBox(width: 4),
-                  // سهم الشرق (Vision)
-                  _btn(
-                    icon: Icons.arrow_forward_rounded,
-                    tooltip: 'East (AI Vision)',
-                    color: colors.primary,
-                    onTap: () => shellCubit.navigateToward(SpatialDirection.east),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              // سهم الجنوب (Communications)
-              _btn(
-                icon: Icons.arrow_downward_rounded,
-                tooltip: 'South (Communications)',
-                color: colors.primary,
-                onTap: () => shellCubit.navigateToward(SpatialDirection.south),
-              ),
-            ],
+          if (_isMenuOpen) const SizedBox(height: 10),
+
+          // 🔮 الكرة الفضائية المفرغة
+          GestureDetector(
+            onTap: () {
+              HapticManager.instance.selectionClick();
+              SoundController.instance.play(SoundCue.navCenter);
+              setState(() => _isMenuOpen = !_isMenuOpen);
+            },
+            onLongPress: () {
+              HapticManager.instance.successNotification();
+              SoundController.instance.play(SoundCue.navReturn);
+              shellCubit.returnToCenter();
+              if (_isMenuOpen) setState(() => _isMenuOpen = false);
+            },
+            onPanStart: (_) {
+              if (_isMenuOpen) setState(() => _isMenuOpen = false);
+            },
+            onPanUpdate: (details) {
+              final newOffset = _dragOffset + details.delta;
+              final distance = newOffset.distance;
+
+              if (distance <= _maxDragRadius) {
+                setState(() => _dragOffset = newOffset);
+              } else {
+                final angle = math.atan2(newOffset.dy, newOffset.dx);
+                setState(() {
+                  _dragOffset = Offset(
+                    math.cos(angle) * _maxDragRadius,
+                    math.sin(angle) * _maxDragRadius,
+                  );
+                });
+              }
+            },
+            onPanEnd: (_) {
+              final distance = _dragOffset.distance;
+              if (distance >= _triggerThreshold) {
+                _resolveDirectionAndNavigate(shellCubit);
+              }
+              // ارتداد مرن للنواة إلى المركز
+              setState(() => _dragOffset = Offset.zero);
+            },
+            child: _buildOrbBody(colors, currentFloor),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _btn({
+  void _resolveDirectionAndNavigate(SpatialShellCubit cubit) {
+    final dx = _dragOffset.dx;
+    final dy = _dragOffset.dy;
+
+    HapticManager.instance.selectionClick();
+
+    if (dx.abs() > dy.abs()) {
+      if (dx > 0) {
+        cubit.navigateToward(SpatialDirection.east);
+      } else {
+        cubit.navigateToward(SpatialDirection.west);
+      }
+    } else {
+      if (dy < 0) {
+        cubit.navigateToward(SpatialDirection.north);
+      } else {
+        cubit.navigateToward(SpatialDirection.south);
+      }
+    }
+  }
+
+  Widget _buildOrbBody(ColorScheme colors, int currentFloor) {
+    final hasOffset = _dragOffset != Offset.zero;
+
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colors.surface.withValues(alpha: 0.78),
+        border: Border.all(
+          color: _isMenuOpen
+              ? colors.secondary
+              : colors.primary.withValues(alpha: 0.8),
+          width: 1.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (_isMenuOpen ? colors.secondary : colors.primary)
+                .withValues(alpha: 0.28),
+            blurRadius: 18,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // خطوط الملاحة المتصالبة الدقيقة
+          Container(
+            width: 44,
+            height: 1,
+            color: colors.outline.withValues(alpha: 0.35),
+          ),
+          Container(
+            width: 1,
+            height: 44,
+            color: colors.outline.withValues(alpha: 0.35),
+          ),
+
+          // مؤشرات الاتجاهات الخفيفة
+          Positioned(
+            top: 4,
+            child: Icon(Icons.keyboard_arrow_up_rounded,
+                size: 13, color: colors.onSurfaceVariant.withValues(alpha: 0.6)),
+          ),
+          Positioned(
+            bottom: 4,
+            child: Icon(Icons.keyboard_arrow_down_rounded,
+                size: 13, color: colors.onSurfaceVariant.withValues(alpha: 0.6)),
+          ),
+          Positioned(
+            left: 4,
+            child: Icon(Icons.keyboard_arrow_left_rounded,
+                size: 13, color: colors.onSurfaceVariant.withValues(alpha: 0.6)),
+          ),
+          Positioned(
+            right: 4,
+            child: Icon(Icons.keyboard_arrow_right_rounded,
+                size: 13, color: colors.onSurfaceVariant.withValues(alpha: 0.6)),
+          ),
+
+          // النواة الداخلية المفرغة المتحركة (Gyro Puck)
+          Transform.translate(
+            offset: _dragOffset,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.surface,
+                border: Border.all(
+                  color: hasOffset
+                      ? colors.secondary
+                      : colors.primary,
+                  width: 2.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (hasOffset ? colors.secondary : colors.primary)
+                        .withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  'F$currentFloor',
+                  style: TextStyle(
+                    color: hasOffset ? colors.secondary : colors.primary,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloorElevatorMenu(
+    BuildContext context,
+    int currentFloor,
+    SpatialShellCubit cubit,
+    ColorScheme colors,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.outline.withValues(alpha: 0.8), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _floorItem(
+            label: 'Floor 1 • Engine & Tuning',
+            floor: 1,
+            isSelected: currentFloor == 1,
+            icon: Icons.tune_rounded,
+            colors: colors,
+            onTap: () {
+              cubit.jumpToFloor(1);
+              setState(() => _isMenuOpen = false);
+            },
+          ),
+          const SizedBox(height: 6),
+          _floorItem(
+            label: 'Floor 0 • Cockpit & Studio',
+            floor: 0,
+            isSelected: currentFloor == 0,
+            icon: Icons.dashboard_rounded,
+            colors: colors,
+            onTap: () {
+              cubit.jumpToFloor(0);
+              setState(() => _isMenuOpen = false);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _floorItem({
+    required String label,
+    required int floor,
+    required bool isSelected,
     required IconData icon,
-    required String tooltip,
-    required Color color,
+    required ColorScheme colors,
     required VoidCallback onTap,
   }) {
-    return IconButton(
-      icon: Icon(icon, color: color, size: 22),
-      tooltip: tooltip,
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.all(6),
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      onPressed: onTap,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: isSelected
+              ? Border.all(color: colors.primary.withValues(alpha: 0.6))
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected ? colors.primary : colors.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? colors.primary : colors.onSurface,
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

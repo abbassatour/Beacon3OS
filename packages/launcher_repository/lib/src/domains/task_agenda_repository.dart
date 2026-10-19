@@ -239,12 +239,21 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                   final id = item['id'] as String?;
                   if (id == null || id.isEmpty) continue;
 
-                  final local = localMap[id];
-                  if (local != null && !local.isSynced) continue;
-
+                  final cloudUpdated = item['updated_at'] != null
+                      ? DateTime.tryParse(item['updated_at'] as String)
+                      : null;
                   final deletedAtStr = item['deleted_at'] as String?;
                   final DateTime? deletedAt =
                       deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+                  final local = localMap[id];
+
+                  // فض النزاع وفق مبدأ LWW الزمني
+                  final shouldApply = local == null ||
+                      (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+                      (local.isSynced);
+
+                  if (!shouldApply) continue;
 
                   if (deletedAt != null) {
                     if (local != null) {
@@ -266,6 +275,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                         dueDate: Value(due?.toUtc()),
                         priority: Value(item['priority'] as String? ?? 'medium'),
                         isCompleted: Value(item['is_completed'] as bool? ?? false),
+                        updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
                         isSynced: const Value(true),
                       ),
                       mode: InsertMode.insertOrReplace,
@@ -273,7 +283,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                   }
                 }
               });
-              log('TaskAgendaRepository: ⚡ Realtime tasks synced (${cloudTasks.length} tasks).');
+              log('TaskAgendaRepository: ⚡ Realtime tasks synced with LWW resolution (${cloudTasks.length} tasks).');
             } catch (e) {
               log('TaskAgendaRepository: Error reconciling realtime tasks: $e');
             }
@@ -304,12 +314,21 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                   final id = item['id'] as String?;
                   if (id == null || id.isEmpty) continue;
 
-                  final local = localMap[id];
-                  if (local != null && !local.isSynced) continue;
-
+                  final cloudUpdated = item['updated_at'] != null
+                      ? DateTime.tryParse(item['updated_at'] as String)
+                      : null;
                   final deletedAtStr = item['deleted_at'] as String?;
                   final DateTime? deletedAt =
                       deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+                  final local = localMap[id];
+
+                  // فض النزاع وفق مبدأ LWW الزمني للمذكرات
+                  final shouldApply = local == null ||
+                      (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+                      (local.isSynced);
+
+                  if (!shouldApply) continue;
 
                   if (deletedAt != null) {
                     if (local != null) {
@@ -319,12 +338,18 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                       );
                     }
                   } else {
+                    final createdStr = item['created_at'] as String?;
+                    final createdAt =
+                        createdStr != null ? DateTime.tryParse(createdStr) : null;
+
                     batch.insert(
                       _db.voiceMemos,
                       db.VoiceMemosCompanion.insert(
                         id: id,
                         title: item['title'] as String? ?? 'Voice Note',
                         content: item['content'] as String? ?? '',
+                        createdAt: Value(createdAt?.toUtc() ?? DateTime.now().toUtc()),
+                        updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
                         isSynced: const Value(true),
                       ),
                       mode: InsertMode.insertOrReplace,
@@ -332,7 +357,7 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
                   }
                 }
               });
-              log('TaskAgendaRepository: ⚡ Realtime memos synced (${cloudMemos.length} memos).');
+              log('TaskAgendaRepository: ⚡ Realtime memos synced with LWW (${cloudMemos.length} memos).');
             } catch (e) {
               log('TaskAgendaRepository: Error reconciling realtime memos: $e');
             }
@@ -352,30 +377,112 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
   Future<void> restoreTasksAndMemosFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      final cloudTasks = await _cloud.fetchTasks();
+      // 🔄 استرجاع المهام التفاضلي (يشمل التعديلات والمحذوفات)
+      final cloudTasks = await _cloud.fetchTasksDelta();
+      final localTasks = await _db.select(_db.tasks).get();
+      final localTasksMap = {for (final t in localTasks) t.id: t};
+
       if (cloudTasks.isNotEmpty) {
         await _db.batch((batch) {
           for (final t in cloudTasks) {
-            DateTime? due;
-            if (t['due_date'] != null) {
-              due = DateTime.tryParse(t['due_date'].toString());
+            final id = t['id'] as String?;
+            if (id == null) continue;
+
+            final deletedAtStr = t['deleted_at'] as String?;
+            final DateTime? deletedAt =
+                deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+            final updatedStr = t['updated_at'] as String?;
+            final DateTime? updatedAt =
+                updatedStr != null ? DateTime.tryParse(updatedStr) : null;
+
+            final local = localTasksMap[id];
+
+            if (deletedAt != null) {
+              if (local != null) {
+                batch.delete(_db.tasks, db.TasksCompanion(id: Value(id)));
+              }
+            } else {
+              final shouldApply = local == null ||
+                  (updatedAt != null && updatedAt.isAfter(local.updatedAt)) ||
+                  (local.isSynced);
+
+              if (shouldApply) {
+                DateTime? due;
+                if (t['due_date'] != null) {
+                  due = DateTime.tryParse(t['due_date'].toString());
+                }
+                batch.insert(
+                  _db.tasks,
+                  db.TasksCompanion.insert(
+                    id: id,
+                    title: t['title'] as String,
+                    dueDate: Value(due?.toUtc()),
+                    priority: Value(t['priority'] as String? ?? 'medium'),
+                    isCompleted: Value(t['is_completed'] as bool? ?? false),
+                    updatedAt: Value(updatedAt ?? DateTime.now().toUtc()),
+                    isSynced: const Value(true),
+                  ),
+                  mode: InsertMode.insertOrReplace,
+                );
+              }
             }
-            batch.insert(
-              _db.tasks,
-              db.TasksCompanion.insert(
-                id: t['id'] as String,
-                title: t['title'] as String,
-                dueDate: Value(due?.toUtc()),
-                priority: Value(t['priority'] as String? ?? 'medium'),
-                isCompleted: Value(t['is_completed'] as bool? ?? false),
-                isSynced: const Value(true),
-              ),
-              mode: InsertMode.insertOrReplace,
-            );
           }
         });
       }
-      log('TaskAgendaRepository: Tasks & Memos restored from cloud in batch.');
+
+      // 🔄 استرجاع المذكرات التفاضلي
+      final cloudMemos = await _cloud.fetchMemosDelta();
+      final localMemos = await _db.select(_db.voiceMemos).get();
+      final localMemosMap = {for (final m in localMemos) m.id: m};
+
+      if (cloudMemos.isNotEmpty) {
+        await _db.batch((batch) {
+          for (final m in cloudMemos) {
+            final id = m['id'] as String?;
+            if (id == null) continue;
+
+            final deletedAtStr = m['deleted_at'] as String?;
+            final DateTime? deletedAt =
+                deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+            final updatedStr = m['updated_at'] as String?;
+            final DateTime? updatedAt =
+                updatedStr != null ? DateTime.tryParse(updatedStr) : null;
+
+            final local = localMemosMap[id];
+
+            if (deletedAt != null) {
+              if (local != null) {
+                batch.delete(_db.voiceMemos, db.VoiceMemosCompanion(id: Value(id)));
+              }
+            } else {
+              final shouldApply = local == null ||
+                  (updatedAt != null && updatedAt.isAfter(local.updatedAt)) ||
+                  (local.isSynced);
+
+              if (shouldApply) {
+                final createdStr = m['created_at'] as String?;
+                final createdAt =
+                    createdStr != null ? DateTime.tryParse(createdStr) : null;
+
+                batch.insert(
+                  _db.voiceMemos,
+                  db.VoiceMemosCompanion.insert(
+                    id: id,
+                    title: m['title'] as String? ?? 'Voice Note',
+                    content: m['content'] as String? ?? '',
+                    createdAt: Value(createdAt?.toUtc() ?? DateTime.now().toUtc()),
+                    updatedAt: Value(updatedAt ?? DateTime.now().toUtc()),
+                    isSynced: const Value(true),
+                  ),
+                  mode: InsertMode.insertOrReplace,
+                );
+              }
+            }
+          }
+        });
+      }
+
+      log('TaskAgendaRepository: ⚡ Tasks & Memos delta restored and reconciled in batch.');
     } catch (e, st) {
       log('TaskAgendaRepository: Cloud restore error: $e', stackTrace: st);
     }
@@ -385,29 +492,43 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
   Future<void> syncPendingTasksAndMemos() async {
     if (!_cloud.isAuthenticated) return;
     try {
+      // 1. مزامنة المهام المعلقة دفعة واحدة (Batch Tasks Sync)
       final pendingTasks = await (_db.select(_db.tasks)
             ..where((t) => t.isSynced.equals(false)))
           .get();
-      for (final t in pendingTasks) {
-        if (t.deletedAt != null) {
+
+      if (pendingTasks.isNotEmpty) {
+        final toDelete = pendingTasks.where((t) => t.deletedAt != null).toList();
+        final toUpsert = pendingTasks.where((t) => t.deletedAt == null).toList();
+
+        for (final t in toDelete) {
           await _cloud.softDeleteTaskInCloud(t.id);
           await _db.deleteTask(t.id);
-        } else {
-          await _cloud.syncTask(
-            id: t.id,
-            title: t.title,
-            dueDate: t.dueDate,
-            priority: t.priority,
-            isCompleted: t.isCompleted,
-          );
-          await (_db.update(_db.tasks)..where((tbl) => tbl.id.equals(t.id)))
+        }
+
+        if (toUpsert.isNotEmpty) {
+          final payload = toUpsert.map((t) => {
+                'id': t.id,
+                'title': t.title,
+                'due_date': t.dueDate?.toIso8601String(),
+                'priority': t.priority,
+                'is_completed': t.isCompleted,
+                'updated_at': t.updatedAt.toUtc().toIso8601String(),
+              }).toList();
+
+          await _cloud.syncTasksBatch(payload);
+
+          final upsertIds = toUpsert.map((t) => t.id).toList();
+          await (_db.update(_db.tasks)..where((tbl) => tbl.id.isIn(upsertIds)))
               .write(const db.TasksCompanion(isSynced: Value(true)));
         }
       }
 
+      // 2. مزامنة المذكرات المعلقة
       final pendingMemos = await (_db.select(_db.voiceMemos)
             ..where((m) => m.isSynced.equals(false)))
           .get();
+
       for (final m in pendingMemos) {
         if (m.deletedAt != null) {
           await _cloud.softDeleteMemoInCloud(m.id);
@@ -418,6 +539,8 @@ class TaskAgendaRepositoryImpl implements TaskAgendaRepository {
               .write(const db.VoiceMemosCompanion(isSynced: Value(true)));
         }
       }
+
+      log('TaskAgendaRepository: ⚡ Pending offline tasks and memos synced via batch.');
     } catch (e) {
       log('TaskAgendaRepository: Pending sync error: $e');
     }

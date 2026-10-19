@@ -37,7 +37,7 @@ abstract class SettingsRepository {
     required String description,
   });
 
-  /// استعادة تفضيلات المستخدم من Supabase إلى قاعدة البيانات المحلية
+  /// استعادة تفضيلات المستخدم من Supabase إلى قاعدة البيانات المحلية بفض نزاعات زمني
   Future<void> restoreSettingsFromCloud();
 
   /// فحص ومزامنة أي تعديل تم على الإعدادات أثناء انقطاع الإنترنت
@@ -68,7 +68,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Future<void> updateSettings(AppSettingUpdatePayload updated) async {
-    // 1. الحفظ الفوري محلياً في Drift (Offline-First) بعد التحويل لـ Companion
+    // 1. الحفظ الفوري محلياً في Drift مع طابع زمني موحد
     await _db.updateSettings(updated.toCompanion());
 
     // 2. المزامنة السحابية غير المعطلة
@@ -138,7 +138,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
     try {
       final cloudSettings = await _cloud.fetchCloudSettings();
       if (cloudSettings != null) {
+        final local = await _db.getSettings();
+        final cloudUpdatedAtStr = cloudSettings['updated_at'] as String?;
+        final cloudUpdatedAt =
+            cloudUpdatedAtStr != null ? DateTime.tryParse(cloudUpdatedAtStr) : null;
+
+        // فض النزاع LWW: لا نمسح التعديل المحلي الأحدث إذا كان غير متزامن
+        final shouldApply = local.isSynced ||
+            (cloudUpdatedAt != null && cloudUpdatedAt.isAfter(local.updatedAt));
+
+        if (!shouldApply) {
+          log('SettingsRepository: Local settings are newer than cloud. Skipping cloud overwrite.');
+          return;
+        }
+
         final persona = cloudSettings['user_persona'] as String? ?? 'digital_minimalist';
+
         await _db.updateSettings(
           db.AppSettingsCompanion(
             userPersona: Value(persona),
@@ -196,10 +211,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
             preferredCurrency: Value(
               cloudSettings['preferred_currency'] as String? ?? 'USD / Local',
             ),
+            updatedAt: Value(cloudUpdatedAt ?? DateTime.now().toUtc()),
             isSynced: const Value(true),
           ),
         );
-        log('SettingsRepository: Settings restored from cloud successfully.');
+        log('SettingsRepository: ⚡ Settings restored and reconciled with cloud successfully.');
       }
     } catch (e, st) {
       log('SettingsRepository: Failed to restore cloud settings: $e', stackTrace: st);
@@ -215,7 +231,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       if (!settings.isSynced) {
         await _cloud.syncSettings(_mapSettingsToCloud(settings.toEntity()));
         await _db.updateSettings(const db.AppSettingsCompanion(isSynced: Value(true)));
-        log('SettingsRepository: Pending offline settings synced.');
+        log('SettingsRepository: ⚡ Pending offline settings synced.');
       }
     } catch (e) {
       log('SettingsRepository: Pending settings sync error: $e');
@@ -245,6 +261,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       'vision_inspection_detail': s.visionInspectionDetail,
       'auto_flashlight_in_dark': s.autoFlashlightInDark,
       'preferred_currency': s.preferredCurrency,
+      'updated_at': s.updatedAt.toUtc().toIso8601String(),
     };
   }
 }

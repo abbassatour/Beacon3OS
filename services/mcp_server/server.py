@@ -3,12 +3,13 @@ BeaconOS Alexa+ MCP Server (Spec 2025-11-25 / Streamable HTTP Compliant)
 -------------------------------------------------------------------------
 Implements modern Model Context Protocol Streamable HTTP endpoint for Alexa+
 Echo Show Multimodal integration and BeaconOS sovereign phone actuation.
+Updated with RFC-4122 UUIDs, soft-delete awareness, and UTC timestamp consistency.
 """
 
 import os
 import json
 import logging
-import uuid 
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
@@ -94,12 +95,12 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"📍 Action: LOCATE_DEVICE dispatched for target: {target_user_id or 'BROADCAST'}")
 
     now_utc_str = datetime.now(timezone.utc).isoformat()
+    action_id = str(uuid.uuid4())
 
     if supabase:
         try:
             action_payload = {
-
-                "id": f"act_{uuid.uuid4().hex[:12]}",
+                "id": action_id,
                 "action_type": "LOCATE_DEVICE",
                 "payload": {
                     "reason": reason,
@@ -114,7 +115,7 @@ async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
                 action_payload["user_id"] = target_user_id
 
             supabase.table("remote_actions").insert(action_payload).execute()
-            logger.info("LOCATE_DEVICE record created in Supabase.")
+            logger.info(f"LOCATE_DEVICE record created with UUID: {action_id}")
         except Exception as e:
             logger.error(f"Failed to insert LOCATE_DEVICE in Supabase: {e}")
 
@@ -143,18 +144,22 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
     default_lat = 52.3676
     default_lng = 4.9041
     now_utc_str = datetime.now(timezone.utc).isoformat()
+    sos_id = str(uuid.uuid4())
+    action_id = str(uuid.uuid4())
 
     if supabase:
         try:
-            # 1. إدراج استغاثة في جدول sos_alerts
+            # 1. إدراج استغاثة في جدول sos_alerts مع طابع التعديل الزمني
             sos_record = {
-                "id": f"sos_{uuid.uuid4().hex[:12]}",
+                "id": sos_id,
                 "status": "active",
                 "latitude": default_lat,
                 "longitude": default_lng,
                 "battery_level": 95,
                 "google_maps_url": f"https://maps.google.com/?q={default_lat},{default_lng}",
-                "triggered_at": now_utc_str
+                "triggered_at": now_utc_str,
+                "created_at": now_utc_str,
+                "updated_at": now_utc_str
             }
             if target_user_id:
                 sos_record["user_id"] = target_user_id
@@ -163,7 +168,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
             # 2. إرسال أمر تنبيه فوري للهاتف وسائر شاشات المنزل
             action_record = {
-                "id": f"act_{uuid.uuid4().hex[:12]}",
+                "id": action_id,
                 "action_type": "TRIGGER_SOS",
                 "payload": {
                     "emergency_type": emergency_type,
@@ -178,7 +183,7 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
                 action_record["user_id"] = target_user_id
 
             supabase.table("remote_actions").insert(action_record).execute()
-            logger.info("EMERGENCY_SOS recorded in both sos_alerts and remote_actions.")
+            logger.info(f"EMERGENCY_SOS recorded with UUID: {sos_id}")
         except Exception as e:
             logger.error(f"SOS database recording error: {e}")
 
@@ -201,13 +206,18 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
     logger.info(f"📋 Action: GET_DAILY_BRIEFING for user: {target_user_id}")
 
     tasks_count = 0
-    top_task = "Zero pending tasks! Agenda is clear."
+    top_task = "Zero pending priorities! Agenda is clear."
     next_alarm = "No active alarms"
     tasks_list = []
 
     if supabase:
         try:
-            query = supabase.table("tasks").select("title, priority").eq("is_completed", False)
+            # 🛡️ استبعاد المهام المحذوفة ناعماً لتجنب إخبار المستخدم بمهام قام بحذفها مسبقاً
+            query = supabase.table("tasks")\
+                .select("title, priority")\
+                .eq("is_completed", False)\
+                .is_("deleted_at", "null")
+            
             if target_user_id:
                 query = query.eq("user_id", target_user_id)
             tasks_res = query.order("created_at", desc=True).limit(5).execute()
@@ -218,7 +228,12 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
                 top_task = tasks[0]["title"]
                 tasks_list = [{"title": t["title"], "priority": t.get("priority", "medium")} for t in tasks]
 
-            alarm_query = supabase.table("alarms").select("hour, minute, label").eq("is_active", True)
+            # 🛡️ استبعاد المنبهات المحذوفة ناعماً
+            alarm_query = supabase.table("alarms")\
+                .select("hour, minute, label")\
+                .eq("is_active", True)\
+                .is_("deleted_at", "null")
+            
             if target_user_id:
                 alarm_query = alarm_query.eq("user_id", target_user_id)
             alarm_res = alarm_query.limit(1).execute()
@@ -257,20 +272,24 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
     raw_user_id = args.get("user_id")
     target_user_id = _resolve_target_user_id(raw_user_id)
     now_utc_str = datetime.now(timezone.utc).isoformat()
+    task_id = str(uuid.uuid4())
 
     if supabase:
         try:
+            # 🛡️ إدراج المعرف الفريد وطابع التعديل updated_at ليتعرف عليه محرك LWW المحلي
             payload = {
+                "id": task_id,
                 "title": title,
                 "priority": priority,
                 "is_completed": False,
-                "created_at": now_utc_str
+                "created_at": now_utc_str,
+                "updated_at": now_utc_str
             }
             if target_user_id:
                 payload["user_id"] = target_user_id
 
             supabase.table("tasks").insert(payload).execute()
-            logger.info(f"Task created successfully in Supabase: '{title}'")
+            logger.info(f"Task created with UUID {task_id}: '{title}'")
         except Exception as e:
             logger.error(f"Failed to create task in Supabase: {e}")
 
@@ -279,6 +298,7 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
         "ui_card": {
             "type": "task_confirmation",
             "title": "AGENDA ITEM CREATED",
+            "task_id": task_id,
             "task_title": title,
             "priority": priority,
             "synced_to_vault": True,
@@ -298,11 +318,18 @@ async def tool_beacon_get_device_telemetry(args: Dict[str, Any]) -> Dict[str, An
 
     if supabase:
         try:
-            sos_res = supabase.table("sos_alerts").select("battery_level").order("triggered_at", desc=True).limit(1).execute()
+            sos_res = supabase.table("sos_alerts")\
+                .select("battery_level")\
+                .order("triggered_at", desc=True)\
+                .limit(1)\
+                .execute()
             if sos_res.data and sos_res.data[0].get("battery_level"):
                 battery_level = int(sos_res.data[0]["battery_level"])
 
-            settings_res = supabase.table("app_settings").select("user_persona, is_high_contrast").limit(1).execute()
+            settings_res = supabase.table("app_settings")\
+                .select("user_persona, is_high_contrast")\
+                .limit(1)\
+                .execute()
             if settings_res.data:
                 persona = settings_res.data[0].get("user_persona", "blind_accessible")
                 profile = "Blind Accessible" if persona == "blind_accessible" else "Digital Minimalist"
@@ -332,12 +359,12 @@ async def tool_beacon_inspect_ring_camera(args: Dict[str, Any]) -> Dict[str, Any
 
     description = f"The {camera_name} is well lit. Pathway is unobstructed, and no moving hazards or obstacles are detected."
     now_utc_str = datetime.now(timezone.utc).isoformat()
+    action_id = str(uuid.uuid4())
 
-    # 🌟 بث فحص الكاميرا إلى جدول remote_actions لتستجيب شاشات المنزل فوراً
     if supabase:
         try:
             action_payload = {
-                "id": f"act_{uuid.uuid4().hex[:12]}", 
+                "id": action_id,
                 "action_type": "INSPECT_CAMERA",
                 "payload": {
                     "is_ring": True,
@@ -386,12 +413,12 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
         ("Front Door", "Activity detected in camera perimeter.")
     )
     now_utc_str = datetime.now(timezone.utc).isoformat()
+    action_id = str(uuid.uuid4())
 
-    # 🌟 بث تنبيه الكاميرا إلى جدول remote_actions ليشعل نغمة وشارة الـ TV والموبايل الحية
     if supabase:
         try:
             action_payload = {
-                "id": f"act_{uuid.uuid4().hex[:12]}", 
+                "id": action_id,
                 "action_type": "RING_ALERT",
                 "payload": {
                     "is_ring": True,
@@ -405,7 +432,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
             if target_user_id:
                 action_payload["user_id"] = target_user_id
             supabase.table("remote_actions").insert(action_payload).execute()
-            logger.info("RING_ALERT logged to remote_actions for live device trigger.")
+            logger.info(f"RING_ALERT logged with UUID {action_id}")
         except Exception as e:
             logger.error(f"Failed to log RING_ALERT in remote_actions: {e}")
 

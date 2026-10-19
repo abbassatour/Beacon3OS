@@ -274,6 +274,7 @@ class TvPairingView extends StatelessWidget {
     );
   }
 
+  /// 🎮 بناء أزرار الريموت الحتمية: مربوطة مباشرة بعقدة الفوكس وتستجيب لـ D-Pad
   Widget _buildRemoteActionButton({
     required FocusNode focusNode,
     required IconData icon,
@@ -281,44 +282,38 @@ class TvPairingView extends StatelessWidget {
     required VoidCallback onPressed,
     required ColorScheme colors,
   }) {
-    return FocusableActionDetector(
-      focusNode: focusNode,
-      actions: {
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) => onPressed(),
-        ),
-      },
-      child: Builder(
-        builder: (context) {
-          final isFocused = Focus.of(context).hasFocus;
-          return AnimatedScale(
-            scale: isFocused ? 1.05 : 1.0,
-            duration: const Duration(milliseconds: 150),
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                backgroundColor: isFocused ? colors.primary : colors.surface,
-                foregroundColor: isFocused ? colors.surface : colors.onSurface,
-                side: BorderSide(
-                  color: isFocused ? colors.primary : colors.outline,
-                  width: isFocused ? 2.2 : 1.2,
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+    return AnimatedBuilder(
+      animation: focusNode,
+      builder: (context, _) {
+        final isFocused = focusNode.hasFocus;
+
+        return AnimatedScale(
+          scale: isFocused ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          child: OutlinedButton.icon(
+            focusNode: focusNode,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: isFocused ? colors.primary : colors.surface,
+              foregroundColor: isFocused ? colors.surface : colors.onSurface,
+              side: BorderSide(
+                color: isFocused ? colors.primary : colors.outline,
+                width: isFocused ? 2.2 : 1.2,
               ),
-              icon: Icon(icon, size: 18),
-              label: Text(
-                label,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              onPressed: onPressed,
             ),
-          );
-        },
-      ),
+            icon: Icon(icon, size: 18),
+            label: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+            ),
+            onPressed: onPressed,
+          ),
+        );
+      },
     );
   }
 }

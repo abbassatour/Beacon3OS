@@ -8,14 +8,14 @@ import 'package:cloud_sync_api/src/local_p2p_client.dart';
 /// حالات نمط النقل والمزامنة الحية في النظام
 enum SyncTransportMode {
   discovering, // جاري مسح واكتشاف الشبكة المنزلية
-  lanDirect, // اتصال محلي مباشر عبر الواي فاي (< 2ms)
-  cloudRelay, // اتصال سحابي عبر Supabase (عالمي / خارج المنزل)
-  standalone, // وضع العمل المستقل بدون أجهزة مقترنة
+  lanDirect,   // اتصال محلي مباشر وآمن عبر الواي فاي (< 2ms)
+  cloudRelay,  // اتصال سحابي عبر Supabase (عالمي / خارج المنزل)
+  standalone,  // وضع العمل المستقل بدون أجهزة مقترنة
 }
 
-/// منسق المزامنة الهجين (Hybrid Sync Orchestrator)
-/// يجمع بين السيادة والسرعة الخاطفة محلياً، والتغطية العالمية سحابياً.
-/// تم ضبط كافة عمليات المعالجة الزمنية لتعمل بالتوقيت العالمي الموحد (UTC).
+/// منسق المزامنة الهجين المؤمن (Secure Hybrid Sync Orchestrator)
+/// يجمع بين السيادة والسرعة الخاطفة محلياً، والتغطية العالمية سحابياً،
+/// مع إدارة التوثيق الأمني والمزامنة التفاضلية (Delta Sync).
 class HybridSyncClient {
   HybridSyncClient({
     CloudSyncClient? cloudSyncClient,
@@ -41,7 +41,7 @@ class HybridSyncClient {
   SyncTransportMode get currentMode => _currentMode;
   bool get isLanDirect => _currentMode == SyncTransportMode.lanDirect;
 
-  // تدفق الإشعار بتغير نمط النقل (لتحديث شارات الواجهة والتوجيه الصوتي للكفيف)
+  // تدفق الإشعار بتغير نمط النقل لتحديث الواجهات والتوجيه الصوتي
   final StreamController<SyncTransportMode> _transportModeController =
       StreamController<SyncTransportMode>.broadcast();
   Stream<SyncTransportMode> get transportModeStream =>
@@ -83,7 +83,7 @@ class HybridSyncClient {
     // 1. تشغيل مستمع الأوامر السحابية كقناة أمان دائمة
     _listenToCloudRemoteActions();
 
-    // 2. توزيع المهام وفق استراتيجية الطاقة والجاهزية
+    // 2. توزيع المهام وفق استراتيجية الجهاز
     if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
       await _initializeAsHostDisplay();
     } else {
@@ -91,9 +91,15 @@ class HybridSyncClient {
     }
   }
 
-  /// تهيئة الشاشات المنزلية (تلفزيون / سطح مكتب) كخادم محلي دائم
+  /// تهيئة الشاشات المنزلية كخادم محلي مؤمن
   Future<void> _initializeAsHostDisplay() async {
     _updateMode(SyncTransportMode.discovering);
+
+    // تحديث الهوية الأمنية للخادم
+    _server.updateSecurityCredentials(
+      linkedVaultId: _linkedVaultId,
+      pairingCode: _pairingCode,
+    );
 
     final actualPort = await _server.start();
     if (actualPort != null) {
@@ -108,7 +114,7 @@ class HybridSyncClient {
         vaultId: _linkedVaultId,
       );
 
-      // الاستماع للرسائل الواردة من الهواتف المتصلة محلياً
+      // الاستماع للرسائل الواردة من الهواتف المصادق عليها فقط
       _serverMessagesSubscription?.cancel();
       _serverMessagesSubscription = _server.incomingMessages.listen(
         _handleIncomingP2pMessage,
@@ -116,16 +122,22 @@ class HybridSyncClient {
       );
 
       _updateMode(SyncTransportMode.lanDirect);
-      log('HybridSync: 📺 Host Display ready. Listening on LAN Port $actualPort');
+      log('HybridSync: 📺 Secure Host Display ready on LAN Port $actualPort');
     } else {
       _updateMode(SyncTransportMode.cloudRelay);
       log('HybridSync: Local server unavailable. Defaulting to Cloud Relay.');
     }
   }
 
-  /// تهيئة الهاتف كعميل يكتشف الشاشات المنزلية فوراً ويتصل بها
+  /// تهيئة الهاتف كعميل يكتشف الشاشات المنزلية ويقدم إثبات الهوية
   Future<void> _initializeAsMobileClient() async {
     _updateMode(SyncTransportMode.discovering);
+
+    _client.configureCredentials(
+      vaultId: _linkedVaultId,
+      pairingCode: _pairingCode,
+      clientId: _nodeId,
+    );
 
     await _discovery.initialize();
 
@@ -136,12 +148,19 @@ class HybridSyncClient {
       onError: (Object err) => log('HybridSync: Discovery stream error: $err'),
     );
 
-    // الاستماع لتغير حالة اتصال العميل بالمقبس المحلي
+    // الاستماع لتغير حالة اتصال العميل والمصادقة التشفيرية
     _clientStateSubscription?.cancel();
-    _clientStateSubscription = _client.stateChanges.listen((state) {
-      if (state == LocalClientState.connected) {
+    _clientStateSubscription = _client.stateChanges.listen((clientState) {
+      if (clientState == LocalClientState.connected) {
         _updateMode(SyncTransportMode.lanDirect);
-      } else if (state == LocalClientState.disconnected) {
+      } else if (clientState == LocalClientState.authFailed) {
+        log('HybridSync: 🚫 Peer rejected authentication credentials.');
+        _updateMode(
+          _cloud.isAuthenticated
+              ? SyncTransportMode.cloudRelay
+              : SyncTransportMode.standalone,
+        );
+      } else if (clientState == LocalClientState.disconnected) {
         _updateMode(
           _cloud.isAuthenticated
               ? SyncTransportMode.cloudRelay
@@ -150,7 +169,7 @@ class HybridSyncClient {
       }
     });
 
-    // استقبال الرسائل الواردة من التلفزيون/الكمبيوتر
+    // استقبال الرسائل المعتمدة من التلفزيون/الكمبيوتر
     _clientMessagesSubscription?.cancel();
     _clientMessagesSubscription = _client.incomingMessages.listen(
       _handleIncomingP2pMessage,
@@ -161,11 +180,10 @@ class HybridSyncClient {
     await _discovery.probeForNodes();
   }
 
-  /// التعامل مع العقدة المكتشفة بالواي فاي والاتصال بها بحذر ودقة
+  /// التعامل مع العقدة المكتشفة بالواي فاي والاتصال بها بمصادقة كاملة
   Future<void> _handleDiscoveredNode(LocalNodeInfo node) async {
     if (_client.isConnected) return;
 
-    // فحص هل هذا الجهاز يطابق كود الاقتران النشط أو الخزنة المشتركة
     final matchesCode =
         _pairingCode != null && node.pairingCode != null && node.pairingCode == _pairingCode;
     final matchesVault =
@@ -173,8 +191,13 @@ class HybridSyncClient {
     final isAuthorizedPeer = matchesCode || matchesVault;
 
     if (isAuthorizedPeer) {
-      log('HybridSync: 🎯 Target authorized peer found on LAN (${node.ip}:${node.port}). Connecting...');
-      final connected = await _client.connectToNode(node);
+      log('HybridSync: 🎯 Target authorized peer found on LAN (${node.ip}:${node.port}). Connecting securely...');
+      final connected = await _client.connectToNode(
+        node,
+        vaultId: _linkedVaultId,
+        pairingCode: _pairingCode,
+        clientId: _nodeId,
+      );
       if (connected) {
         _updateMode(SyncTransportMode.lanDirect);
       }
@@ -182,15 +205,18 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // 🔄 2. إدارة وتحديث حالة الاقتران والفك (Lifecycle & Session Reset)
+  // 🔄 2. إدارة وتحديث حالة الاقتران والفك (Session Management)
   // ===========================================================================
 
-  /// تحديث كود الاقتران اللحظي وإعادة إعلانه عبر الـ UDP لمنع بقاء الأكواد القديمة
   void updatePairingCode(String? newCode) {
     _pairingCode = newCode;
     log('HybridSync: 🔄 Pairing code updated to: $newCode');
 
     if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      _server.updateSecurityCredentials(
+        linkedVaultId: _linkedVaultId,
+        pairingCode: _pairingCode,
+      );
       if (_server.isRunning) {
         _discovery.startAdvertising(
           nodeId: _nodeId,
@@ -200,16 +226,25 @@ class HybridSyncClient {
           vaultId: _linkedVaultId,
         );
       }
+    } else {
+      _client.configureCredentials(
+        vaultId: _linkedVaultId,
+        pairingCode: _pairingCode,
+        clientId: _nodeId,
+      );
     }
   }
 
-  /// تحديث معرف الخزنة المقترنة بعد إتمام الربط بنجاح
   void updateLinkedVaultId(String? vaultId) {
     _linkedVaultId = vaultId;
     _pairingCode = null; // إبطال الكود بمجرد اعتماد الخزنة
     log('HybridSync: 🗝️ Linked Vault ID updated to: $vaultId');
 
     if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      _server.updateSecurityCredentials(
+        linkedVaultId: _linkedVaultId,
+        pairingCode: null,
+      );
       if (_server.isRunning) {
         _discovery.startAdvertising(
           nodeId: _nodeId,
@@ -219,10 +254,15 @@ class HybridSyncClient {
           vaultId: _linkedVaultId,
         );
       }
+    } else {
+      _client.configureCredentials(
+        vaultId: _linkedVaultId,
+        pairingCode: null,
+        clientId: _nodeId,
+      );
     }
   }
 
-  /// 🧹 التطهير الكامل للشبكة عند إلغاء الاقتران للسماح بربط جهاز آخر بسلاسة
   Future<void> unpairAndReset() async {
     log('HybridSync: 🧹 Cleaning up active network pairing and resetting session...');
     _linkedVaultId = null;
@@ -232,8 +272,8 @@ class HybridSyncClient {
     await _client.disconnect();
 
     if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      _server.updateSecurityCredentials(linkedVaultId: null, pairingCode: null);
       if (_server.isRunning) {
-        // إعادة البث بحالة فارغة بدون كود أو خزنة سابقة
         _discovery.startAdvertising(
           nodeId: _nodeId,
           deviceType: _deviceType,
@@ -244,6 +284,7 @@ class HybridSyncClient {
       }
       _updateMode(SyncTransportMode.discovering);
     } else {
+      _client.configureCredentials(vaultId: null, pairingCode: null);
       _updateMode(
         _cloud.isAuthenticated
             ? SyncTransportMode.cloudRelay
@@ -341,6 +382,67 @@ class HybridSyncClient {
     _sendViaLocalTransport(message);
   }
 
+  // ===========================================================================
+  // 🔄 4. بروتوكول المزامنة التفاضلية واللقطات (Delta & Snapshot Sync)
+  // ===========================================================================
+
+  /// ⚡ طلب التغييرات التي تمت بعد تاريخ معين فقط (Delta Sync Request)
+  void requestVaultDelta({DateTime? since}) {
+    final message = P2pMessage.create(
+      type: P2pMessageType.vaultDeltaRequest,
+      payload: {
+        'since_utc': since?.toUtc().toIso8601String(),
+        'requested_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      senderId: _nodeId,
+      senderType: _deviceType,
+    );
+
+    _sendViaLocalTransport(message);
+    log('HybridSync: 📤 Dispatched vault delta request via LAN (Since: ${since?.toIso8601String() ?? "initial"}).');
+  }
+
+  /// ⚡ إرسال السجلات المعدلة والمحذوفة تفاضلياً عبر LAN
+  void sendVaultDelta(Map<String, dynamic> deltaPayload) {
+    final message = P2pMessage.create(
+      type: P2pMessageType.vaultDeltaResponse,
+      payload: deltaPayload,
+      senderId: _nodeId,
+      senderType: _deviceType,
+    );
+
+    _sendViaLocalTransport(message);
+    log('HybridSync: 📤 Dispatched vault delta response via LAN.');
+  }
+
+  /// طلب لقطة الخزنة الكاملة (يُستخدم كخيار احتياطي عند أول اقتران)
+  void requestVaultSync() {
+    final message = P2pMessage.create(
+      type: P2pMessageType.vaultSyncRequest,
+      payload: {
+        'requested_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      senderId: _nodeId,
+      senderType: _deviceType,
+    );
+
+    _sendViaLocalTransport(message);
+    log('HybridSync: 📤 Dispatched full vault snapshot request via LAN.');
+  }
+
+  /// إرسال لقطة الخزنة الكاملة
+  void sendVaultSnapshot(Map<String, dynamic> snapshot) {
+    final message = P2pMessage.create(
+      type: P2pMessageType.vaultSyncResponse,
+      payload: snapshot,
+      senderId: _nodeId,
+      senderType: _deviceType,
+    );
+
+    _sendViaLocalTransport(message);
+    log('HybridSync: 📤 Dispatched full vault snapshot response via LAN.');
+  }
+
   bool _sendViaLocalTransport(P2pMessage message) {
     if (_deviceType == 'phone') {
       return _client.send(message);
@@ -354,7 +456,7 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // 🛡️ 4. معالجة الرسائل الواردة ومنع التكرار (Deduplication)
+  // 🛡️ 5. معالجة الرسائل الواردة ومنع التكرار (Deduplication)
   // ===========================================================================
 
   void _handleIncomingP2pMessage(P2pMessage message) {
@@ -433,7 +535,7 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // 🛑 5. تحرير الموارد وإغلاق القنوات
+  // 🛑 6. تحرير الموارد وإغلاق القنوات
   // ===========================================================================
 
   void dispose() {

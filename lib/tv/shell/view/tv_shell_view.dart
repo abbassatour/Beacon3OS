@@ -27,7 +27,9 @@ class _TvShellViewState extends State<TvShellView> {
   @override
   void initState() {
     super.initState();
-    // 🌟 تفعيل الفوكس للبطاقة الأولى فور تحميل الشاشة
+    // 🌟 التقاط أي زر من أزرار الريموت لإيقاظ الشاشة من وضع الخمول فوراً
+    HardwareKeyboard.instance.addHandler(_handleGlobalKeyEvent);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _handleFocusTransitions(context.read<TvShellCubit>().state);
@@ -36,6 +38,7 @@ class _TvShellViewState extends State<TvShellView> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalKeyEvent);
     _locateCardFocus.dispose();
     _sosCardFocus.dispose();
     _agendaFocus.dispose();
@@ -45,11 +48,23 @@ class _TvShellViewState extends State<TvShellView> {
     super.dispose();
   }
 
+  bool _handleGlobalKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final cubit = context.read<TvShellCubit>();
+      if (cubit.state.isAmbient) {
+        cubit.wakeFromAmbient();
+        return true; // استهلاك الضغطة الأولى للاستيقاظ فقط
+      } else {
+        cubit.wakeFromAmbient(); // إعادة تصفير عداد الخمول
+      }
+    }
+    return false; // تمرير الضغطة للبطاقة أو الزر المحدد
+  }
+
   void _handleFocusTransitions(TvShellState state) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (state.isDashboard) {
-        // إذا لم تكن أي من البطاقات محددة بالفعل، يتم توجيه الفوكس للبطاقة الأولى
         final bool anyCardHasFocus = _locateCardFocus.hasFocus ||
             _sosCardFocus.hasFocus ||
             _agendaFocus.hasFocus ||
@@ -75,31 +90,21 @@ class _TvShellViewState extends State<TvShellView> {
       listener: (context, state) => _handleFocusTransitions(state),
       builder: (context, state) {
         return PopScope(
-          canPop: false, // حماية الجلسة من الإغلاق غير المقصود
+          canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
             if (state.hasActiveAlert) {
               cubit.dismissActiveAlert();
-            } else if (state.isDashboard) {
-              cubit.wakeFromAmbient();
+            } else if (state.isAmbient) {
+              cubit.wakeFromAmbient(); // 👈 تصحيح الإيقاظ عند الضغط على Back
             }
           },
-          child: Focus(
-            // 🚨 كان autofocus: true يحتكر الفوكس ويمنع وصول الأسهم للبطاقات
-            canRequestFocus: false, // 👈 يمنع احتكار الفوكس ويسمح للبطاقات بالتحكم
-            onKeyEvent: (node, event) {
-              if (event is KeyDownEvent) {
-                cubit.wakeFromAmbient();
-              }
-              return KeyEventResult.ignored; // السماح بمرور الأحداث للأزرار والبطاقات
-            },
-            child: Scaffold(
-              backgroundColor: context.scaffoldBg,
-              body: SafeArea(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  child: _resolveActiveScreen(context, state, cubit),
-                ),
+          child: Scaffold(
+            backgroundColor: context.scaffoldBg,
+            body: SafeArea(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 500),
+                child: _resolveActiveScreen(context, state, cubit),
               ),
             ),
           ),

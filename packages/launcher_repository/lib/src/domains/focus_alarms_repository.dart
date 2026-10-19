@@ -25,7 +25,7 @@ abstract class FocusAlarmsRepository {
   Future<String> recordCompletedFocusSession(int minutes);
   Future<void> syncPendingAlarms();
 
-  /// 📥 استرجاع المنبهات المسجلة من السحابة دفعة واحدة
+  /// 📥 استرجاع المنبهات المسجلة من السحابة تفاضلياً
   Future<void> restoreAlarmsFromCloud();
 
   /// 🛰️ بدء الاستماع اللحظي لتحديثات المنبهات من السحابة
@@ -172,12 +172,21 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
                   final id = item['id'] as String?;
                   if (id == null || id.isEmpty) continue;
 
-                  final local = localMap[id];
-                  if (local != null && !local.isSynced) continue;
-
+                  final cloudUpdated = item['updated_at'] != null
+                      ? DateTime.tryParse(item['updated_at'] as String)
+                      : null;
                   final deletedAtStr = item['deleted_at'] as String?;
                   final DateTime? deletedAt =
                       deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+                  final local = localMap[id];
+
+                  // فض النزاع وفق مبدأ LWW الزمني
+                  final shouldApply = local == null ||
+                      (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+                      (local.isSynced);
+
+                  if (!shouldApply) continue;
 
                   if (deletedAt != null) {
                     if (local != null) {
@@ -199,6 +208,7 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
                         label: Value(item['label'] as String? ?? 'Beacon Alarm'),
                         daysOfWeek: Value(item['days_of_week'] as String? ?? 'daily'),
                         isActive: Value(item['is_active'] as bool? ?? true),
+                        updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
                         isSynced: const Value(true),
                       ),
                       mode: InsertMode.insertOrReplace,
@@ -206,7 +216,7 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
                   }
                 }
               });
-              log('FocusAlarmsRepository: ⚡ Realtime alarms synced (${cloudAlarms.length} alarms).');
+              log('FocusAlarmsRepository: ⚡ Realtime alarms synced with LWW resolution (${cloudAlarms.length} alarms).');
             } catch (e) {
               log('FocusAlarmsRepository: Error reconciling realtime alarms: $e');
             }
@@ -226,31 +236,58 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   Future<void> restoreAlarmsFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      final cloudAlarms = await _cloud.fetchAlarms();
+      // 🔄 استرجاع تفاضلي يشمل المحذوفات والتعديلات
+      final cloudAlarms = await _cloud.fetchAlarmsDelta();
       if (cloudAlarms.isNotEmpty) {
+        final localAlarms = await _db.select(_db.alarms).get();
+        final localMap = {for (final a in localAlarms) a.id: a};
+
         await _db.batch((batch) {
           for (final a in cloudAlarms) {
             final id = a['id'] as String?;
-            final hour = (a['hour'] as num?)?.toInt();
-            final minute = (a['minute'] as num?)?.toInt();
-            if (id != null && hour != null && minute != null) {
-              batch.insert(
-                _db.alarms,
-                db.AlarmsCompanion.insert(
-                  id: id,
-                  hour: hour,
-                  minute: minute,
-                  label: Value(a['label'] as String? ?? 'Beacon Alarm'),
-                  daysOfWeek: Value(a['days_of_week'] as String? ?? 'daily'),
-                  isActive: Value(a['is_active'] as bool? ?? true),
-                  isSynced: const Value(true),
-                ),
-                mode: InsertMode.insertOrReplace,
-              );
+            if (id == null) continue;
+
+            final deletedAtStr = a['deleted_at'] as String?;
+            final DateTime? deletedAt =
+                deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+            final updatedStr = a['updated_at'] as String?;
+            final DateTime? updatedAt =
+                updatedStr != null ? DateTime.tryParse(updatedStr) : null;
+
+            final local = localMap[id];
+
+            if (deletedAt != null) {
+              if (local != null) {
+                batch.delete(_db.alarms, db.AlarmsCompanion(id: Value(id)));
+              }
+            } else {
+              final shouldApply = local == null ||
+                  (updatedAt != null && updatedAt.isAfter(local.updatedAt)) ||
+                  (local.isSynced);
+
+              if (shouldApply) {
+                final hour = (a['hour'] as num?)?.toInt() ?? 8;
+                final minute = (a['minute'] as num?)?.toInt() ?? 0;
+
+                batch.insert(
+                  _db.alarms,
+                  db.AlarmsCompanion.insert(
+                    id: id,
+                    hour: hour,
+                    minute: minute,
+                    label: Value(a['label'] as String? ?? 'Beacon Alarm'),
+                    daysOfWeek: Value(a['days_of_week'] as String? ?? 'daily'),
+                    isActive: Value(a['is_active'] as bool? ?? true),
+                    updatedAt: Value(updatedAt ?? DateTime.now().toUtc()),
+                    isSynced: const Value(true),
+                  ),
+                  mode: InsertMode.insertOrReplace,
+                );
+              }
             }
           }
         });
-        log('FocusAlarmsRepository: Alarms restored from cloud in batch (${cloudAlarms.length} alarms).');
+        log('FocusAlarmsRepository: ⚡ Alarms delta restored from cloud in batch (${cloudAlarms.length} alarms).');
       }
     } catch (e, st) {
       log('FocusAlarmsRepository: Cloud restore error: $e', stackTrace: st);
@@ -262,23 +299,35 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
     if (!_cloud.isAuthenticated) return;
     try {
       final pending = await (_db.select(_db.alarms)..where((a) => a.isSynced.equals(false))).get();
-      for (final a in pending) {
-        if (a.deletedAt != null) {
-          await _cloud.softDeleteAlarmInCloud(a.id);
-          await _db.deleteAlarm(a.id);
-        } else {
-          await _cloud.syncAlarm(
-            id: a.id,
-            hour: a.hour,
-            minute: a.minute,
-            label: a.label,
-            daysOfWeek: a.daysOfWeek,
-            isActive: a.isActive,
-          );
-          await (_db.update(_db.alarms)..where((tbl) => tbl.id.equals(a.id)))
-              .write(const db.AlarmsCompanion(isSynced: Value(true)));
-        }
+      if (pending.isEmpty) return;
+
+      final toDelete = pending.where((a) => a.deletedAt != null).toList();
+      final toUpsert = pending.where((a) => a.deletedAt == null).toList();
+
+      for (final a in toDelete) {
+        await _cloud.softDeleteAlarmInCloud(a.id);
+        await _db.deleteAlarm(a.id);
       }
+
+      if (toUpsert.isNotEmpty) {
+        final payload = toUpsert.map((a) => {
+              'id': a.id,
+              'hour': a.hour,
+              'minute': a.minute,
+              'label': a.label,
+              'days_of_week': a.daysOfWeek,
+              'is_active': a.isActive,
+              'updated_at': a.updatedAt.toUtc().toIso8601String(),
+            }).toList();
+
+        await _cloud.syncAlarmsBatch(payload);
+
+        final upsertIds = toUpsert.map((a) => a.id).toList();
+        await (_db.update(_db.alarms)..where((tbl) => tbl.id.isIn(upsertIds)))
+            .write(const db.AlarmsCompanion(isSynced: Value(true)));
+      }
+
+      log('FocusAlarmsRepository: ⚡ Pending offline alarms synced via batch.');
     } catch (e) {
       log('FocusAlarmsRepository: Pending alarm sync error: $e');
     }

@@ -114,6 +114,12 @@ abstract class CommsRepository {
 
   /// ⚡ إرسال لقطة الخزنة المحلية لجميع الأجهزة المقترنة بالشبكة
   Future<void> sendVaultSnapshotToPeers();
+
+  /// 🔄 طلب التغييرات التفاضلية فقط بعد تاريخ محدد عبر LAN
+  Future<void> requestVaultDelta({DateTime? since});
+
+  /// 🔄 إرسال التغييرات التفاضلية لجميع الأجهزة المقترنة عبر LAN
+  Future<void> sendVaultDeltaToPeers({DateTime? since});
 }
 
 class CommsRepositoryImpl implements CommsRepository {
@@ -193,23 +199,39 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   void _handleUnifiedIncomingMessage(P2pMessage message) {
-    // 1. معالجة طلب لقطة الخزنة الوارد من الشاشة
+    // 1. معالجة طلب لقطة الخزنة الوارد
     if (message.type == P2pMessageType.vaultSyncRequest) {
-      log('CommsRepository: 📥 Peer requested vault snapshot via LAN. Packaging and responding...');
+      log('CommsRepository: 📥 Peer requested vault snapshot via LAN. Responding...');
       unawaited(sendVaultSnapshotToPeers());
       return;
     }
 
-    // 2. معالجة لقطة الخزنة الواردة من الهاتف وحقنها فورياً
+    // 2. معالجة لقطة الخزنة الواردة
     if (message.type == P2pMessageType.vaultSyncResponse) {
-      log('CommsRepository: 📥 Received inbound vault snapshot from peer via LAN. Hydrating database...');
+      log('CommsRepository: 📥 Received inbound vault snapshot via LAN. Hydrating database...');
       unawaited(_handleInboundVaultSnapshot(message.payload));
+      return;
+    }
+
+    // 3. معالجة طلب التغييرات التفاضلية (Delta Sync Request)
+    if (message.type == P2pMessageType.vaultDeltaRequest) {
+      final sinceStr = message.payload['since_utc'] as String?;
+      final sinceUtc = sinceStr != null ? DateTime.tryParse(sinceStr) : null;
+      log('CommsRepository: 📥 Peer requested vault delta via LAN (Since: $sinceUtc). Responding...');
+      unawaited(sendVaultDeltaToPeers(since: sinceUtc));
+      return;
+    }
+
+    // 4. معالجة التغييرات التفاضلية الواردة وتطبيقها محلياً
+    if (message.type == P2pMessageType.vaultDeltaResponse) {
+      log('CommsRepository: 📥 Received inbound vault delta via LAN. Applying changes...');
+      unawaited(_handleInboundVaultDelta(message.payload));
       return;
     }
 
     final event = RemoteActionEvent.fromP2pMessage(message);
 
-    // ⚡ معالجة تحديثات الخزنة الفردية عبر المقابس
+    // 5. معالجة التعديلات الفردية عبر المقابس
     if (message.type == P2pMessageType.vaultMutation) {
       final table = message.payload['table'] as String?;
       if (table == 'contacts') {
@@ -231,105 +253,199 @@ class CommsRepositoryImpl implements CommsRepository {
     }
   }
 
-  /// حقن لقطة الخزنة الكاملة في قاعدة بيانات Drift دفعة واحدة
+  /// حقن لقطة الخزنة الكاملة مع حماية الطابع الزمني وتجنب إحياء المحذوفات
   Future<void> _handleInboundVaultSnapshot(Map<String, dynamic> payload) async {
+    await _handleInboundVaultDelta(payload);
+  }
+
+  /// تطبيق التغييرات التفاضلية بفض النزاعات المبني على الطابع الزمني LWW
+  Future<void> _handleInboundVaultDelta(Map<String, dynamic> payload) async {
     try {
       final rawTasks = payload['tasks'] as List<dynamic>? ?? [];
       final rawAlarms = payload['alarms'] as List<dynamic>? ?? [];
       final rawContacts = payload['contacts'] as List<dynamic>? ?? [];
 
+      final localTasks = await _db.select(_db.tasks).get();
+      final localAlarms = await _db.select(_db.alarms).get();
+      final localContacts = await _db.select(_db.contacts).get();
+
+      final tasksMap = {for (final t in localTasks) t.id: t};
+      final alarmsMap = {for (final a in localAlarms) a.id: a};
+      final contactsMap = {for (final c in localContacts) c.id: c};
+
       await _db.batch((batch) {
+        // --- 1. تسوية المهام التفاضلية ---
         for (final item in rawTasks) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
-            final title = item['title'] as String?;
-            if (id != null && title != null) {
-              DateTime? due;
-              if (item['due_date'] != null) {
-                due = DateTime.tryParse(item['due_date'].toString());
+            if (id == null) continue;
+
+            final inboundUpdated = item['updated_at'] != null
+                ? DateTime.tryParse(item['updated_at'].toString())
+                : null;
+            final inboundDeleted = item['deleted_at'] != null
+                ? DateTime.tryParse(item['deleted_at'].toString())
+                : null;
+
+            final local = tasksMap[id];
+
+            // التحقق من مبدأ LWW: هل التحديث الوارد أحدث من السجل المحلي؟
+            final shouldApply = local == null ||
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+
+            if (shouldApply) {
+              if (inboundDeleted != null) {
+                batch.delete(_db.tasks, db.TasksCompanion(id: Value(id)));
+              } else {
+                final title = item['title'] as String? ?? 'Untitled Task';
+                DateTime? due;
+                if (item['due_date'] != null) {
+                  due = DateTime.tryParse(item['due_date'].toString());
+                }
+
+                batch.insert(
+                  _db.tasks,
+                  db.TasksCompanion.insert(
+                    id: id,
+                    title: title,
+                    dueDate: Value(due?.toUtc()),
+                    priority: Value(item['priority'] as String? ?? 'medium'),
+                    isCompleted: Value(item['is_completed'] as bool? ?? false),
+                    updatedAt: Value(inboundUpdated ?? DateTime.now().toUtc()),
+                    isSynced: const Value(true),
+                  ),
+                  mode: InsertMode.insertOrReplace,
+                );
               }
-              batch.insert(
-                _db.tasks,
-                db.TasksCompanion.insert(
-                  id: id,
-                  title: title,
-                  dueDate: Value(due?.toUtc()),
-                  priority: Value(item['priority'] as String? ?? 'medium'),
-                  isCompleted: Value(item['is_completed'] as bool? ?? false),
-                  isSynced: const Value(true),
-                ),
-                mode: InsertMode.insertOrReplace,
-              );
             }
           }
         }
 
+        // --- 2. تسوية المنبهات التفاضلية ---
         for (final item in rawAlarms) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
-            final hour = (item['hour'] as num?)?.toInt();
-            final minute = (item['minute'] as num?)?.toInt();
-            if (id != null && hour != null && minute != null) {
-              batch.insert(
-                _db.alarms,
-                db.AlarmsCompanion.insert(
-                  id: id,
-                  hour: hour,
-                  minute: minute,
-                  label: Value(item['label'] as String? ?? 'Beacon Alarm'),
-                  daysOfWeek: Value(item['days_of_week'] as String? ?? 'daily'),
-                  isActive: Value(item['is_active'] as bool? ?? true),
-                  isSynced: const Value(true),
-                ),
-                mode: InsertMode.insertOrReplace,
-              );
+            if (id == null) continue;
+
+            final inboundUpdated = item['updated_at'] != null
+                ? DateTime.tryParse(item['updated_at'].toString())
+                : null;
+            final inboundDeleted = item['deleted_at'] != null
+                ? DateTime.tryParse(item['deleted_at'].toString())
+                : null;
+
+            final local = alarmsMap[id];
+            final shouldApply = local == null ||
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+
+            if (shouldApply) {
+              if (inboundDeleted != null) {
+                batch.delete(_db.alarms, db.AlarmsCompanion(id: Value(id)));
+              } else {
+                final hour = (item['hour'] as num?)?.toInt() ?? 8;
+                final minute = (item['minute'] as num?)?.toInt() ?? 0;
+
+                batch.insert(
+                  _db.alarms,
+                  db.AlarmsCompanion.insert(
+                    id: id,
+                    hour: hour,
+                    minute: minute,
+                    label: Value(item['label'] as String? ?? 'Beacon Alarm'),
+                    daysOfWeek: Value(item['days_of_week'] as String? ?? 'daily'),
+                    isActive: Value(item['is_active'] as bool? ?? true),
+                    updatedAt: Value(inboundUpdated ?? DateTime.now().toUtc()),
+                    isSynced: const Value(true),
+                  ),
+                  mode: InsertMode.insertOrReplace,
+                );
+              }
             }
           }
         }
 
+        // --- 3. تسوية جهات الاتصال التفاضلية ---
         for (final item in rawContacts) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
-            final name = item['name'] as String?;
-            final phone = item['phone_number'] as String?;
-            if (id != null && name != null && phone != null) {
-              batch.insert(
-                _db.contacts,
-                db.ContactsCompanion.insert(
-                  id: id,
-                  name: name,
-                  phoneNumber: phone,
-                  relationship: Value(item['relationship'] as String?),
-                  isEmergency: Value(item['is_emergency'] as bool? ?? false),
-                  isSynced: const Value(true),
-                ),
-                mode: InsertMode.insertOrReplace,
-              );
+            if (id == null) continue;
+
+            final inboundUpdated = item['updated_at'] != null
+                ? DateTime.tryParse(item['updated_at'].toString())
+                : null;
+            final inboundDeleted = item['deleted_at'] != null
+                ? DateTime.tryParse(item['deleted_at'].toString())
+                : null;
+
+            final local = contactsMap[id];
+            final shouldApply = local == null ||
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+
+            if (shouldApply) {
+              if (inboundDeleted != null) {
+                batch.delete(_db.contacts, db.ContactsCompanion(id: Value(id)));
+              } else {
+                final name = item['name'] as String?;
+                final phone = item['phone_number'] as String?;
+                if (name != null && phone != null) {
+                  batch.insert(
+                    _db.contacts,
+                    db.ContactsCompanion.insert(
+                      id: id,
+                      name: name,
+                      phoneNumber: phone,
+                      relationship: Value(item['relationship'] as String?),
+                      isEmergency: Value(item['is_emergency'] as bool? ?? false),
+                      updatedAt: Value(inboundUpdated ?? DateTime.now().toUtc()),
+                      isSynced: const Value(true),
+                    ),
+                    mode: InsertMode.insertOrReplace,
+                  );
+                }
+              }
             }
           }
         }
       });
 
-      log('CommsRepository: ⚡ Hydrated database via LAN: ${rawTasks.length} tasks, ${rawAlarms.length} alarms, ${rawContacts.length} contacts.');
+      log('CommsRepository: ⚡ Delta synced with LWW resolution: ${rawTasks.length} tasks, ${rawAlarms.length} alarms, ${rawContacts.length} contacts.');
     } catch (e, st) {
-      log('CommsRepository: Error applying inbound vault snapshot: $e', stackTrace: st);
+      log('CommsRepository: Error applying inbound vault delta: $e', stackTrace: st);
     }
   }
 
   @override
   Future<void> sendVaultSnapshotToPeers() async {
-    try {
-      final tasks = await (_db.select(_db.tasks)..where((t) => t.deletedAt.isNull())).get();
-      final alarms = await (_db.select(_db.alarms)..where((a) => a.deletedAt.isNull())).get();
-      final contacts = await (_db.select(_db.contacts)..where((c) => c.deletedAt.isNull())).get();
+    await sendVaultDeltaToPeers(since: null);
+  }
 
-      final snapshot = {
+  @override
+  Future<void> sendVaultDeltaToPeers({DateTime? since}) async {
+    try {
+      var tasksQuery = _db.select(_db.tasks);
+      var alarmsQuery = _db.select(_db.alarms);
+      var contactsQuery = _db.select(_db.contacts);
+
+      if (since != null) {
+        final sinceUtc = since.toUtc();
+        tasksQuery = tasksQuery..where((t) => t.updatedAt.isBiggerOrEqualValue(sinceUtc));
+        alarmsQuery = alarmsQuery..where((a) => a.updatedAt.isBiggerOrEqualValue(sinceUtc));
+        contactsQuery = contactsQuery..where((c) => c.updatedAt.isBiggerOrEqualValue(sinceUtc));
+      }
+
+      final tasks = await tasksQuery.get();
+      final alarms = await alarmsQuery.get();
+      final contacts = await contactsQuery.get();
+
+      final deltaPayload = {
         'tasks': tasks.map((t) => {
           'id': t.id,
           'title': t.title,
           'due_date': t.dueDate?.toIso8601String(),
           'priority': t.priority,
           'is_completed': t.isCompleted,
+          'updated_at': t.updatedAt.toUtc().toIso8601String(),
+          'deleted_at': t.deletedAt?.toUtc().toIso8601String(),
         }).toList(),
         'alarms': alarms.map((a) => {
           'id': a.id,
@@ -338,6 +454,8 @@ class CommsRepositoryImpl implements CommsRepository {
           'label': a.label,
           'days_of_week': a.daysOfWeek,
           'is_active': a.isActive,
+          'updated_at': a.updatedAt.toUtc().toIso8601String(),
+          'deleted_at': a.deletedAt?.toUtc().toIso8601String(),
         }).toList(),
         'contacts': contacts.map((c) => {
           'id': c.id,
@@ -345,19 +463,26 @@ class CommsRepositoryImpl implements CommsRepository {
           'phone_number': c.phoneNumber,
           'relationship': c.relationship,
           'is_emergency': c.isEmergency,
+          'updated_at': c.updatedAt.toUtc().toIso8601String(),
+          'deleted_at': c.deletedAt?.toUtc().toIso8601String(),
         }).toList(),
       };
 
-      _hybridSync.sendVaultSnapshot(snapshot);
-      log('CommsRepository: 📤 Dispatched vault snapshot to peers (${tasks.length} tasks, ${alarms.length} alarms, ${contacts.length} contacts).');
+      _hybridSync.sendVaultDelta(deltaPayload);
+      log('CommsRepository: 📤 Dispatched vault delta to peers (${tasks.length} tasks, ${alarms.length} alarms, ${contacts.length} contacts).');
     } catch (e, st) {
-      log('CommsRepository: Error sending vault snapshot: $e', stackTrace: st);
+      log('CommsRepository: Error sending vault delta: $e', stackTrace: st);
     }
   }
 
   @override
   Future<void> requestVaultSnapshot() async {
     _hybridSync.requestVaultSync();
+  }
+
+  @override
+  Future<void> requestVaultDelta({DateTime? since}) async {
+    _hybridSync.requestVaultDelta(since: since);
   }
 
   Future<void> _handleInboundContactMutation(Map<String, dynamic> payload) async {
@@ -379,6 +504,7 @@ class CommsRepositoryImpl implements CommsRepository {
                   phoneNumber: phone,
                   relationship: Value(data['relationship'] as String?),
                   isEmergency: Value(data['is_emergency'] as bool? ?? false),
+                  updatedAt: Value(DateTime.now().toUtc()),
                   isSynced: const Value(true),
                 ),
                 mode: InsertMode.insertOrReplace,
@@ -417,6 +543,7 @@ class CommsRepositoryImpl implements CommsRepository {
                   dueDate: Value(due?.toUtc()),
                   priority: Value(data['priority'] as String? ?? 'medium'),
                   isCompleted: Value(data['is_completed'] as bool? ?? false),
+                  updatedAt: Value(DateTime.now().toUtc()),
                   isSynced: const Value(true),
                 ),
                 mode: InsertMode.insertOrReplace,
@@ -453,6 +580,7 @@ class CommsRepositoryImpl implements CommsRepository {
                   label: Value(data['label'] as String? ?? 'Beacon Alarm'),
                   daysOfWeek: Value(data['days_of_week'] as String? ?? 'daily'),
                   isActive: Value(data['is_active'] as bool? ?? true),
+                  updatedAt: Value(DateTime.now().toUtc()),
                   isSynced: const Value(true),
                 ),
                 mode: InsertMode.insertOrReplace,
@@ -579,6 +707,7 @@ class CommsRepositoryImpl implements CommsRepository {
     return _hybridSync.dispatchLocatePhone(reason: reason);
   }
 
+  /// تسوية جهات الاتصال السحابية الواردة لحظياً وفق مبدأ LWW الزمني
   Future<void> _handleCloudRealtimeContacts(List<Map<String, dynamic>> cloudContacts) async {
     try {
       if (cloudContacts.isEmpty) return;
@@ -593,12 +722,21 @@ class CommsRepositoryImpl implements CommsRepository {
           final id = cloudItem['id'] as String?;
           if (id == null || id.isEmpty) continue;
 
-          final local = localMap[id];
-          if (local != null && !local.isSynced) continue;
-
+          final cloudUpdated = cloudItem['updated_at'] != null
+              ? DateTime.tryParse(cloudItem['updated_at'] as String)
+              : null;
           final deletedAtStr = cloudItem['deleted_at'] as String?;
           final DateTime? deletedAt =
               deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+          final local = localMap[id];
+
+          // فض النزاع: هل التحديث السحابي أحدث من السجل المحلي؟
+          final shouldApply = local == null ||
+              (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
+              (local.isSynced);
+
+          if (!shouldApply) continue;
 
           if (deletedAt != null) {
             if (local != null) {
@@ -620,6 +758,7 @@ class CommsRepositoryImpl implements CommsRepository {
                 phoneNumber: phone,
                 relationship: Value(relationship),
                 isEmergency: Value(isEmergency),
+                updatedAt: Value(cloudUpdated ?? DateTime.now().toUtc()),
                 isSynced: const Value(true),
               ),
               mode: InsertMode.insertOrReplace,
@@ -627,7 +766,7 @@ class CommsRepositoryImpl implements CommsRepository {
           }
         }
       });
-      log('CommsRepository: ⚡ Reconciled ${cloudContacts.length} realtime cloud contacts.');
+      log('CommsRepository: ⚡ Reconciled ${cloudContacts.length} realtime cloud contacts with LWW.');
     } catch (e, st) {
       log('CommsRepository: Error reconciling realtime contacts: $e', stackTrace: st);
     }
@@ -707,6 +846,7 @@ class CommsRepositoryImpl implements CommsRepository {
         'phone_number': phoneNumber,
         'relationship': relationship,
         'is_emergency': isEmergency,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
     );
 
@@ -720,11 +860,12 @@ class CommsRepositoryImpl implements CommsRepository {
     if (existing == null) return;
 
     final nextStatus = isEmergency ?? !existing.isEmergency;
+    final nowUtc = DateTime.now().toUtc();
 
     await (_db.update(_db.contacts)..where((tbl) => tbl.id.equals(contactId))).write(
       db.ContactsCompanion(
         isEmergency: Value(nextStatus),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(nowUtc),
         isSynced: const Value(false),
       ),
     );
@@ -748,6 +889,7 @@ class CommsRepositoryImpl implements CommsRepository {
         'phone_number': existing.phoneNumber,
         'relationship': existing.relationship,
         'is_emergency': nextStatus,
+        'updated_at': nowUtc.toIso8601String(),
       },
     );
   }
@@ -765,7 +907,10 @@ class CommsRepositoryImpl implements CommsRepository {
     _hybridSync.broadcastVaultMutation(
       table: 'contacts',
       action: 'DELETE',
-      data: {'id': id},
+      data: {
+        'id': id,
+        'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      },
     );
   }
 
@@ -801,6 +946,7 @@ class CommsRepositoryImpl implements CommsRepository {
         data: {
           'added': result.addedCount,
           'updated': result.updatedCount,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         },
       );
     }
@@ -938,26 +1084,55 @@ class CommsRepositoryImpl implements CommsRepository {
   Future<void> restoreCommsFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      final cloudContacts = await _cloud.fetchContacts();
+      // 🔄 استرجاع جهات الاتصال التفاضلي (يشمل التغييرات وحالات الحذف)
+      final cloudContacts = await _cloud.fetchContactsDelta();
       if (cloudContacts.isEmpty) return;
+
+      final localContacts = await _db.getAllContacts();
+      final localMap = {for (final c in localContacts) c.id: c};
 
       await _db.batch((batch) {
         for (final c in cloudContacts) {
-          batch.insert(
-            _db.contacts,
-            db.ContactsCompanion.insert(
-              id: c['id'] as String,
-              name: c['name'] as String,
-              phoneNumber: c['phone_number'] as String,
-              relationship: Value(c['relationship'] as String?),
-              isEmergency: Value(c['is_emergency'] as bool? ?? false),
-              isSynced: const Value(true),
-            ),
-            mode: InsertMode.insertOrReplace,
-          );
+          final id = c['id'] as String?;
+          if (id == null) continue;
+
+          final deletedAtStr = c['deleted_at'] as String?;
+          final DateTime? deletedAt =
+              deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+          final updatedStr = c['updated_at'] as String?;
+          final DateTime? updatedAt =
+              updatedStr != null ? DateTime.tryParse(updatedStr) : null;
+
+          final local = localMap[id];
+
+          if (deletedAt != null) {
+            if (local != null) {
+              batch.delete(_db.contacts, db.ContactsCompanion(id: Value(id)));
+            }
+          } else {
+            final shouldApply = local == null ||
+                (updatedAt != null && updatedAt.isAfter(local.updatedAt)) ||
+                (local.isSynced);
+
+            if (shouldApply) {
+              batch.insert(
+                _db.contacts,
+                db.ContactsCompanion.insert(
+                  id: id,
+                  name: c['name'] as String,
+                  phoneNumber: c['phone_number'] as String,
+                  relationship: Value(c['relationship'] as String?),
+                  isEmergency: Value(c['is_emergency'] as bool? ?? false),
+                  updatedAt: Value(updatedAt ?? DateTime.now().toUtc()),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
         }
       });
-      log('CommsRepository: ⚡ Restored ${cloudContacts.length} contacts from cloud in batch.');
+      log('CommsRepository: ⚡ Restored and reconciled ${cloudContacts.length} contacts from cloud in batch.');
     } catch (e, st) {
       log('CommsRepository: Contacts cloud restore error: $e', stackTrace: st);
     }
@@ -988,6 +1163,7 @@ class CommsRepositoryImpl implements CommsRepository {
               'phone_number': c.phoneNumber,
               'relationship': c.relationship,
               'is_emergency': c.isEmergency,
+              'updated_at': c.updatedAt.toUtc().toIso8601String(),
             }).toList();
 
         await _cloud.syncContactsBatch(upsertPayload);
@@ -1003,7 +1179,7 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 🔗 بروتوكول الاقتران السيادي الصامت (Offline-First Device Pairing)
+  // 🔗 بروتوكول الاقتران السيادي الصامت (Zero-Login Device Pairing)
   // ===========================================================================
 
   @override
@@ -1021,7 +1197,7 @@ class CommsRepositoryImpl implements CommsRepository {
         previousCode: previousCode,
       );
       _hybridSync.updatePairingCode(code);
-      log('CommsRepository: Pairing code registered with cloud: $code');
+      log('CommsRepository: Collision-proof pairing code registered: $code');
     } catch (e) {
       log('CommsRepository: Cloud pairing registration deferred (offline-first): $e');
     }
@@ -1051,7 +1227,6 @@ class CommsRepositoryImpl implements CommsRepository {
                   await _cloud.burnPairingSession(pairingCode);
                 } catch (_) {}
 
-                // استخدام نوع الجهاز الديناميكي الصحيح وتحديث الخزنة
                 _hybridSync.updateLinkedVaultId(vaultId);
                 await initializeHybridTransport(
                   deviceType: deviceType,
@@ -1093,8 +1268,8 @@ class CommsRepositoryImpl implements CommsRepository {
         _hybridSync.updateLinkedVaultId(masterVaultId);
         log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
 
-        // ⚡ فور نجاح الاقتران، يبث الهاتف فوراً لقطة الخزنة للشاشة
-        unawaited(sendVaultSnapshotToPeers());
+        // ⚡ بث فوري لأحدث التغييرات للأجهزة بعد الاقتران
+        unawaited(sendVaultDeltaToPeers());
       }
       return success;
     } catch (e) {

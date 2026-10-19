@@ -1,11 +1,13 @@
 // packages/cloud_sync_api/lib/src/cloud_sync_client.dart
 import 'dart:developer';
+import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// عميل المزامنة السحابية وبث الرادار لمنظومة BeaconOS عبر Supabase.
 /// يدعم معمارية UUID والحذف الناعم والدفع الجماعي (Batch Operations)
-/// والبث اللحظي (Realtime Streams)، وبروتوكول الاقتران السيادي بدون حسابات.
-/// تم ضبط كافة التواريخ لتعمل بالتوقيت العالمي الموحد (UTC).
+/// والبث اللحظي (Realtime Streams)، والمزامنة التفاضلية (Delta Sync)،
+/// وبروتوكول الاقتران السيادي بدون حسابات المحمي من التصادم.
+/// تم ضبط كافة التواريخ لتعمل حصرياً بالتوقيت العالمي الموحد (UTC).
 class CloudSyncClient {
   CloudSyncClient();
 
@@ -119,7 +121,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 📇 3. جهات الاتصال ورادار الطوارئ (Contacts - Batch Sync & Streams)
+  // 📇 3. جهات الاتصال (Contacts - Delta Sync, Batch & Streams)
   // ===========================================================================
 
   Future<void> syncContact({
@@ -193,6 +195,25 @@ class CloudSyncClient {
     }
   }
 
+  /// 🔄 جلب التغييرات التفاضلية لجهات الاتصال منذ تاريخ محدد (يشمل العناصر المحذوفة)
+  Future<List<Map<String, dynamic>>> fetchContactsDelta({DateTime? since}) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      var query = client.from('contacts').select().eq('user_id', userId);
+      if (since != null) {
+        query = query.gt('updated_at', since.toUtc().toIso8601String());
+      }
+      final response = await query.order('updated_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e, st) {
+      log('CloudSyncClient: Failed to fetch contacts delta: $e', stackTrace: st);
+      return [];
+    }
+  }
+
   Stream<List<Map<String, dynamic>>>? streamContacts() {
     final client = _client;
     final userId = currentUser?.id;
@@ -211,16 +232,16 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('contacts').update({
-        'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'deleted_at': nowUtc,
+        'updated_at': nowUtc,
       }).eq('id', contactId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Failed to soft delete contact: $e');
     }
   }
 
-  /// ⚡ حذف ناعم دفعة واحدة في السحابة لمجموعة معرفات
   Future<void> softDeleteContactsBatchInCloud(List<String> contactIds) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -345,7 +366,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 📋 5. المهام والأجندة (Tasks Sync with Streams)
+  // 📋 5. المهام والأجندة (Tasks - Delta Sync, Batch & Streams)
   // ===========================================================================
 
   Future<void> syncTask({
@@ -377,6 +398,28 @@ class CloudSyncClient {
     }
   }
 
+  /// ⚡ مزامنة دفعة مهام بالكامل في طلب واحد
+  Future<void> syncTasksBatch(List<Map<String, dynamic>> tasksList) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null || tasksList.isEmpty) return;
+
+    try {
+      final payload = tasksList.map((t) {
+        return {
+          ...t,
+          'user_id': userId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        };
+      }).toList();
+
+      await client.from('tasks').upsert(payload);
+      log('CloudSyncClient: ⚡ Batch synced ${payload.length} tasks to cloud.');
+    } catch (e) {
+      log('CloudSyncClient: Batch task sync error: $e');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchTasks() async {
     final client = _client;
     final userId = currentUser?.id;
@@ -392,6 +435,25 @@ class CloudSyncClient {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      return [];
+    }
+  }
+
+  /// 🔄 جلب التغييرات التفاضلية للمهام (يشمل المهام المحذوفة لحذفها محلياً)
+  Future<List<Map<String, dynamic>>> fetchTasksDelta({DateTime? since}) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      var query = client.from('tasks').select().eq('user_id', userId);
+      if (since != null) {
+        query = query.gt('updated_at', since.toUtc().toIso8601String());
+      }
+      final response = await query.order('updated_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      log('CloudSyncClient: Failed to fetch tasks delta: $e');
       return [];
     }
   }
@@ -414,9 +476,10 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('tasks').update({
-        'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'deleted_at': nowUtc,
+        'updated_at': nowUtc,
       }).eq('id', taskId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete task error: $e');
@@ -424,7 +487,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 🎙️ 6. المذكرات الصوتية (Voice Memos Sync with Streams)
+  // 🎙️ 6. المذكرات الصوتية (Voice Memos - Delta Sync & Streams)
   // ===========================================================================
 
   Future<void> syncMemo({
@@ -452,6 +515,25 @@ class CloudSyncClient {
     }
   }
 
+  /// 🔄 جلب التغييرات التفاضلية للمذكرات الصوتية
+  Future<List<Map<String, dynamic>>> fetchMemosDelta({DateTime? since}) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      var query = client.from('voice_memos').select().eq('user_id', userId);
+      if (since != null) {
+        query = query.gt('updated_at', since.toUtc().toIso8601String());
+      }
+      final response = await query.order('updated_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      log('CloudSyncClient: Failed to fetch memos delta: $e');
+      return [];
+    }
+  }
+
   Stream<List<Map<String, dynamic>>>? streamMemos() {
     final client = _client;
     final userId = currentUser?.id;
@@ -470,9 +552,10 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('voice_memos').update({
-        'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'deleted_at': nowUtc,
+        'updated_at': nowUtc,
       }).eq('id', memoId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete memo error: $e');
@@ -480,7 +563,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // ⏰ 7. المنبهات وجلسات التركيز (Alarms & Focus Sync with Streams)
+  // ⏰ 7. المنبهات وجلسات التركيز (Alarms & Focus - Delta Sync & Streams)
   // ===========================================================================
 
   Future<void> syncAlarm({
@@ -514,6 +597,28 @@ class CloudSyncClient {
     }
   }
 
+  /// ⚡ مزامنة دفعة منبهات بالكامل في طلب واحد
+  Future<void> syncAlarmsBatch(List<Map<String, dynamic>> alarmsList) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null || alarmsList.isEmpty) return;
+
+    try {
+      final payload = alarmsList.map((a) {
+        return {
+          ...a,
+          'user_id': userId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        };
+      }).toList();
+
+      await client.from('alarms').upsert(payload);
+      log('CloudSyncClient: ⚡ Batch synced ${payload.length} alarms to cloud.');
+    } catch (e) {
+      log('CloudSyncClient: Batch alarm sync error: $e');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchAlarms() async {
     final client = _client;
     final userId = currentUser?.id;
@@ -529,6 +634,25 @@ class CloudSyncClient {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      return [];
+    }
+  }
+
+  /// 🔄 جلب التغييرات التفاضلية للمنبهات (يشمل المنبهات المحذوفة)
+  Future<List<Map<String, dynamic>>> fetchAlarmsDelta({DateTime? since}) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      var query = client.from('alarms').select().eq('user_id', userId);
+      if (since != null) {
+        query = query.gt('updated_at', since.toUtc().toIso8601String());
+      }
+      final response = await query.order('updated_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      log('CloudSyncClient: Failed to fetch alarms delta: $e');
       return [];
     }
   }
@@ -551,9 +675,10 @@ class CloudSyncClient {
     if (client == null || userId == null) return;
 
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await client.from('alarms').update({
-        'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'deleted_at': nowUtc,
+        'updated_at': nowUtc,
       }).eq('id', alarmId).eq('user_id', userId);
     } catch (e) {
       log('CloudSyncClient: Soft delete alarm error: $e');
@@ -717,6 +842,25 @@ class CloudSyncClient {
     }
   }
 
+  /// 🔄 جلب التغييرات التفاضلية للعقد المكانية
+  Future<List<Map<String, dynamic>>> fetchSpatialNodesDelta({DateTime? since}) async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      var query = client.from('spatial_nodes').select().eq('user_id', userId);
+      if (since != null) {
+        query = query.gt('updated_at', since.toUtc().toIso8601String());
+      }
+      final response = await query.order('updated_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      log('CloudSyncClient: Failed to fetch spatial nodes delta: $e');
+      return [];
+    }
+  }
+
   Stream<List<Map<String, dynamic>>>? streamSpatialNodes() {
     final client = _client;
     final userId = currentUser?.id;
@@ -730,7 +874,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 🛰️ 11. الأوامر السحابية الواردة عن بُعد من أليكسا (Remote Actions Listener)
+  // 🛰️ 11. الأوامر السحابية الواردة عن بُعد (Remote Actions Listener)
   // ===========================================================================
 
   Stream<List<Map<String, dynamic>>>? streamRemoteActions() {
@@ -806,11 +950,31 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // 🔗 12. بروتوكول الاقتران السيادي اللحظي (Zero-Login Device Pairing Protocol)
+  // 🔗 12. بروتوكول الاقتران السيادي المحمي من التصادم (Collision-Proof Pairing)
   // ===========================================================================
 
-  /// تسجيل كود اقتران مؤقت جديد في السحابة من شاشة التلفزيون أو سطح المكتب
-  /// مع إبطال وحرق الكود القديم إن وجد فورياً لمنع بقائه مفتوحاً.
+  /// فحص هل الكود المكون من 6 أرقام محجوز حالياً في جلسة نشطة غير منتهية
+  Future<bool> isPairingCodeInActiveUse(String pairingCode) async {
+    final client = _client;
+    if (client == null) return false;
+
+    try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+      final List<dynamic> records = await client
+          .from('pairing_sessions')
+          .select('id')
+          .eq('pairing_code', pairingCode)
+          .eq('status', 'waiting')
+          .gt('expires_at', nowUtc)
+          .limit(1);
+
+      return records.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// تسجيل جلسة اقتران مؤقتة جديدة مع حماية ضد تصادم الأكواد العشوائية
   Future<bool> createPairingSession({
     required String pairingCode,
     required String targetDeviceType,
@@ -820,6 +984,7 @@ class CloudSyncClient {
     if (client == null) return false;
 
     try {
+      // 1. حرق وإبطال الجلسة السابقة إن وجدت لهذا الجهاز
       if (previousCode != null && previousCode.trim().isNotEmpty) {
         await cancelPairingSession(previousCode);
       }
@@ -836,7 +1001,7 @@ class CloudSyncClient {
         'expires_at': expiresUtc.toIso8601String(),
       }, onConflict: 'pairing_code');
 
-      log('CloudSyncClient: 🔗 Pairing session created for code: $pairingCode (Expires UTC: ${expiresUtc.toIso8601String()})');
+      log('CloudSyncClient: 🔗 Collision-proof pairing session created for: $pairingCode (Valid until: ${expiresUtc.toIso8601String()})');
       return true;
     } catch (e, st) {
       log('CloudSyncClient: Failed to create pairing session: $e', stackTrace: st);
@@ -852,9 +1017,11 @@ class CloudSyncClient {
         .from('pairing_sessions')
         .stream(primaryKey: ['id'])
         .eq('pairing_code', pairingCode)
+        .order('created_at', ascending: false)
         .map((list) => list.isNotEmpty ? list.first : null);
   }
 
+  /// حجز واعتماد كود الاقتران من الهاتف مع التحقق الصارم من صلاحية الوقت
   Future<bool> claimPairingSession({
     required String pairingCode,
     required String vaultId,
@@ -864,29 +1031,40 @@ class CloudSyncClient {
 
     final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
     if (cleanCode.length != 6) {
-      log('CloudSyncClient: Invalid pairing code length: "$cleanCode"');
+      log('CloudSyncClient: Invalid pairing code format: "$cleanCode"');
       return false;
     }
 
     try {
-      final records = await client
-          .from('pairing_sessions')
-          .select()
-          .eq('pairing_code', cleanCode)
-          .eq('status', 'waiting');
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+      // التحقق من وجود جلسة صالحة وغير منتهية
+      final List<Map<String, dynamic>> records = List<Map<String, dynamic>>.from(
+        await client
+            .from('pairing_sessions')
+            .select()
+            .eq('pairing_code', cleanCode)
+            .eq('status', 'waiting')
+            .gt('expires_at', nowUtc)
+            .order('created_at', ascending: false)
+            .limit(1),
+      );
 
       if (records.isEmpty) {
-        log('CloudSyncClient: Pairing code $cleanCode not found, expired, or already claimed.');
+        log('CloudSyncClient: Pairing code $cleanCode is expired, not found, or already claimed.');
         return false;
       }
+
+      // تحويل المعرف الصريح إلى String لضمان توافقه مع Object وتفادي تحذيرات strict-casts
+      final String sessionId = records.first['id'].toString();
 
       await client.from('pairing_sessions').update({
         'vault_id': vaultId,
         'status': 'paired',
-        'claimed_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('pairing_code', cleanCode);
+        'claimed_at': nowUtc,
+      }).eq('id', sessionId);
 
-      log('CloudSyncClient: ✅ Successfully claimed pairing session for $cleanCode with Vault: $vaultId');
+      log('CloudSyncClient: ✅ Successfully claimed pairing session ($cleanCode) for Vault: $vaultId');
       return true;
     } catch (e, st) {
       log('CloudSyncClient: Error claiming pairing session: $e', stackTrace: st);
@@ -905,7 +1083,7 @@ class CloudSyncClient {
         'status': 'cancelled',
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('pairing_code', cleanCode).eq('status', 'waiting');
-      log('CloudSyncClient: 🚫 Previous pairing code $cleanCode marked as cancelled.');
+      log('CloudSyncClient: 🚫 Pairing code $cleanCode marked as cancelled.');
     } catch (e) {
       log('CloudSyncClient: Note on cancelling pairing code: $e');
     }
