@@ -5,6 +5,7 @@ import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/mobile/cockpit/intents/cockpit_intents.dart';
 import 'package:beacon_os/mobile/cockpit/view/cockpit_floor_0_view.dart';
 import 'package:beacon_os/mobile/cockpit/view/cockpit_floor_1_view.dart';
+import 'package:beacon_os/mobile/cockpit/view/cockpit_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -36,11 +37,13 @@ class CockpitModule extends SpatialModule {
   bool get isVerticallyScrollable => true;
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'CORE ENGINE & PREFERENCES';
+    if (floorLevel == -1) return 'MESH HUB & CONNECTED DEVICES';
     return title;
   }
 
@@ -57,6 +60,7 @@ class CockpitModule extends SpatialModule {
 
   @override
   List<VoiceIntentHandler> get voiceIntents => [
+        FloorNavigationIntentHandler(), // 👈 تم تسجيل معالج التنقل الصوتي بين الطوابق
         BatteryStatusIntentHandler(),
         FlashlightIntentHandler(),
         LockScreenIntentHandler(),
@@ -71,6 +75,11 @@ class CockpitModule extends SpatialModule {
     if (floorLevel == 1) {
       return const CockpitFloor1View(
         key: ValueKey('cockpit_floor_1_view'),
+      );
+    }
+    if (floorLevel == -1) {
+      return const CockpitFloorNeg1View(
+        key: ValueKey('cockpit_floor_neg1_view'),
       );
     }
     return const CockpitFloor0StandaloneView(

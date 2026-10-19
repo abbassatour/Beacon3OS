@@ -24,7 +24,9 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   bool _isBusy = false;
   StreamSubscription<String?>? _authSubscription;
   StreamSubscription<SyncTransportMode>? _transportSub;
+  StreamSubscription<List<LocalNodeInfo>>? _peersSub;
   SyncTransportMode _transportMode = SyncTransportMode.discovering;
+  List<LocalNodeInfo> _activePeers = [];
 
   @override
   void initState() {
@@ -40,6 +42,12 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     _transportSub?.cancel();
     _transportSub = commsRepo.transportModeStream.listen((mode) {
       if (mounted) setState(() => _transportMode = mode);
+    });
+
+    _activePeers = commsRepo.activeMeshNodes;
+    _peersSub?.cancel();
+    _peersSub = commsRepo.activeMeshNodesStream.listen((peers) {
+      if (mounted) setState(() => _activePeers = peers);
     });
 
     final isLinked = await commsRepo.isDeviceLinked();
@@ -60,7 +68,6 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     final commsRepo = context.read<CommsRepository>();
     final previousCode = _generatedPairingCode;
 
-    // 🛡️ حرق الكود السابق إن وجد وتوليد كود جديد لجهاز سطح المكتب
     final code = await commsRepo.initiateDevicePairing(
       deviceType: 'desktop',
       previousCode: previousCode,
@@ -74,7 +81,6 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
         _isBusy = false;
       });
 
-      // 🛡️ تحديد نوع الجهاز بدقة كـ 'desktop' بدلاً من 'fire_tv'
       _authSubscription = commsRepo
           .listenForDeviceAuthorization(code, deviceType: 'desktop')
           .listen((vaultId) {
@@ -106,7 +112,6 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
 
     if (codeToCancel != null && mounted) {
       final commsRepo = context.read<CommsRepository>();
-      // حرق الكود في السحابة لتأمين الجلسة
       await commsRepo.initiateDevicePairing(
         deviceType: 'desktop',
         previousCode: codeToCancel,
@@ -156,11 +161,23 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     }
   }
 
+  Future<void> _pingDevice(String targetLabel) async {
+    final commsRepo = context.read<CommsRepository>();
+    await SoundController.instance.play(SoundCue.wake);
+    await commsRepo.requestLocatePhone(reason: 'Desktop Command Center Ping');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ping siren dispatched to $targetLabel over LAN (< 2ms)!'),
+          backgroundColor: Colors.blueAccent,
+        ),
+      );
+    }
+  }
+
   Future<void> _unpair() async {
     _authSubscription?.cancel();
     final commsRepo = context.read<CommsRepository>();
-
-    // فك الاقتران وتصفير المقابس وحزم الـ UDP في HybridSyncClient
     await commsRepo.unpairDevice();
 
     if (mounted) {
@@ -180,6 +197,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   void dispose() {
     _authSubscription?.cancel();
     _transportSub?.cancel();
+    _peersSub?.cancel();
     _codeInputController.dispose();
     super.dispose();
   }
@@ -403,6 +421,95 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                   child: const Text('Authorize', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
+            ),
+          ],
+
+          // ==========================================
+          // 📡 قائمة أجهزة الـ LAN Mesh النشطة
+          // ==========================================
+          if (_activePeers.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'DISCOVERED MESH NODES (${_activePeers.length})',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const Icon(Icons.wifi_tethering_rounded, size: 15, color: Colors.green),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Column(
+              children: _activePeers.map((peer) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: context.scaffoldBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: colors.outline.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.green.withValues(alpha: 0.15),
+                        child: Icon(
+                          peer.deviceType == 'fire_tv'
+                              ? Icons.tv_rounded
+                              : (peer.deviceType == 'phone'
+                                  ? Icons.phone_android_rounded
+                                  : Icons.desktop_windows_rounded),
+                          color: Colors.green,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              peer.deviceType.toUpperCase().replaceAll('_', ' '),
+                              style: TextStyle(
+                                color: colors.onSurface,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              '${peer.ip}:${peer.port}',
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 10.5,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          side: BorderSide(color: colors.primary),
+                        ),
+                        icon: Icon(Icons.cell_tower_rounded, size: 14, color: colors.primary),
+                        label: Text('Ping', style: TextStyle(fontSize: 11, color: colors.primary)),
+                        onPressed: () => _pingDevice(peer.deviceType),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ],

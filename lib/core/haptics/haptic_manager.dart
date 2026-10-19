@@ -17,23 +17,12 @@ class HapticManager {
     HapticFeedback.selectionClick();
   }
 
-  /// نبضات خفيفة دورية لطمأنة المستخدم أثناء وضع إصبعه على الشاشة بأن الميكروفون يستمع
-  void startListeningPulse() {
-    _listeningPulseTimer?.cancel();
-    if (!isEnabled) return;
-
-    HapticFeedback.mediumImpact();
-    _listeningPulseTimer = Timer.periodic(
-      const Duration(milliseconds: 350),
-      (_) {
-        if (!isEnabled) {
-          stopListeningPulse();
-          return;
-        }
-        HapticFeedback.selectionClick();
-      },
-    );
-  }
+  /// 🟢 اجعل النبضة واحدة فقط عند لمس الشاشة بدلاً من Timer دوري يشوش على الميكروفون:
+void startListeningPulse() {
+  _listeningPulseTimer?.cancel();
+  if (!isEnabled) return;
+  HapticFeedback.selectionClick(); // نبضة تأكيد واحدة تكفي تماماً
+}
 
   void stopListeningPulse() {
     _listeningPulseTimer?.cancel();

@@ -1,5 +1,5 @@
 name: launcher_repository
-description: "A new Flutter package project."
+description: "Core domain repositories and system coordination layer for BeaconOS."
 version: 0.0.1
 publish_to: none
 homepage:
@@ -12,6 +12,7 @@ dependencies:
   bloc: ^9.2.1
   cloud_sync_api:
     path: ../cloud_sync_api
+  drift: ^2.35.0
   flutter:
     sdk: flutter
   local_vault_api:
@@ -20,12 +21,13 @@ dependencies:
     path: ../ring_integration_api
   system_hardware_api:
     path: ../system_hardware_api
+  uuid: ^4.5.1
   voice_ai_api:
     path: ../voice_ai_api
 
 dev_dependencies:
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
 
 flutter:

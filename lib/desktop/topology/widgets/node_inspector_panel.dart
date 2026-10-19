@@ -52,6 +52,17 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
     super.dispose();
   }
 
+  String _formatFloorName(int floor) {
+    switch (floor) {
+      case 1:
+        return 'Floor 1 • Engine & Settings';
+      case -1:
+        return 'Floor -1 • Vault & Mesh Hub';
+      default:
+        return 'Floor 0 • Operations & Canvas';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -136,11 +147,13 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            'Floor Level: Floor ${node.floorLevel}',
+                            'Level: ${_formatFloorName(node.floorLevel)}',
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
-                              fontSize: 11,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -325,7 +338,7 @@ class _NodeInspectorPanelState extends State<NodeInspectorPanel> {
         const Divider(),
         const SizedBox(height: 8),
         Text(
-          'ROOMS ON THIS FLOOR (${widget.state.currentFloorNodes.length})',
+          'ROOMS ON ${_formatFloorName(widget.state.currentFloor).toUpperCase()}',
           style: TextStyle(
             color: colors.onSurfaceVariant,
             fontSize: 9.5,

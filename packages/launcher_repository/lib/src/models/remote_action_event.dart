@@ -1,12 +1,13 @@
 // packages/launcher_repository/lib/src/models/remote_action_event.dart
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 
-/// أنواع الأوامر الواردة عن بُعد (سواء عبر الواي فاي المحلي أو السحابة)
+/// أنواع الأوامر الواردة عن بُعد (سواء عبر الواي فاي المحلي أو السحابة أو أليكسا)
 enum RemoteActionType {
   locateDevice,
   triggerSos,
   vaultMutation,
   ringAlert,
+  navigateFloor, // 👈 نوع الأمر الجديد للتحكم بمصعد الهاتف عن بعد
   unknown,
 }
 
@@ -37,6 +38,9 @@ class RemoteActionEvent {
         break;
       case 'RING_ALERT':
         type = RemoteActionType.ringAlert;
+        break;
+      case 'NAVIGATE_FLOOR':
+        type = RemoteActionType.navigateFloor;
         break;
       default:
         if (map['payload'] is Map<String, dynamic> &&
@@ -69,7 +73,10 @@ class RemoteActionEvent {
         type = RemoteActionType.vaultMutation;
         break;
       default:
-        if (message.payload['is_ring'] == true) {
+        final actionStr = (message.payload['action_type'] as String? ?? '').toUpperCase();
+        if (actionStr == 'NAVIGATE_FLOOR') {
+          type = RemoteActionType.navigateFloor;
+        } else if (message.payload['is_ring'] == true) {
           type = RemoteActionType.ringAlert;
         } else {
           type = RemoteActionType.unknown;

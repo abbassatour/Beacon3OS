@@ -6,6 +6,7 @@ import 'package:beacon_os/mobile/perimeter/cubit/perimeter_cubit.dart';
 import 'package:beacon_os/mobile/perimeter/intents/perimeter_intents.dart';
 import 'package:beacon_os/mobile/perimeter/view/perimeter_floor_0_view.dart';
 import 'package:beacon_os/mobile/perimeter/view/perimeter_floor_1_view.dart';
+import 'package:beacon_os/mobile/perimeter/view/perimeter_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -37,11 +38,13 @@ class PerimeterModule extends SpatialModule {
   bool get isVerticallyScrollable => true;
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'PERIMETER CAMERA TUNING';
+    if (floorLevel == -1) return 'PERIMETER ACTIVITY ARCHIVE';
     return title;
   }
 
@@ -77,6 +80,11 @@ class PerimeterModule extends SpatialModule {
         child: const PerimeterFloor1View(
           key: ValueKey('perimeter_floor_1_view'),
         ),
+      );
+    }
+    if (floorLevel == -1) {
+      return const PerimeterFloorNeg1View(
+        key: ValueKey('perimeter_floor_neg1_view'),
       );
     }
     return const PerimeterFloor0StandaloneView(

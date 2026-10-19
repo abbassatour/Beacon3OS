@@ -88,7 +88,6 @@ class _AppState extends State<App> {
         await SoundController.instance.play(SoundCue.sosAlarm);
         await HapticManager.instance.emergencyAlarmPulse();
 
-        // إيقاف الصفارة تلقائياً بعد 4 ثوانٍ
         _locateSoundTimer?.cancel();
         _locateSoundTimer = Timer(const Duration(seconds: 4), () {
           SoundController.instance.stopAll();
@@ -138,6 +137,22 @@ class _AppState extends State<App> {
                 ),
                 backgroundColor: Colors.redAccent,
                 duration: Duration(seconds: 5),
+              ),
+            );
+          } else if (event.actionType == RemoteActionType.navigateFloor) {
+            final floor = event.payload['target_floor'] ?? 0;
+            final floorName = event.payload['floor_name'] ?? 'Floor $floor';
+            messenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.elevator_rounded, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('🏢 Remote Elevator: $floorName')),
+                  ],
+                ),
+                backgroundColor: Colors.indigoAccent,
+                duration: const Duration(seconds: 3),
               ),
             );
           } else if (event.payload['is_ring'] == true) {

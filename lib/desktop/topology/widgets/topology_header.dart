@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/topology/widgets/topology_header.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_cubit.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_state.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,6 @@ class TopologyHeader extends StatelessWidget {
 
     return Row(
       children: [
-        // 👈 تغليف العنوان بـ Expanded يمنع الضغط الزائد نحو اليمين
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,6 +67,12 @@ class TopologyHeader extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  _FloorButton(
+                    label: 'Floor -1 - Vault',
+                    isSelected: state.currentFloor == -1,
+                    onTap: () => cubit.selectFloor(-1),
+                  ),
+                  const SizedBox(width: 4),
                   _FloorButton(
                     label: 'Floor 0 - Canvas',
                     isSelected: state.currentFloor == 0,

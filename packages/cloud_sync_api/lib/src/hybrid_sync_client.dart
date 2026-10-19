@@ -15,7 +15,7 @@ enum SyncTransportMode {
 
 /// منسق المزامنة الهجين المؤمن (Secure Hybrid Sync Orchestrator)
 /// يجمع بين السيادة والسرعة الخاطفة محلياً، والتغطية العالمية سحابياً،
-/// مع إدارة التوثيق الأمني والمزامنة التفاضلية (Delta Sync).
+/// مع إدارة التوثيق الأمني والمزامنة التفاضلية (Delta Sync) وتتبع الأجهزة النشطة.
 class HybridSyncClient {
   HybridSyncClient({
     CloudSyncClient? cloudSyncClient,
@@ -40,6 +40,16 @@ class HybridSyncClient {
   SyncTransportMode _currentMode = SyncTransportMode.discovering;
   SyncTransportMode get currentMode => _currentMode;
   bool get isLanDirect => _currentMode == SyncTransportMode.lanDirect;
+
+  // 📡 قائمة وتدفق الأجهزة النشطة في الشبكة المحلية (Mesh Peers Tracking)
+  final Map<String, LocalNodeInfo> _peersMap = {};
+  Timer? _peerEvictionTimer;
+  final StreamController<List<LocalNodeInfo>> _activePeersController =
+      StreamController<List<LocalNodeInfo>>.broadcast();
+
+  Stream<List<LocalNodeInfo>> get activePeersStream =>
+      _activePeersController.stream;
+  List<LocalNodeInfo> get activePeers => _peersMap.values.toList();
 
   // تدفق الإشعار بتغير نمط النقل لتحديث الواجهات والتوجيه الصوتي
   final StreamController<SyncTransportMode> _transportModeController =
@@ -79,6 +89,7 @@ class HybridSyncClient {
     _linkedVaultId = linkedVaultId;
 
     _startDeduplicationCleaner();
+    _startPeerEvictionTimer();
 
     // 1. تشغيل مستمع الأوامر السحابية كقناة أمان دائمة
     _listenToCloudRemoteActions();
@@ -180,8 +191,12 @@ class HybridSyncClient {
     await _discovery.probeForNodes();
   }
 
-  /// التعامل مع العقدة المكتشفة بالواي فاي والاتصال بها بمصادقة كاملة
+  /// التعامل مع العقدة المكتشفة بالواي فاي وحفظها في قائمة الأجهزة النشطة
   Future<void> _handleDiscoveredNode(LocalNodeInfo node) async {
+    // 1. تسجيل أو تحديث حضور الجهاز في خريطة الـ Mesh
+    _peersMap[node.nodeId] = node;
+    _activePeersController.add(activePeers);
+
     if (_client.isConnected) return;
 
     final matchesCode =
@@ -202,6 +217,28 @@ class HybridSyncClient {
         _updateMode(SyncTransportMode.lanDirect);
       }
     }
+  }
+
+  /// ⏱️ مؤقت طرد الأجهزة الخاملة (Heartbeat Pruning - 10 Seconds Threshold)
+  void _startPeerEvictionTimer() {
+    _peerEvictionTimer?.cancel();
+    _peerEvictionTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      final now = DateTime.now().toUtc();
+      var changed = false;
+
+      _peersMap.removeWhere((id, node) {
+        final isStale = now.difference(node.lastSeen).inSeconds > 10;
+        if (isStale) {
+          changed = true;
+          log('HybridSync: 🍂 Evicted stale mesh peer: $id (${node.ip})');
+        }
+        return isStale;
+      });
+
+      if (changed) {
+        _activePeersController.add(activePeers);
+      }
+    });
   }
 
   // ===========================================================================
@@ -268,6 +305,8 @@ class HybridSyncClient {
     _linkedVaultId = null;
     _pairingCode = null;
     _seenMessageIds.clear();
+    _peersMap.clear();
+    _activePeersController.add([]);
 
     await _client.disconnect();
 
@@ -540,6 +579,7 @@ class HybridSyncClient {
 
   void dispose() {
     _deduplicationCleanupTimer?.cancel();
+    _peerEvictionTimer?.cancel();
     _discoverySubscription?.cancel();
     _clientStateSubscription?.cancel();
     _clientMessagesSubscription?.cancel();
@@ -550,6 +590,7 @@ class HybridSyncClient {
     _server.dispose();
     _client.dispose();
 
+    _activePeersController.close();
     _transportModeController.close();
     _unifiedEventsController.close();
   }

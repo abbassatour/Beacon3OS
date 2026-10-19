@@ -3,12 +3,33 @@ import 'dart:developer';
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
+import 'package:equatable/equatable.dart';
 import 'package:local_vault_api/local_vault_api.dart' as db;
 
 import '../mappers/app_setting_mapper.dart';
 import '../models/app_setting_entity.dart';
 
-/// العقد النطاقي المخصص لإدارة إعدادات النظام وهوية المستخدم
+/// كائن يمثل فحصاً بصرياً محفوظاً في الخزنة
+class VisionScanRecord extends Equatable {
+  const VisionScanRecord({
+    required this.id,
+    required this.mode,
+    required this.prompt,
+    required this.description,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String mode;
+  final String prompt;
+  final String description;
+  final DateTime createdAt;
+
+  @override
+  List<Object?> get props => [id, mode, prompt, description, createdAt];
+}
+
+/// العقد النطاقي المخصص لإدارة إعدادات النظام وهوية المستخدم وفحوصات الرؤية
 abstract class SettingsRepository {
   /// الاستماع اللحظي لتغييرات الإعدادات
   Stream<AppSettingEntity> watchSettings();
@@ -36,6 +57,9 @@ abstract class SettingsRepository {
     required String prompt,
     required String description,
   });
+
+  /// 👁️ مراقبة الفحوصات البصرية المحفوظة في الخزنة (أرشيف الطابق -1)
+  Stream<List<VisionScanRecord>> watchVisionScans({int limit = 30});
 
   /// استعادة تفضيلات المستخدم من Supabase إلى قاعدة البيانات المحلية بفض نزاعات زمني
   Future<void> restoreSettingsFromCloud();
@@ -129,6 +153,23 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } catch (e) {
       log('SettingsRepository: Error recording vision scan: $e');
     }
+  }
+
+  @override
+  Stream<List<VisionScanRecord>> watchVisionScans({int limit = 30}) {
+    return _db.watchRecentVisionScans(limit: limit).map(
+          (list) => list
+              .map(
+                (v) => VisionScanRecord(
+                  id: v.id,
+                  mode: v.mode,
+                  prompt: v.prompt,
+                  description: v.description,
+                  createdAt: v.createdAt,
+                ),
+              )
+              .toList(),
+        );
   }
 
   @override

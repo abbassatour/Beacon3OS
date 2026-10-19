@@ -19,6 +19,7 @@ class TvLiveAlertBanner extends StatelessWidget {
     
     final isSos = alert.actionType == RemoteActionType.triggerSos;
     final isLocate = alert.actionType == RemoteActionType.locateDevice;
+    final isNavFloor = alert.actionType == RemoteActionType.navigateFloor;
     final isRing = alert.payload['is_ring'] == true;
 
     Color bannerColor = colors.surface;
@@ -36,16 +37,21 @@ class TvLiveAlertBanner extends StatelessWidget {
       icon = Icons.cell_tower_rounded;
       title = '📍 ACOUSTIC PING DISPATCHED';
       subtitle = 'Living room voice query triggered hardware siren & flashlight strobe on phone.';
+    } else if (isNavFloor) {
+      bannerColor = colors.secondary;
+      icon = Icons.elevator_rounded;
+      final floorName = alert.payload['floor_name']?.toString() ?? 'Floor Navigation';
+      title = '🏢 SPATIAL ELEVATOR ACTUATION';
+      subtitle = 'Beacon phone elevator moved to $floorName via voice command.';
     } else if (isRing) {
-      bannerColor = colors.secondary; // لون مميز للكاميرات (أصفر أو برتقالي حسب الثيم)
+      bannerColor = colors.secondary;
       icon = Icons.doorbell_rounded;
       final deviceLabel = alert.payload['device_label']?.toString().toUpperCase() ?? 'CAMERA';
       title = '🔔 RING ALERT: $deviceLabel';
       subtitle = alert.payload['description']?.toString() ?? 'Activity detected at the camera.';
     }
 
-    // تحديد لون النص بناءً على لون الخلفية لضمان التباين
-    final contentColor = isRing ? colors.surface : Colors.white;
+    final contentColor = (isRing || isNavFloor) ? colors.surface : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -98,7 +104,7 @@ class TvLiveAlertBanner extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: contentColor,
-              foregroundColor: bannerColor, // لون زر معكوس
+              foregroundColor: bannerColor,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),

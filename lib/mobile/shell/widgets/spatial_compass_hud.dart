@@ -31,7 +31,8 @@ class SpatialCompassHud extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeCoord = currentCoordinate ?? SpatialCoordinate.origin;
     final isAtCenter = activeCoord.isOrigin;
-    final isElevated = currentFloor != 0;
+    final isElevated = currentFloor > 0;
+    final isSubterranean = currentFloor < 0;
     final colors = context.colors;
     final topology = context.read<SpatialTopology>();
 
@@ -40,9 +41,17 @@ class SpatialCompassHud extends StatelessWidget {
 
     final cleanRoomTitle = topology.titleAtCoordinate(activeCoord);
 
+    final floorLabel = currentFloor == 0
+        ? 'Ground Floor'
+        : (currentFloor < 0 ? 'Vault Floor $currentFloor' : 'Settings Floor $currentFloor');
+
     final semanticLabel = isAtCenter
-        ? 'Current location: $cleanRoomTitle. Floor $currentFloor.'
-        : 'Current location: $cleanRoomTitle. Tap to return to cockpit. Double tap to toggle floor.';
+        ? 'Current location: $cleanRoomTitle. $floorLabel.'
+        : 'Current location: $cleanRoomTitle. Tap to return to center. Double tap to toggle floor.';
+
+    final accentColor = isElevated
+        ? colors.primary
+        : (isSubterranean ? colors.secondary : colors.onSurface);
 
     return Positioned(
       top: 10,
@@ -65,8 +74,8 @@ class SpatialCompassHud extends StatelessWidget {
                     color: colors.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isElevated ? colors.primary : colors.outline,
-                      width: isElevated ? 1.5 : 1.2,
+                      color: currentFloor != 0 ? accentColor : colors.outline,
+                      width: currentFloor != 0 ? 1.5 : 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -84,7 +93,7 @@ class SpatialCompassHud extends StatelessWidget {
                         topology: topology,
                         currentFloor: currentFloor,
                         activeCoord: activeCoord,
-                        isElevated: isElevated,
+                        accentColor: accentColor,
                       ),
                       const SizedBox(width: 10),
                       Flexible(
@@ -93,7 +102,7 @@ class SpatialCompassHud extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isElevated ? colors.primary : colors.onSurface,
+                            color: currentFloor != 0 ? accentColor : colors.onSurface,
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.1,
@@ -129,11 +138,11 @@ class SpatialCompassHud extends StatelessWidget {
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
                     backgroundColor:
-                        isElevated ? colors.surface : colors.primary,
+                        currentFloor != 0 ? colors.surface : colors.primary,
                     foregroundColor:
-                        isElevated ? colors.onSurface : colors.onPrimary,
+                        currentFloor != 0 ? colors.onSurface : colors.onPrimary,
                     side: BorderSide(
-                      color: isElevated ? colors.outline : colors.primary,
+                      color: currentFloor != 0 ? colors.outline : colors.primary,
                       width: 1.2,
                     ),
                     minimumSize: const Size(36, 36),
@@ -170,10 +179,10 @@ class SpatialCompassHud extends StatelessWidget {
     required SpatialTopology topology,
     required int currentFloor,
     required SpatialCoordinate activeCoord,
-    required bool isElevated,
+    required Color accentColor,
   }) {
     final colors = context.colors;
-    final activeColor = isElevated ? colors.primary : colors.onSurface;
+    final activeColor = currentFloor != 0 ? accentColor : colors.onSurface;
     final inactiveColor = colors.outline.withValues(alpha: 0.5);
 
     final occupiedNodes = topology.nodesOnFloor(currentFloor).keys.toSet();

@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 11; // 👈 الإصدار 11 المستقر
+  int get schemaVersion => 12; // 👈 تم رفع الإصدار إلى 12 لدعم الطابق -1 بأمان
 
   @override
   MigrationStrategy get migration => DatabaseMigrations.createStrategy(this);
@@ -244,7 +244,7 @@ class AppDatabase extends _$AppDatabase {
     required int batteryLevel,
     required String googleMapsUrl,
     String status = 'active',
-  }) =>
+  }) async =>
       safetyDao.insertSosAlert(
         latitude: latitude,
         longitude: longitude,
@@ -257,7 +257,7 @@ class AppDatabase extends _$AppDatabase {
     required String mode,
     required String prompt,
     required String description,
-  }) =>
+  }) async =>
       safetyDao.insertVisionScan(
         mode: mode,
         prompt: prompt,

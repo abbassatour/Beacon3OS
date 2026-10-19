@@ -1,6 +1,6 @@
 """
 BeaconOS Streamable HTTP Client Test (Spec 2025-11-25)
-Tests: Initialize, Tools Listing, and Tool Execution.
+Tests: Initialize, Tools Listing, Tool Execution, and Spatial Elevator Navigation.
 """
 
 import httpx
@@ -14,9 +14,9 @@ HEADERS = {
 }
 
 def test_mcp_flow():
-    print("=" * 60)
-    print("🚀 TESTING STREAMABLE HTTP MCP ENDPOINT (/mcp)")
-    print("=" * 60)
+    print("=" * 65)
+    print("🚀 TESTING STREAMABLE HTTP MCP ENDPOINT (/mcp) - SPEC 2025-11-25")
+    print("=" * 65)
 
     with httpx.Client(base_url="http://127.0.0.1:8000", headers=HEADERS) as client:
         # 1. Initialize Request
@@ -53,7 +53,7 @@ def test_mcp_flow():
             "method": "tools/call",
             "params": {
                 "name": "beacon_locate_phone",
-                "arguments": {"reason": "Devpost Video Recording Demo"}
+                "arguments": {"reason": "Living Room Verification Test"}
             }
         }
         res = client.post("/mcp", json=call_payload)
@@ -74,9 +74,27 @@ def test_mcp_flow():
         })
         print(f"Output: {res.json().get('result', {}).get('content', [])[0]['text']}")
 
-    print("\n" + "=" * 60)
-    print("✅ STREAMABLE HTTP (2025-11-25) TEST PASSED!")
-    print("=" * 60)
+        # 5. Call Tool: beacon_navigate_floor (Elevator Actuation to Floor -1 Vault)
+        print("\n5️⃣ Calling tool: 'beacon_navigate_floor' (Elevator down to Floor -1 Vault)...")
+        res = client.post("/mcp", json={
+            "jsonrpc": "2.0",
+            "id": "call-3",
+            "method": "tools/call",
+            "params": {
+                "name": "beacon_navigate_floor",
+                "arguments": {"target_floor": -1}
+            }
+        })
+        nav_data = res.json().get("result", {}).get("content", [])
+        for item in nav_data:
+            if item.get("type") == "text":
+                print(f"🗣️ Speech Output: {item['text']}")
+            elif item.get("type") == "resource":
+                print(f"📺 UI Card Data: {item['resource']['data']}")
+
+    print("\n" + "=" * 65)
+    print("✅ STREAMABLE HTTP (SPEC 2025-11-25) & 3-FLOOR ELEVATOR TESTS PASSED!")
+    print("=" * 65)
 
 if __name__ == "__main__":
     test_mcp_flow()

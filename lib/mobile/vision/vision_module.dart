@@ -5,6 +5,7 @@ import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/mobile/vision/intents/vision_intents.dart';
 import 'package:beacon_os/mobile/vision/view/vision_floor_0_view.dart';
 import 'package:beacon_os/mobile/vision/view/vision_floor_1_view.dart';
+import 'package:beacon_os/mobile/vision/view/vision_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -36,11 +37,13 @@ class VisionModule extends SpatialModule {
   bool get isVerticallyScrollable => false;
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'AI VISION TUNING';
+    if (floorLevel == -1) return 'VISION & OCR ARCHIVE';
     return title;
   }
 
@@ -71,6 +74,11 @@ class VisionModule extends SpatialModule {
     if (floorLevel == 1) {
       return const VisionFloor1View(
         key: ValueKey('vision_floor_1_view'),
+      );
+    }
+    if (floorLevel == -1) {
+      return const VisionFloorNeg1View(
+        key: ValueKey('vision_floor_neg1_view'),
       );
     }
     return const VisionFloor0StandaloneView(

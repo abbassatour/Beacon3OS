@@ -44,20 +44,35 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
   final SoundController _sound;
   final HapticManager _haptics;
 
+  BuildContext? _activeContext;
+
   StreamSubscription<String>? _textSubscription;
   StreamSubscription<double>? _soundLevelSubscription;
   StreamSubscription<VoiceRecognitionEvent>? _recognitionSubscription;
   StreamSubscription<bool>? _isListeningSubscription;
+
   Timer? _autoCloseTimer;
   int _sessionGeneration = 0;
+  bool _isExecuting = false;
+  double _lastReportedSoundLevel = 0.0;
 
-  Future<void> startSession() async {
+  // ===========================================================================
+  // 🎙️ 1. بدء جلسة الاستماع الصوتي الحسي
+  // ===========================================================================
+
+  Future<void> startSession([BuildContext? context]) async {
     final currentGen = ++_sessionGeneration;
+    _isExecuting = false;
+
     _cancelSubscriptions();
     _autoCloseTimer?.cancel();
 
+    _updateActiveContext(context);
+
     await _sound.stopAll();
     await _assistant.stopSpeaking();
+
+    if (isClosed) return;
 
     emit(
       state.copyWith(
@@ -71,111 +86,173 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     );
 
     await _sound.play(SoundCue.wake);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 180));
 
-    if (_sessionGeneration != currentGen || !state.isListening) {
+    // حماية: التأكد من أن الجلسة لم تُلغَ أثناء تشغيل نغمة الاستيقاظ
+    if (_sessionGeneration != currentGen || !state.isListening || isClosed) {
       return;
     }
 
     _haptics.startListeningPulse();
 
     _textSubscription = _assistant.textStream.listen((text) {
-      if (state.isListening && text.isNotEmpty) {
+      if (!isClosed && state.isListening && text.isNotEmpty) {
         emit(state.copyWith(liveTranscript: text));
       }
     });
 
+    // تكميم شدة الصوت لمنع الضغط على إطارات المعالجة
     _soundLevelSubscription = _assistant.soundLevelStream.listen((level) {
-      if (state.isListening) {
-        emit(state.copyWith(soundLevel: level));
+      if (!isClosed && state.isListening) {
+        if ((level - _lastReportedSoundLevel).abs() > 0.35) {
+          _lastReportedSoundLevel = level;
+          emit(state.copyWith(soundLevel: level));
+        }
       }
     });
 
     _recognitionSubscription =
         _assistant.recognitionStream.listen((event) async {
-      if (event.isFinal && state.isListening) {
+      if (event.isFinal && state.isListening && !_isExecuting) {
         await stopAndExecute(queryOverride: event.text);
       }
     });
 
     _isListeningSubscription =
         _assistant.isListeningStream.listen((isListening) {
-      if (!isListening && state.isListening) {
+      if (!isListening && state.isListening && !_isExecuting) {
         stopAndExecute();
       }
     });
 
-    await _assistant.startListening();
+    try {
+      await _assistant.startListening();
+    } catch (e, st) {
+      log('AmbientVoiceCubit: Failed to initiate speech listening: $e',
+          stackTrace: st);
+      _haptics.stopListeningPulse();
+      await _sound.play(SoundCue.error);
+      await _haptics.errorAlert();
+
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            status: AmbientVoiceStatus.error,
+            errorMessage: 'Microphone unavailable',
+            spokenResponse:
+                'Could not start listening. Please verify microphone permissions.',
+          ),
+        );
+        _scheduleAutoClose(const Duration(seconds: 3));
+      }
+    }
   }
+
+  // ===========================================================================
+  // ⚡ 2. حسم الأمر الصوتي والتنفيذ المحمي من التكرار (Race-Free Execution)
+  // ===========================================================================
 
   Future<void> stopAndExecute({
     String? queryOverride,
     BuildContext? context,
   }) async {
-    if (!state.isListening || state.isProcessing) return;
+    // 🛡️ قفل فوري متزامن لمنع أي تكرار عند ورود أكثر من حدث في نفس اللحظة
+    if (_isExecuting || !state.isListening || state.isProcessing) return;
+    _isExecuting = true;
 
-    _sessionGeneration++;
+    final currentGen = ++_sessionGeneration;
     _haptics.stopListeningPulse();
-    await _sound.play(SoundCue.processing);
 
-    emit(state.copyWith(status: AmbientVoiceStatus.processing));
+    // إشعار فوري بحالة المعالجة لقفل واجهة المستخدم قبل أي انتظار شبكي
+    if (!isClosed) {
+      emit(state.copyWith(status: AmbientVoiceStatus.processing));
+    }
 
-    final recognizedFromMic = await _assistant.stopListening();
-    final effectiveQuery = queryOverride ??
-        (recognizedFromMic.isNotEmpty
-            ? recognizedFromMic
-            : state.liveTranscript.trim());
+    _updateActiveContext(context);
 
-    if (effectiveQuery.isEmpty) {
-      await _sound.play(SoundCue.error);
-      await _haptics.errorAlert();
-      const silenceMessage =
-          "I didn't catch that. Please hold or swipe to try again.";
+    // تشغيل نغمة التفكير
+    unawaited(_sound.play(SoundCue.processing));
+
+    try {
+      final recognizedFromMic = await _assistant.stopListening();
+
+      final effectiveQuery = (queryOverride != null && queryOverride.trim().isNotEmpty)
+          ? queryOverride.trim()
+          : (recognizedFromMic.trim().isNotEmpty
+              ? recognizedFromMic.trim()
+              : state.liveTranscript.trim());
+
+      // إذا كانت الجملة فارغة (لم يسمع شيئاً)
+      if (effectiveQuery.isEmpty) {
+        await _sound.play(SoundCue.error);
+        await _haptics.errorAlert();
+        const silenceMessage =
+            "I didn't catch that. Please hold or swipe to try again.";
+
+        if (!isClosed && _sessionGeneration == currentGen) {
+          emit(
+            state.copyWith(
+              status: AmbientVoiceStatus.error,
+              errorMessage: "Didn't catch that",
+              spokenResponse: silenceMessage,
+            ),
+          );
+        }
+
+        await _assistant.speak(silenceMessage);
+        _scheduleAutoClose(const Duration(seconds: 3));
+        return;
+      }
+
+      final resolvedContext = _resolveValidContext(context);
+
+      // توجيه ونطق الأمر
+      final result = await _dispatcher.dispatchAndAnnounce(
+        effectiveQuery,
+        context: resolvedContext,
+        contextProvider: () => _fetchLiveSystemContext(resolvedContext),
+      );
+
+      // فحص هل انتهت الجلسة أو أغلقت أثناء انتظار نتيجة الذكاء الاصطناعي
+      if (isClosed || _sessionGeneration != currentGen) {
+        return;
+      }
+
+      final isError =
+          result.intent == 'ERROR' || result.intent.endsWith('_FAILED');
 
       emit(
         state.copyWith(
-          status: AmbientVoiceStatus.error,
-          errorMessage: "Didn't catch that",
-          spokenResponse: silenceMessage,
+          status: isError
+              ? AmbientVoiceStatus.error
+              : AmbientVoiceStatus.speaking,
+          spokenResponse: result.spokenResponse,
+          intent: result.intent,
+          errorMessage: isError ? result.spokenResponse : null,
         ),
       );
 
-      await _assistant.speak(silenceMessage);
-
-      _autoCloseTimer?.cancel();
-      _autoCloseTimer = Timer(const Duration(seconds: 3), () {
-        if (state.isOpen) closeSession();
-      });
-      return;
+      _scheduleAutoClose(const Duration(seconds: 4));
+    } catch (e, st) {
+      log('AmbientVoiceCubit: Execution error: $e', stackTrace: st);
+      if (!isClosed && _sessionGeneration == currentGen) {
+        emit(
+          state.copyWith(
+            status: AmbientVoiceStatus.error,
+            errorMessage: 'Execution failure',
+            spokenResponse: 'An error occurred while processing your request.',
+          ),
+        );
+        _scheduleAutoClose(const Duration(seconds: 3));
+      }
+    } finally {
+      _isExecuting = false;
     }
-
-    final activeContext = context ?? _navigatorKey?.currentContext;
-
-    final result = await _dispatcher.dispatchAndAnnounce(
-      effectiveQuery,
-      context: activeContext,
-      contextProvider: () => _fetchLiveSystemContext(activeContext),
-    );
-
-    final isError =
-        result.intent == 'ERROR' || result.intent.endsWith('_FAILED');
-
-    emit(
-      state.copyWith(
-        status: isError
-            ? AmbientVoiceStatus.error
-            : AmbientVoiceStatus.speaking,
-        spokenResponse: result.spokenResponse,
-        intent: result.intent,
-        errorMessage: isError ? result.spokenResponse : null,
-      ),
-    );
-
-    _autoCloseTimer?.cancel();
-    _autoCloseTimer = Timer(const Duration(seconds: 4), () {
-      if (state.isOpen) closeSession();
-    });
   }
+
+  // ===========================================================================
+  // 🧠 3. تجميع سياق قاعدة البيانات الحي (System Context Provider)
+  // ===========================================================================
 
   Future<Map<String, dynamic>> _fetchLiveSystemContext([
     BuildContext? context,
@@ -189,14 +266,14 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
         _settingsRepo.getSettings().timeout(
               timeout,
               onTimeout: () => AppSettingEntity(
-                id: 'fallback',
+                id: 'fallback_settings',
                 userPersona: 'digital_minimalist',
                 hasCompletedOnboarding: true,
                 speechRate: 0.5,
                 hapticsEnabled: true,
                 soundCuesEnabled: true,
                 isHighContrast: false,
-                spatialWhisperEnabled: false, // 👈 تم التوفير هنا
+                spatialWhisperEnabled: false,
                 defaultPriority: 'medium',
                 autoArchiveCompleted: true,
                 speakDueDatesAloud: true,
@@ -226,6 +303,7 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
       final contacts = (results[4] as List<ContactEntity>).take(20).toList();
 
       final aggregatedContext = <String, dynamic>{
+        'system_time': DateTime.now().toUtc().toIso8601String(),
         'tasks': tasks
             .map((t) => {
                   'id': t.id,
@@ -274,11 +352,13 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
         },
       };
 
-      if (context != null) {
+      // حقن سياق الموديولات المسجلة حياً في الطوبولوجيا
+      final safeContext = _resolveValidContext(context);
+      if (safeContext != null) {
         for (final module in SpatialModuleRegistry.instance.allModules) {
           try {
             final modCtx = await module
-                .getVoiceContext(context)
+                .getVoiceContext(safeContext)
                 .timeout(const Duration(milliseconds: 200), onTimeout: () => null);
             if (modCtx != null && modCtx.isNotEmpty) {
               aggregatedContext[module.id] = modCtx;
@@ -291,19 +371,36 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
 
       return aggregatedContext;
     } catch (e, st) {
-      log('AmbientVoiceCubit: Exception while assembling system context: $e',
+      log('AmbientVoiceCubit: Exception assembling system context: $e',
           stackTrace: st);
       return {};
     }
   }
 
+  // ===========================================================================
+  // 🛑 4. إدارة وإغلاق الجلسة بأمان
+  // ===========================================================================
+
   void closeSession() {
     _sessionGeneration++;
+    _isExecuting = false;
     _cancelSubscriptions();
     _autoCloseTimer?.cancel();
     _haptics.stopListeningPulse();
-    _assistant.cancelListening();
-    emit(const AmbientVoiceState(status: AmbientVoiceStatus.idle));
+    unawaited(_assistant.cancelListening());
+
+    if (!isClosed) {
+      emit(const AmbientVoiceState(status: AmbientVoiceStatus.idle));
+    }
+  }
+
+  void _scheduleAutoClose(Duration delay) {
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = Timer(delay, () {
+      if (!isClosed && state.isOpen) {
+        closeSession();
+      }
+    });
   }
 
   void _cancelSubscriptions() {
@@ -313,9 +410,30 @@ class AmbientVoiceCubit extends Cubit<AmbientVoiceState> {
     _isListeningSubscription?.cancel();
   }
 
+  void _updateActiveContext(BuildContext? context) {
+    if (context != null && context.mounted) {
+      _activeContext = context;
+    }
+  }
+
+  BuildContext? _resolveValidContext([BuildContext? directContext]) {
+    if (directContext != null && directContext.mounted) {
+      return directContext;
+    }
+    if (_activeContext != null && _activeContext!.mounted) {
+      return _activeContext;
+    }
+    final navContext = _navigatorKey?.currentContext;
+    if (navContext != null && navContext.mounted) {
+      return navContext;
+    }
+    return null;
+  }
+
   @override
   Future<void> close() {
     _sessionGeneration++;
+    _isExecuting = false;
     _cancelSubscriptions();
     _autoCloseTimer?.cancel();
     return super.close();

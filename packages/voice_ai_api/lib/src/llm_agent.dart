@@ -21,11 +21,11 @@ class LlmAgent {
         ? jsonEncode(systemContext)
         : '{"tasks":[], "alarms":[], "settings":{}}';
 
-    // 🌟 استخدام النوايا المستخرجة ديناميكياً من الموديولات، أو اللجوء للقيم القياسية كاحتياط
     final intentsBlock = (availableIntentsPrompt != null &&
             availableIntentsPrompt.trim().isNotEmpty)
         ? availableIntentsPrompt.trim()
-        : '''- "SAVE_TASK": Add a new task to user agenda.
+        : '''- "NAVIGATE_FLOOR": Switch floors. Parameter target_floor: 0 (Cockpit/Ground), 1 (Settings/Engine), -1 (Vault/Mesh Hub/Archive).
+- "SAVE_TASK": Add a new task to user agenda.
 - "COMPLETE_TASK": Mark an existing task as completed (Match task_id from context).
 - "DELETE_TASK": Soft-delete a task (Match task_id from context).
 - "UPDATE_TASK": Change due date, priority, or title of an existing task.
@@ -48,6 +48,12 @@ class LlmAgent {
 You are BeaconOS, an invisible Voice-First operating system for visually impaired users and digital minimalists.
 Current System Time: ${now.toIso8601String()}
 
+SYSTEM ARCHITECTURE:
+BeaconOS is organized as a 3D spatial matrix of three floors:
+- Floor 1: Core Engine, Device Pairing & Preferences (Future/Tuning).
+- Floor 0: Today Cockpit, Operations, Studio & Priorities (Present).
+- Floor -1: Deep Vault, Local Mesh Network & Historical Archive (Past/Foundation).
+
 CURRENT SYSTEM CONTEXT (ACTIVE DATABASE RECORDS):
 $contextJson
 
@@ -65,7 +71,8 @@ Output format:
 
 Rules:
 1. When user asks to complete, edit, or delete a record, fuzzy-match the title against CURRENT SYSTEM CONTEXT to find the exact "task_id", "alarm_id", or "memo_id".
-2. For system actions and everyday conversation, keep spoken_response strictly to 1 or 2 concise, clear sentences. For visual scene inspections, provide thorough spatial orientation, hazards, and distances as requested in the query. Never use asterisks or markdown in spoken_response.
+2. When user asks to go to the vault, view connected devices, check archive, or descend floors, select intent "NAVIGATE_FLOOR" with parameter "target_floor": -1.
+3. For system actions and everyday conversation, keep spoken_response strictly to 1 or 2 concise, clear sentences. For visual scene inspections, provide thorough spatial orientation, hazards, and distances as requested in the query. Never use asterisks or markdown in spoken_response.
 ''';
   }
 

@@ -13,7 +13,7 @@ class SpatialShellState extends Equatable {
     this.currentCoordinate = SpatialCoordinate.origin,
     this.previousCoordinate = SpatialCoordinate.origin,
     this.isTransitioning = false,
-    this.activeModuleId = 'cockpit', // 👈 معرّف الغرفة التي ينظر إليها المستخدم
+    this.activeModuleId = 'cockpit',
   });
 
   /// الإحداثي الديكارتي ثلاثي الأبعاد الحالي للمستخدم في الفضاء
@@ -34,6 +34,9 @@ class SpatialShellState extends Equatable {
   bool get isAtCenter => currentCoordinate.isOrigin;
   bool get isGroundFloor => currentCoordinate.floor == 0;
   bool get isSettingsFloor => currentCoordinate.floor == 1;
+
+  /// 🏛️ هل المستخدم في طابق الخزنة وشبكة الـ Mesh السفلي (-1)
+  bool get isVaultFloor => currentCoordinate.floor == -1;
 
   /// توافق ملاحي مع الاتجاهات الكاردينالية
   SpatialDirection get currentDirection =>

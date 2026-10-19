@@ -1,9 +1,93 @@
 // lib/mobile/cockpit/intents/cockpit_intents.dart
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/mobile/shell/cubit/spatial_shell_cubit.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:launcher_repository/launcher_repository.dart';
+
+/// معالج التنقل السريع بين طوابق النظام صوتياً (Floor Navigation Intent)
+class FloorNavigationIntentHandler extends VoiceIntentHandler {
+  @override
+  String get intentId => 'NAVIGATE_FLOOR';
+
+  @override
+  int get priority => 95;
+
+  @override
+  RegExp get fastPathPattern => RegExp(
+        r'^(?:go to|enter|open|show|switch to)\s+(?:floor\s+)?(?:minus\s+one|-1|vault|mesh|archive|settings|engine|floor\s+one|floor\s+1|cockpit|ground floor|floor\s+zero|floor\s+0)\b',
+        caseSensitive: false,
+      );
+
+  @override
+  String get llmDescription =>
+      'Navigate or jump to a specific floor level: Floor 0 (Cockpit/Operations), Floor 1 (Settings/Tuning), or Floor -1 (Vault/Mesh Hub/Archive).';
+
+  @override
+  Map<String, String> get parameterDescriptions => const {
+        'target_floor':
+            'Target floor integer: 0 for Ground/Cockpit, 1 for Settings/Engine, -1 for Vault/Mesh Hub.',
+      };
+
+  @override
+  Future<LauncherCommandResult> execute(
+    BuildContext context,
+    VoiceIntentContext intentContext,
+  ) async {
+    final query = intentContext.normalizedQuery;
+    final params = intentContext.llmParameters;
+
+    int targetFloor = 0;
+
+    if (query.contains('-1') ||
+        query.contains('minus one') ||
+        query.contains('vault') ||
+        query.contains('mesh') ||
+        query.contains('archive') ||
+        params['target_floor'] == -1) {
+      targetFloor = -1;
+    } else if (query.contains('settings') ||
+        query.contains('engine') ||
+        query.contains('tuning') ||
+        query.contains('floor 1') ||
+        query.contains('floor one') ||
+        params['target_floor'] == 1) {
+      targetFloor = 1;
+    } else {
+      targetFloor = 0;
+    }
+
+    try {
+      final shellCubit = context.read<SpatialShellCubit>();
+      await shellCubit.jumpToFloor(targetFloor);
+
+      String floorName;
+      switch (targetFloor) {
+        case 1:
+          floorName = 'Floor 1: Engine and Settings';
+          break;
+        case -1:
+          floorName = 'Floor -1: Vault and Mesh Hub';
+          break;
+        default:
+          floorName = 'Ground Floor: Today Cockpit';
+          break;
+      }
+
+      return LauncherCommandResult(
+        intent: intentId,
+        spokenResponse: 'Entered $floorName.',
+        actionPayload: targetFloor,
+      );
+    } catch (_) {
+      return const LauncherCommandResult(
+        intent: 'NAVIGATE_FLOOR_FAILED',
+        spokenResponse: 'Could not switch floors from this screen.',
+      );
+    }
+  }
+}
 
 /// معالج فحص مستوى البطارية بالمسار السريع (Sub-5ms)
 class BatteryStatusIntentHandler extends VoiceIntentHandler {
@@ -276,7 +360,6 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
     final isOff = query.contains('off') || query.contains('disable');
     final isOn = query.contains('on') || query.contains('enable');
 
-    // 1. التباين العالي (High Contrast)
     if (query.contains('contrast') || params['setting'] == 'high_contrast') {
       final current = await settingsRepo.getSettings();
       final enable = isOn ? true : (isOff ? false : !current.isHighContrast);
@@ -291,7 +374,6 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    // 2. الاهتزازات التكتيكية (Haptics)
     if (query.contains('haptic') || params['setting'] == 'haptics') {
       final current = await settingsRepo.getSettings();
       final enable = isOn ? true : (isOff ? false : !current.hapticsEnabled);
@@ -306,7 +388,6 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    // 3. الأصوات ونغمات البوصلة (Sound Cues)
     if (query.contains('sound') || params['setting'] == 'sound_cues') {
       final current = await settingsRepo.getSettings();
       final enable = isOn ? true : (isOff ? false : !current.soundCuesEnabled);
@@ -321,7 +402,6 @@ class UpdateSettingsIntentHandler extends VoiceIntentHandler {
       );
     }
 
-    // 4. سرعة نطق الصوت (Speech Rate)
     if (query.contains('speech rate') || query.contains('speed') || params['setting'] == 'speech_rate') {
       final assistantRepo = context.read<AssistantRepository>();
       final current = await settingsRepo.getSettings();

@@ -4,7 +4,7 @@ import 'package:beacon_os/mobile/agenda/agenda.dart';
 import 'package:beacon_os/mobile/cockpit/cockpit.dart';
 import 'package:beacon_os/mobile/comms/comms.dart';
 import 'package:beacon_os/mobile/focus/focus.dart';
-import 'package:beacon_os/mobile/perimeter/perimeter.dart'; // 👈 استيراد المحيط الأمني
+import 'package:beacon_os/mobile/perimeter/perimeter.dart';
 import 'package:beacon_os/mobile/vision/vision.dart';
 
 /// باني الطوبولوجيا الافتراضية لمنظومة BeaconOS
@@ -15,7 +15,7 @@ SpatialTopology createDefaultSpatialTopology() {
   registry.registerAll([
     CockpitModule.instance,
     FocusModule.instance,
-    PerimeterModule.instance, // 👈 تم التسجيل لمنع إرجاع null
+    PerimeterModule.instance,
     CommsModule.instance,
     VisionModule.instance,
     AgendaModule.instance,
@@ -23,7 +23,9 @@ SpatialTopology createDefaultSpatialTopology() {
 
   final topology = SpatialTopology();
 
-  // 🏠 الطابق الأرضي (Floor 0)
+  // ===========================================================================
+  // 🏠 الطابق الأرضي (Floor 0: Present & Operations)
+  // ===========================================================================
   topology.registerCoordinate(
     coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 0),
     module: CockpitModule.instance,
@@ -61,7 +63,9 @@ SpatialTopology createDefaultSpatialTopology() {
     notify: false,
   );
 
-  // ⚙️ الطابق الأول (Floor 1)
+  // ===========================================================================
+  // ⚙️ الطابق الأول (Floor 1: Future & Tuning)
+  // ===========================================================================
   topology.registerCoordinate(
     coordinate: const SpatialCoordinate(x: 0, y: 0, floor: 1),
     module: CockpitModule.instance,
@@ -96,6 +100,46 @@ SpatialTopology createDefaultSpatialTopology() {
     coordinate: const SpatialCoordinate(x: -1, y: 0, floor: 1),
     module: AgendaModule.instance,
     title: 'Agenda Preferences',
+    notify: false,
+  );
+
+  // ===========================================================================
+  // 🏛️ الطابق السفلي (Floor -1: Past, Vault & Infrastructure)
+  // ===========================================================================
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: 0, floor: -1),
+    module: CockpitModule.instance,
+    title: 'Mesh Hub & Connected Devices',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: 1, floor: -1),
+    module: FocusModule.instance,
+    title: 'Focus Analytics Archive',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: 2, floor: -1),
+    module: PerimeterModule.instance,
+    title: 'Perimeter Activity Archive',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 0, y: -1, floor: -1),
+    module: CommsModule.instance,
+    title: 'Arbitrum Sepolia SOS Ledger',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: 1, y: 0, floor: -1),
+    module: VisionModule.instance,
+    title: 'Vision & OCR Archive',
+    notify: false,
+  );
+  topology.registerCoordinate(
+    coordinate: const SpatialCoordinate(x: -1, y: 0, floor: -1),
+    module: AgendaModule.instance,
+    title: 'Archived Tasks & Notes',
     notify: false,
   );
 

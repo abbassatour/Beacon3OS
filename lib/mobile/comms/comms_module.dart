@@ -2,9 +2,10 @@
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/mobile/comms/intents/comms_intents.dart'; // 👈 مصحح
-import 'package:beacon_os/mobile/comms/view/comms_floor_0_view.dart'; // 👈 مصحح
-import 'package:beacon_os/mobile/comms/view/comms_floor_1_view.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/comms/intents/comms_intents.dart';
+import 'package:beacon_os/mobile/comms/view/comms_floor_0_view.dart';
+import 'package:beacon_os/mobile/comms/view/comms_floor_1_view.dart';
+import 'package:beacon_os/mobile/comms/view/comms_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -33,11 +34,13 @@ class CommsModule extends SpatialModule {
       const SpatialCoordinate(x: 0, y: -1, floor: 0);
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'SAFETY & SOS RADAR PREFERENCES';
+    if (floorLevel == -1) return 'ARBITRUM SEPOLIA SOS LEDGER';
     return title;
   }
 
@@ -74,6 +77,11 @@ class CommsModule extends SpatialModule {
     if (floorLevel == 1) {
       return const CommsFloor1View(
         key: ValueKey('comms_floor_1_view'),
+      );
+    }
+    if (floorLevel == -1) {
+      return const CommsFloorNeg1View(
+        key: ValueKey('comms_floor_neg1_view'),
       );
     }
     return const CommsFloor0StandaloneView(

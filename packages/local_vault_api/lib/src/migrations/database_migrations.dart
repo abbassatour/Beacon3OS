@@ -16,7 +16,7 @@ class DatabaseMigrations {
           AppSettingsCompanion.insert(id: defaultSettingsId),
         );
 
-        // 3. غرس خريطة الفضاء والغرف الأساسية بما فيها غرفة المحيط الأمني (Perimeter)
+        // 3. غرس خريطة الفضاء والغرف الأساسية (الطوابق: -1، 0، 1)
         await seedDefaultSpatialNodes(db);
 
         // 4. غرس كاميرات Ring الافتراضية الأربع
@@ -57,9 +57,12 @@ class DatabaseMigrations {
           await seedDefaultRingDevices(db);
           await seedPerimeterSpatialNodes(db);
         }
-        // 🚀 ترقية الإصدار 11: دعم خيار همس الغرف الصوتي
         if (from < 11) {
           await m.addColumn(db.appSettings, db.appSettings.spatialWhisperEnabled);
+        }
+        // 🚀 ترقية الإصدار 12: غرس عُقد الطابق -1 (Past, Vault & Infrastructure)
+        if (from < 12) {
+          await seedFloorNeg1SpatialNodes(db);
         }
       },
       beforeOpen: (details) async {
@@ -71,18 +74,21 @@ class DatabaseMigrations {
           'CREATE TABLE IF NOT EXISTS device_pairing_meta (key TEXT PRIMARY KEY, val TEXT);',
         );
 
-        // تأمين اكتمال العناوين والكاميرات وغرفة المحيط الأمني في أي قاعدة بيانات مفتوحة
+        // تأمين اكتمال العناوين والكاميرات وعقد الطابق -1 في أي قاعدة بيانات مفتوحة مسبقاً
         await backfillDefaultTitles(db);
         await seedPerimeterSpatialNodes(db);
         await seedDefaultRingDevices(db);
+        await seedFloorNeg1SpatialNodes(db);
       },
     );
   }
 
-  /// غرس الغرف الأساسية الخمس + غرفة المحيط الأمني (Perimeter) في الطابقين 0 و 1
+  /// غرس الغرف الأساسية في كافة الطوابق (-1، 0، 1)
   static Future<void> seedDefaultSpatialNodes(AppDatabase db) async {
     final defaultNodes = <SpatialNodesCompanion>[
-      // --- الطابق الأرضي (Floor 0) ---
+      // ==========================================
+      // 🏠 الطابق الأرضي (Floor 0: Present & Operations)
+      // ==========================================
       const SpatialNodesCompanion(
         id: Value('cockpit_f0'),
         moduleId: Value('cockpit'),
@@ -132,7 +138,9 @@ class DatabaseMigrations {
         customTitle: Value('Agenda & Tasks'),
       ),
 
-      // --- الطابق الأول (Floor 1: Preferences & Tuning) ---
+      // ==========================================
+      // ⚙️ الطابق الأول (Floor 1: Future & Tuning)
+      // ==========================================
       const SpatialNodesCompanion(
         id: Value('cockpit_f1'),
         moduleId: Value('cockpit'),
@@ -181,6 +189,58 @@ class DatabaseMigrations {
         y: Value(0),
         customTitle: Value('Agenda Preferences'),
       ),
+
+      // ==========================================
+      // 🏛️ الطابق السفلي (Floor -1: Past, Vault & Infrastructure)
+      // ==========================================
+      const SpatialNodesCompanion(
+        id: Value('cockpit_f_neg1'),
+        moduleId: Value('cockpit'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(0),
+        customTitle: Value('Mesh Hub & Connected Devices'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('focus_f_neg1'),
+        moduleId: Value('focus'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(1),
+        customTitle: Value('Focus Analytics Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f_neg1'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Perimeter Activity Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('comms_f_neg1'),
+        moduleId: Value('comms'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(-1),
+        customTitle: Value('Arbitrum Sepolia SOS Ledger'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('vision_f_neg1'),
+        moduleId: Value('vision'),
+        floorLevel: Value(-1),
+        x: Value(1),
+        y: Value(0),
+        customTitle: Value('Vision & OCR Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('agenda_f_neg1'),
+        moduleId: Value('agenda'),
+        floorLevel: Value(-1),
+        x: Value(-1),
+        y: Value(0),
+        customTitle: Value('Archived Tasks & Notes'),
+      ),
     ];
 
     for (final node in defaultNodes) {
@@ -188,7 +248,65 @@ class DatabaseMigrations {
     }
   }
 
-  /// غرس غرف المحيط الأمني بشكل مستقل لضمان التوافق مع التحديثات المباشرة دون مسح التعديلات
+  /// غرس غرف الطابق -1 بشكل مستقل لضمان التوافق مع قواعد البيانات الموجودة
+  static Future<void> seedFloorNeg1SpatialNodes(AppDatabase db) async {
+    final floorNeg1Nodes = <SpatialNodesCompanion>[
+      const SpatialNodesCompanion(
+        id: Value('cockpit_f_neg1'),
+        moduleId: Value('cockpit'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(0),
+        customTitle: Value('Mesh Hub & Connected Devices'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('focus_f_neg1'),
+        moduleId: Value('focus'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(1),
+        customTitle: Value('Focus Analytics Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f_neg1'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Perimeter Activity Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('comms_f_neg1'),
+        moduleId: Value('comms'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(-1),
+        customTitle: Value('Arbitrum Sepolia SOS Ledger'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('vision_f_neg1'),
+        moduleId: Value('vision'),
+        floorLevel: Value(-1),
+        x: Value(1),
+        y: Value(0),
+        customTitle: Value('Vision & OCR Archive'),
+      ),
+      const SpatialNodesCompanion(
+        id: Value('agenda_f_neg1'),
+        moduleId: Value('agenda'),
+        floorLevel: Value(-1),
+        x: Value(-1),
+        y: Value(0),
+        customTitle: Value('Archived Tasks & Notes'),
+      ),
+    ];
+
+    for (final node in floorNeg1Nodes) {
+      await db.into(db.spatialNodes).insert(node, mode: InsertMode.insertOrIgnore);
+    }
+  }
+
+  /// غرس غرف المحيط الأمني بشكل مستقل لضمان التوافق
   static Future<void> seedPerimeterSpatialNodes(AppDatabase db) async {
     final perimeterNodes = <SpatialNodesCompanion>[
       const SpatialNodesCompanion(
@@ -207,6 +325,14 @@ class DatabaseMigrations {
         y: Value(2),
         customTitle: Value('Perimeter Camera Tuning'),
       ),
+      const SpatialNodesCompanion(
+        id: Value('perimeter_f_neg1'),
+        moduleId: Value('perimeter'),
+        floorLevel: Value(-1),
+        x: Value(0),
+        y: Value(2),
+        customTitle: Value('Perimeter Activity Archive'),
+      ),
     ];
 
     for (final node in perimeterNodes) {
@@ -214,7 +340,7 @@ class DatabaseMigrations {
     }
   }
 
-  /// غرس أجهزة كاميرات Ring الأربعة لتكون جاهزة للمعاينة فور تشغيل التطبيق أمام الحكام
+  /// غرس أجهزة كاميرات Ring الافتراضية
   static Future<void> seedDefaultRingDevices(AppDatabase db) async {
     final defaultCameras = <RingDevicesCompanion>[
       const RingDevicesCompanion(
@@ -287,6 +413,12 @@ class DatabaseMigrations {
       'comms_f1': 'Safety & SOS Preferences',
       'vision_f1': 'AI Vision Tuning',
       'agenda_f1': 'Agenda Preferences',
+      'cockpit_f_neg1': 'Mesh Hub & Connected Devices',
+      'focus_f_neg1': 'Focus Analytics Archive',
+      'perimeter_f_neg1': 'Perimeter Activity Archive',
+      'comms_f_neg1': 'Arbitrum Sepolia SOS Ledger',
+      'vision_f_neg1': 'Vision & OCR Archive',
+      'agenda_f_neg1': 'Archived Tasks & Notes',
     };
 
     for (final entry in titles.entries) {

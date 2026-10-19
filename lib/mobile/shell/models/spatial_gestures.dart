@@ -2,22 +2,22 @@
 
 /// الكتالوج المركزي الموحد لإيماءات النظام (Spatial Interaction Tokens)
 enum SpatialGesture {
-  // 🏢 1. مصعد الطوابق (Z-Axis Elevator)
+  // 🏢 1. مصعد الطوابق متعدد المستويات (-1, 0, 1)
   ascendToSettings(
     symbol: '👐',
     shortLabel: 'Spread 2 Fingers',
-    visualHint: '👐 Spread 2 fingers to enter Floor 1 (Settings)',
+    visualHint: '👐 Spread 2 fingers apart to ascend floors (Ground to Settings, or Vault to Ground)',
     spokenPrompt:
-        'Elevator activated. Spreading two fingers apart ascends to the Settings floor.',
-    onboardingStepLabel: 'Spread 2 fingers 👐 to dive into Settings Floor',
+        'Elevator activated. Spreading two fingers apart ascends up a floor.',
+    onboardingStepLabel: 'Spread 2 fingers 👐 to ascend to higher floor',
   ),
   descendToGround(
     symbol: '🤏',
     shortLabel: 'Pinch 2 Fingers',
-    visualHint: '🤏 Pinch 2 fingers or tap HUD to return to Cockpit',
+    visualHint: '🤏 Pinch 2 fingers together to descend floors (Settings to Ground, or Ground to Vault)',
     spokenPrompt:
-        'Pinching two fingers together descends back to your Cockpit.',
-    onboardingStepLabel: 'Pinch together 🤏 to return to Ground Floor',
+        'Pinching two fingers together descends down a floor toward your Vault and Mesh Hub.',
+    onboardingStepLabel: 'Pinch together 🤏 to descend floors',
   ),
 
   // 🧭 2. إيماءات الملاحة الفضائية بين الغرف (Two-Finger Compass Pan)
@@ -68,7 +68,7 @@ enum SpatialGesture {
     shortLabel: '2-Finger Double Tap',
     visualHint: 'Double-tap with 2 fingers to hear location',
     spokenPrompt:
-        'Double tap anywhere with two fingers to announce your current room location.',
+        'Double tap anywhere with two fingers to announce your current room location and floor level.',
     onboardingStepLabel: 'Double tap with 2 fingers to hear location',
   ),
 

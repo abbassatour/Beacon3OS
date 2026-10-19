@@ -111,7 +111,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   }
 
   // ===========================================================================
-  // 🏢 1. التحكم الرأسي متعدد الطوابق (Z-Axis Multi-Floor Elevator)
+  // 🏢 1. التحكم الرأسي متعدد الطوابق (Z-Axis Multi-Floor Elevator: -1, 0, 1)
   // ===========================================================================
 
   Future<void> ascend() async {
@@ -172,6 +172,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
 
   Future<void> goToSettingsFloor() => jumpToFloor(1);
   Future<void> returnToGroundFloor() => jumpToFloor(0);
+  Future<void> goToVaultFloor() => jumpToFloor(-1);
 
   void toggleFloor() {
     if (_topology.canAscendFrom(state.currentFloor)) {
@@ -252,14 +253,19 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   }
 
   // ===========================================================================
-  // 🔊 3. النظام الصوتي الموجه للمكفوفين (متطابق 100% مع قاعدة البيانات)
+  // 🔊 3. النظام الصوتي الموجه للمكفوفين (متطابق مع الطوابق الثلاثة)
   // ===========================================================================
 
   Future<void> announceCurrentLocation() async {
     final roomTitle = _topology.titleAtCoordinate(state.currentCoordinate);
-    final floorTitle = state.currentFloor == 0
-        ? 'Ground Floor'
-        : 'Floor ${state.currentFloor}';
+    final String floorTitle;
+    if (state.currentFloor == 0) {
+      floorTitle = 'Ground Floor, Operations';
+    } else if (state.currentFloor < 0) {
+      floorTitle = 'Floor ${state.currentFloor}, Vault and Mesh Hub';
+    } else {
+      floorTitle = 'Floor ${state.currentFloor}, Engine and Settings';
+    }
 
     final announcement = '$roomTitle, $floorTitle.';
 

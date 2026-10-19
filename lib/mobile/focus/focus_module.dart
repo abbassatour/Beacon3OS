@@ -5,6 +5,7 @@ import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/mobile/focus/intents/focus_intents.dart';
 import 'package:beacon_os/mobile/focus/view/focus_floor_0_view.dart';
 import 'package:beacon_os/mobile/focus/view/focus_floor_1_view.dart';
+import 'package:beacon_os/mobile/focus/view/focus_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -36,11 +37,13 @@ class FocusModule extends SpatialModule {
   bool get isVerticallyScrollable => true;
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'FOCUS & ALARMS TUNING';
+    if (floorLevel == -1) return 'FOCUS ANALYTICS ARCHIVE';
     return title;
   }
 
@@ -73,6 +76,11 @@ class FocusModule extends SpatialModule {
     if (floorLevel == 1) {
       return const FocusFloor1View(
         key: ValueKey('focus_floor_1_view'),
+      );
+    }
+    if (floorLevel == -1) {
+      return const FocusFloorNeg1View(
+        key: ValueKey('focus_floor_neg1_view'),
       );
     }
     return const FocusFloor0StandaloneView(

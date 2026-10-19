@@ -78,6 +78,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     with TickerProviderStateMixin {
   late final SpatialCameraController _cameraController;
   StreamSubscription<void>? _topologySubscription;
+  StreamSubscription<RemoteActionEvent>? _remoteActionsSubscription;
 
   @override
   void initState() {
@@ -86,10 +87,20 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final state = context.read<SpatialShellCubit>().state;
+      final shellCubit = context.read<SpatialShellCubit>();
+      final state = shellCubit.state;
       final screenSize = MediaQuery.sizeOf(context);
       _cameraController.snapToCoordinate(state.currentCoordinate, screenSize);
       _cameraController.animateToFloor(state.currentFloor);
+
+      // 🛰️ الاستماع المباشر لأوامر تبديل الطوابق القادمة من أليكسا أو شاشات المنزل
+      final commsRepo = context.read<CommsRepository>();
+      _remoteActionsSubscription = commsRepo.remoteActionEvents.listen((event) {
+        if (event.actionType == RemoteActionType.navigateFloor) {
+          final targetFloor = (event.payload['target_floor'] as num?)?.toInt() ?? 0;
+          shellCubit.jumpToFloor(targetFloor);
+        }
+      });
     });
   }
 
@@ -106,6 +117,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
   @override
   void dispose() {
+    _remoteActionsSubscription?.cancel();
     _topologySubscription?.cancel();
     _cameraController.dispose();
     super.dispose();
@@ -144,11 +156,11 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
         backgroundColor: context.scaffoldBg,
         body: SafeArea(
           child: CornerSwipeDetector(
-            onCornerSwipe: voiceCubit.startSession,
+            onCornerSwipe: () => voiceCubit.startSession(context),
             child: TactileMultiTouchDetector(
               onTripleTapSos: () => _triggerTripleTapSos(context),
               onOrientationPing: shellCubit.announceCurrentLocation,
-              onHoldToSpeakStart: voiceCubit.startSession,
+              onHoldToSpeakStart: () => voiceCubit.startSession(context),
               onHoldToSpeakEnd: () =>
                   voiceCubit.stopAndExecute(context: context),
               onHoldToSpeakCancel: voiceCubit.closeSession,
@@ -231,7 +243,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                             ),
                             const AmbientVoiceOverlay(),
 
-                            // 🔮 كرة التوجيه والمصعد الفضائي الأنيقة:
+                            // 🔮 كرة التوجيه والمصعد الفضائي الأنيقة (3 طوابق):
                             const SpatialNavigationOrb(),
                           ],
                         );
@@ -250,7 +262,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 
 /// 🔮 كرة التوجيه الفضائية التفاعلية (Spatial Gyro Orb)
 /// - اسحب الكرة في أي اتجاه للانتقال بسلاسة بين الغرف
-/// - اضغط ضغطة واحدة لفتح قائمة مصعد الطوابق (Floor 0 / Floor 1)
+/// - اضغط ضغطة واحدة لفتح قائمة مصعد الطوابق الثلاثة (Floor 1 / Floor 0 / Floor -1)
 /// - اضغط ضغطة مطولة للعودة الفورية لمركز اليوم (Cockpit)
 class SpatialNavigationOrb extends StatefulWidget {
   const SpatialNavigationOrb({super.key});
@@ -279,7 +291,7 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // 🏢 قائمة مصعد الطوابق المنبثقة بحركة سلسة
+          // 🏢 قائمة مصعد الطوابق الثلاثة المنبثقة بحركة سلسة
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
             transitionBuilder: (child, animation) {
@@ -335,7 +347,6 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
               if (distance >= _triggerThreshold) {
                 _resolveDirectionAndNavigate(shellCubit);
               }
-              // ارتداد مرن للنواة إلى المركز
               setState(() => _dragOffset = Offset.zero);
             },
             child: _buildOrbBody(colors, currentFloor),
@@ -378,7 +389,7 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
         border: Border.all(
           color: _isMenuOpen
               ? colors.secondary
-              : colors.primary.withValues(alpha: 0.8),
+              : (currentFloor < 0 ? colors.secondary : colors.primary.withValues(alpha: 0.8)),
           width: 1.8,
         ),
         boxShadow: [
@@ -394,7 +405,6 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // خطوط الملاحة المتصالبة الدقيقة
           Container(
             width: 44,
             height: 1,
@@ -405,8 +415,6 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
             height: 44,
             color: colors.outline.withValues(alpha: 0.35),
           ),
-
-          // مؤشرات الاتجاهات الخفيفة
           Positioned(
             top: 4,
             child: Icon(Icons.keyboard_arrow_up_rounded,
@@ -427,8 +435,6 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
             child: Icon(Icons.keyboard_arrow_right_rounded,
                 size: 13, color: colors.onSurfaceVariant.withValues(alpha: 0.6)),
           ),
-
-          // النواة الداخلية المفرغة المتحركة (Gyro Puck)
           Transform.translate(
             offset: _dragOffset,
             child: Container(
@@ -440,7 +446,7 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
                 border: Border.all(
                   color: hasOffset
                       ? colors.secondary
-                      : colors.primary,
+                      : (currentFloor < 0 ? colors.secondary : colors.primary),
                   width: 2.0,
                 ),
                 boxShadow: [
@@ -455,7 +461,9 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
                 child: Text(
                   'F$currentFloor',
                   style: TextStyle(
-                    color: hasOffset ? colors.secondary : colors.primary,
+                    color: hasOffset
+                        ? colors.secondary
+                        : (currentFloor < 0 ? colors.secondary : colors.primary),
                     fontSize: 8.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -505,13 +513,25 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
           ),
           const SizedBox(height: 6),
           _floorItem(
-            label: 'Floor 0 • Cockpit & Studio',
+            label: 'Floor 0 • Cockpit & Operations',
             floor: 0,
             isSelected: currentFloor == 0,
             icon: Icons.dashboard_rounded,
             colors: colors,
             onTap: () {
               cubit.jumpToFloor(0);
+              setState(() => _isMenuOpen = false);
+            },
+          ),
+          const SizedBox(height: 6),
+          _floorItem(
+            label: 'Floor -1 • Vault & Mesh Hub',
+            floor: -1,
+            isSelected: currentFloor == -1,
+            icon: Icons.hub_rounded,
+            colors: colors,
+            onTap: () {
+              cubit.jumpToFloor(-1);
               setState(() => _isMenuOpen = false);
             },
           ),

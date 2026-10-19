@@ -3,7 +3,7 @@ BeaconOS Alexa+ MCP Server (Spec 2025-11-25 / Streamable HTTP Compliant)
 -------------------------------------------------------------------------
 Implements modern Model Context Protocol Streamable HTTP endpoint for Alexa+
 Echo Show Multimodal integration and BeaconOS sovereign phone actuation.
-Updated with RFC-4122 UUIDs, soft-delete awareness, and UTC timestamp consistency.
+Updated with 3-Floor Spatial Navigation (Floor -1, Floor 0, Floor 1) actuation.
 """
 
 import os
@@ -67,7 +67,6 @@ app.add_middleware(
 def _resolve_target_user_id(explicit_id: Optional[str]) -> Optional[str]:
     """
     يضمن تطابق معرّف المستخدم بين أليكسا وتطبيق الهاتف.
-    إذا كان المستخدم 'local_guest_user' أو غير محدد، يبحث عن أول مستخدم نشط في قاعدة البيانات.
     """
     if explicit_id and explicit_id != "local_guest_user":
         return explicit_id
@@ -86,6 +85,68 @@ def _resolve_target_user_id(explicit_id: Optional[str]) -> Optional[str]:
 # ==============================================================================
 # 🛠️ أدوات BEACON OS مع دعم العرض المتعدد (Multimodal UI + Voice)
 # ==============================================================================
+
+async def tool_beacon_navigate_floor(args: Dict[str, Any]) -> Dict[str, Any]:
+    raw_floor = args.get("target_floor", 0)
+    raw_user_id = args.get("user_id")
+    target_user_id = _resolve_target_user_id(raw_user_id)
+
+    # تسوية رقم الطابق
+    if isinstance(raw_floor, str):
+        rf_lower = raw_floor.lower()
+        if "vault" in rf_lower or "mesh" in rf_lower or "archive" in rf_lower or "-1" in rf_lower:
+            target_floor = -1
+        elif "settings" in rf_lower or "engine" in rf_lower or "tuning" in rf_lower or "1" in rf_lower:
+            target_floor = 1
+        else:
+            target_floor = 0
+    else:
+        target_floor = int(raw_floor)
+
+    target_floor = max(-1, min(1, target_floor))
+    now_utc_str = datetime.now(timezone.utc).isoformat()
+    action_id = str(uuid.uuid4())
+
+    floor_names = {
+        1: ("Floor 1: Core Engine & Settings", "Ascending spatial elevator to Floor 1 Settings."),
+        0: ("Floor 0: Today Cockpit Canvas", "Centering spatial camera on Ground Floor Cockpit."),
+        -1: ("Floor -1: Vault & Mesh Hub", "Descending spatial elevator to Floor -1 Vault and Mesh Hub.")
+    }
+    floor_title, speech_desc = floor_names[target_floor]
+
+    if supabase:
+        try:
+            action_payload = {
+                "id": action_id,
+                "action_type": "NAVIGATE_FLOOR",
+                "payload": {
+                    "target_floor": target_floor,
+                    "floor_name": floor_title,
+                    "triggered_from": "alexa_living_room"
+                },
+                "status": "pending",
+                "created_at": now_utc_str
+            }
+            if target_user_id:
+                action_payload["user_id"] = target_user_id
+
+            supabase.table("remote_actions").insert(action_payload).execute()
+            logger.info(f"NAVIGATE_FLOOR record created for Floor {target_floor} (UUID: {action_id})")
+        except Exception as e:
+            logger.error(f"Failed to log NAVIGATE_FLOOR in Supabase: {e}")
+
+    return {
+        "speech": speech_desc,
+        "ui_card": {
+            "type": "spatial_elevator",
+            "title": "SPATIAL ELEVATOR ACTUATION",
+            "target_floor": target_floor,
+            "floor_name": floor_title,
+            "status": "Camera Transition In Progress",
+            "timestamp": now_utc_str
+        }
+    }
+
 
 async def tool_beacon_locate_phone(args: Dict[str, Any]) -> Dict[str, Any]:
     reason = args.get("reason", "Locating phone via Alexa living room voice query")
@@ -149,7 +210,6 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
     if supabase:
         try:
-            # 1. إدراج استغاثة في جدول sos_alerts مع طابع التعديل الزمني
             sos_record = {
                 "id": sos_id,
                 "status": "active",
@@ -166,7 +226,6 @@ async def tool_beacon_trigger_emergency_sos(args: Dict[str, Any]) -> Dict[str, A
 
             supabase.table("sos_alerts").insert(sos_record).execute()
 
-            # 2. إرسال أمر تنبيه فوري للهاتف وسائر شاشات المنزل
             action_record = {
                 "id": action_id,
                 "action_type": "TRIGGER_SOS",
@@ -212,7 +271,6 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
 
     if supabase:
         try:
-            # 🛡️ استبعاد المهام المحذوفة ناعماً لتجنب إخبار المستخدم بمهام قام بحذفها مسبقاً
             query = supabase.table("tasks")\
                 .select("title, priority")\
                 .eq("is_completed", False)\
@@ -228,7 +286,6 @@ async def tool_beacon_get_daily_briefing(args: Dict[str, Any]) -> Dict[str, Any]
                 top_task = tasks[0]["title"]
                 tasks_list = [{"title": t["title"], "priority": t.get("priority", "medium")} for t in tasks]
 
-            # 🛡️ استبعاد المنبهات المحذوفة ناعماً
             alarm_query = supabase.table("alarms")\
                 .select("hour, minute, label")\
                 .eq("is_active", True)\
@@ -276,7 +333,6 @@ async def tool_beacon_create_task(args: Dict[str, Any]) -> Dict[str, Any]:
 
     if supabase:
         try:
-            # 🛡️ إدراج المعرف الفريد وطابع التعديل updated_at ليتعرف عليه محرك LWW المحلي
             payload = {
                 "id": task_id,
                 "title": title,
@@ -453,6 +509,7 @@ async def tool_beacon_simulate_ring_scenario(args: Dict[str, Any]) -> Dict[str, 
 
 
 TOOLS_REGISTRY = {
+    "beacon_navigate_floor": tool_beacon_navigate_floor,
     "beacon_locate_phone": tool_beacon_locate_phone,
     "beacon_trigger_emergency_sos": tool_beacon_trigger_emergency_sos,
     "beacon_get_daily_briefing": tool_beacon_get_daily_briefing,
@@ -468,9 +525,6 @@ TOOLS_REGISTRY = {
 
 @app.get("/mcp")
 async def handle_streamable_get(request: Request):
-    """
-    قناة Server-Sent Events (SSE) للاستماع المستمر وفق مواصفة 2025-11-25.
-    """
     async def sse_event_stream():
         yield ": keep-alive\n\n"
         init_event = {
@@ -495,9 +549,6 @@ async def handle_streamable_get(request: Request):
 
 @app.post("/mcp")
 async def handle_streamable_post(request: Request):
-    """
-    نقطة المعالجة الرئيسية لبروتوكول JSON-RPC 2.0 عبر HTTP POST.
-    """
     try:
         body = await request.json()
     except Exception:
@@ -522,7 +573,7 @@ async def handle_streamable_post(request: Request):
             },
             "serverInfo": {
                 "name": "BeaconOS-LivingRoom-Bridge",
-                "version": "2.1.0"
+                "version": "2.2.0"
             }
         }
         return Response(
@@ -533,6 +584,22 @@ async def handle_streamable_post(request: Request):
     # 2. سرد الأدوات المتاحة
     elif method == "tools/list":
         tools_list = [
+            {
+                "name": "beacon_navigate_floor",
+                "description": "Switch the user's phone spatial camera between floors: Floor 1 (Settings), Floor 0 (Cockpit), or Floor -1 (Vault & Mesh Hub)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "target_floor": {
+                            "type": "integer",
+                            "enum": [-1, 0, 1],
+                            "description": "Target floor level (-1 for Vault/Mesh, 0 for Cockpit, 1 for Settings)"
+                        },
+                        "user_id": {"type": "string"}
+                    },
+                    "required": ["target_floor"]
+                }
+            },
             {
                 "name": "beacon_locate_phone",
                 "description": "Trigger acoustic siren, flash strobing, and tactile vibration on misplaced phone",
@@ -658,11 +725,9 @@ async def handle_streamable_post(request: Request):
         }
         return Response(content=json.dumps(response_body), headers=response_headers)
 
-    # 4. إشعار بدء الجلسة
     elif method == "notifications/initialized":
         return Response(status_code=status.HTTP_202_ACCEPTED, headers=response_headers)
 
-    # 5. طريقة غير معروفة
     else:
         return Response(
             content=json.dumps({"jsonrpc": "2.0", "id": jsonrpc_id, "error": {"code": -32601, "message": "Method not found"}}),

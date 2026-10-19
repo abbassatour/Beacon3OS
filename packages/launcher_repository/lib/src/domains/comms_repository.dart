@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
+import 'package:equatable/equatable.dart';
 import 'package:launcher_repository/src/domains/services/contacts_reconciliation_service.dart';
 import 'package:launcher_repository/src/mappers/comms_mapper.dart';
 import 'package:launcher_repository/src/models/contact_entity.dart';
@@ -14,10 +15,43 @@ import 'package:local_vault_api/local_vault_api.dart' as db;
 import 'package:system_hardware_api/system_hardware_api.dart';
 import 'package:uuid/uuid.dart';
 
-export 'package:cloud_sync_api/cloud_sync_api.dart' show SyncTransportMode;
+export 'package:cloud_sync_api/cloud_sync_api.dart'
+    show LocalNodeInfo, SyncTransportMode;
 export 'package:launcher_repository/src/models/contact_entity.dart';
 export 'package:launcher_repository/src/models/message_entity.dart';
 export 'package:launcher_repository/src/models/remote_action_event.dart';
+
+/// كائن يمثل سجل استغاثة طوارئ موثق في الخزنة وعلى البلوكتشين
+class SosAlertRecord extends Equatable {
+  const SosAlertRecord({
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.batteryLevel,
+    required this.status,
+    required this.googleMapsUrl,
+    required this.triggeredAt,
+  });
+
+  final String id;
+  final double latitude;
+  final double longitude;
+  final int batteryLevel;
+  final String status;
+  final String googleMapsUrl;
+  final DateTime triggeredAt;
+
+  @override
+  List<Object?> get props => [
+        id,
+        latitude,
+        longitude,
+        batteryLevel,
+        status,
+        googleMapsUrl,
+        triggeredAt,
+      ];
+}
 
 abstract class CommsRepository {
   Stream<List<ContactEntity>> watchContacts();
@@ -60,8 +94,15 @@ abstract class CommsRepository {
     int? batteryLevel,
   });
 
+  /// 📜 مراقبة سجل استغاثات الطوارئ SOS التاريخية
+  Stream<List<SosAlertRecord>> watchSosHistory();
+
   /// 🛰️ تدفق الأحداث السحابية والمحلية الموحدة (Locate, SOS, Mutations)
   Stream<RemoteActionEvent> get remoteActionEvents;
+
+  /// 📡 تدفق وقائمة الأجهزة النشطة المكتشفة في شبكة الـ Mesh المحلية
+  Stream<List<LocalNodeInfo>> get activeMeshNodesStream;
+  List<LocalNodeInfo> get activeMeshNodes;
 
   /// 🚨 تنفيذ بروتوكول وميض الكشاف والاهتزاز لتحديد موقع الهاتف
   Future<void> executeLocateDevice({int pulseCycles = 8});
@@ -169,6 +210,13 @@ class CommsRepositoryImpl implements CommsRepository {
   SyncTransportMode get currentTransportMode => _hybridSync.currentMode;
 
   @override
+  Stream<List<LocalNodeInfo>> get activeMeshNodesStream =>
+      _hybridSync.activePeersStream;
+
+  @override
+  List<LocalNodeInfo> get activeMeshNodes => _hybridSync.activePeers;
+
+  @override
   void registerLocateHandler(Future<void> Function() handler) {
     _locateHandler = handler;
   }
@@ -253,12 +301,10 @@ class CommsRepositoryImpl implements CommsRepository {
     }
   }
 
-  /// حقن لقطة الخزنة الكاملة مع حماية الطابع الزمني وتجنب إحياء المحذوفات
   Future<void> _handleInboundVaultSnapshot(Map<String, dynamic> payload) async {
     await _handleInboundVaultDelta(payload);
   }
 
-  /// تطبيق التغييرات التفاضلية بفض النزاعات المبني على الطابع الزمني LWW
   Future<void> _handleInboundVaultDelta(Map<String, dynamic> payload) async {
     try {
       final rawTasks = payload['tasks'] as List<dynamic>? ?? [];
@@ -274,7 +320,6 @@ class CommsRepositoryImpl implements CommsRepository {
       final contactsMap = {for (final c in localContacts) c.id: c};
 
       await _db.batch((batch) {
-        // --- 1. تسوية المهام التفاضلية ---
         for (final item in rawTasks) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
@@ -288,10 +333,9 @@ class CommsRepositoryImpl implements CommsRepository {
                 : null;
 
             final local = tasksMap[id];
-
-            // التحقق من مبدأ LWW: هل التحديث الوارد أحدث من السجل المحلي؟
             final shouldApply = local == null ||
-                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt)) ||
+                (local.isSynced);
 
             if (shouldApply) {
               if (inboundDeleted != null) {
@@ -321,7 +365,6 @@ class CommsRepositoryImpl implements CommsRepository {
           }
         }
 
-        // --- 2. تسوية المنبهات التفاضلية ---
         for (final item in rawAlarms) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
@@ -336,7 +379,8 @@ class CommsRepositoryImpl implements CommsRepository {
 
             final local = alarmsMap[id];
             final shouldApply = local == null ||
-                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt)) ||
+                (local.isSynced);
 
             if (shouldApply) {
               if (inboundDeleted != null) {
@@ -364,7 +408,6 @@ class CommsRepositoryImpl implements CommsRepository {
           }
         }
 
-        // --- 3. تسوية جهات الاتصال التفاضلية ---
         for (final item in rawContacts) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
@@ -379,7 +422,8 @@ class CommsRepositoryImpl implements CommsRepository {
 
             final local = contactsMap[id];
             final shouldApply = local == null ||
-                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt));
+                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt)) ||
+                (local.isSynced);
 
             if (shouldApply) {
               if (inboundDeleted != null) {
@@ -707,7 +751,6 @@ class CommsRepositoryImpl implements CommsRepository {
     return _hybridSync.dispatchLocatePhone(reason: reason);
   }
 
-  /// تسوية جهات الاتصال السحابية الواردة لحظياً وفق مبدأ LWW الزمني
   Future<void> _handleCloudRealtimeContacts(List<Map<String, dynamic>> cloudContacts) async {
     try {
       if (cloudContacts.isEmpty) return;
@@ -730,8 +773,6 @@ class CommsRepositoryImpl implements CommsRepository {
               deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
 
           final local = localMap[id];
-
-          // فض النزاع: هل التحديث السحابي أحدث من السجل المحلي؟
           final shouldApply = local == null ||
               (cloudUpdated != null && cloudUpdated.isAfter(local.updatedAt)) ||
               (local.isSynced);
@@ -1019,7 +1060,7 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   // ===========================================================================
-  // 🚨 استغاثة الطوارئ SOS
+  // 🚨 استغاثة الطوارئ SOS وسجل البلوكتشين
   // ===========================================================================
 
   @override
@@ -1081,10 +1122,28 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
+  Stream<List<SosAlertRecord>> watchSosHistory() {
+    return (_db.select(_db.sosAlerts)
+          ..where((s) => s.deletedAt.isNull())
+          ..orderBy([(s) => OrderingTerm.desc(s.triggeredAt)]))
+        .watch()
+        .map((rows) => rows
+            .map((r) => SosAlertRecord(
+                  id: r.id,
+                  latitude: r.latitude,
+                  longitude: r.longitude,
+                  batteryLevel: r.batteryLevel,
+                  status: r.status,
+                  googleMapsUrl: r.googleMapsUrl,
+                  triggeredAt: r.triggeredAt,
+                ))
+            .toList());
+  }
+
+  @override
   Future<void> restoreCommsFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      // 🔄 استرجاع جهات الاتصال التفاضلي (يشمل التغييرات وحالات الحذف)
       final cloudContacts = await _cloud.fetchContactsDelta();
       if (cloudContacts.isEmpty) return;
 
@@ -1268,7 +1327,6 @@ class CommsRepositoryImpl implements CommsRepository {
         _hybridSync.updateLinkedVaultId(masterVaultId);
         log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
 
-        // ⚡ بث فوري لأحدث التغييرات للأجهزة بعد الاقتران
         unawaited(sendVaultDeltaToPeers());
       }
       return success;

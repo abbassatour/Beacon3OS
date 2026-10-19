@@ -22,6 +22,10 @@ abstract class FocusAlarmsRepository {
   Future<void> deleteAlarm(dynamic alarmOrId);
 
   Stream<List<FocusSessionEntity>> watchTodayFocusSessions();
+
+  /// ⏳ مراقبة كافة جلسات التركيز المكتملة تاريخياً (أرشيف الطابق -1)
+  Stream<List<FocusSessionEntity>> watchAllFocusSessions();
+
   Future<String> recordCompletedFocusSession(int minutes);
   Future<void> syncPendingAlarms();
 
@@ -118,6 +122,17 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   @override
   Stream<List<FocusSessionEntity>> watchTodayFocusSessions() {
     return _db.watchTodayFocusSessions().map(
+          (driftSessions) => driftSessions.map((s) => s.toEntity()).toList(),
+        );
+  }
+
+  @override
+  Stream<List<FocusSessionEntity>> watchAllFocusSessions() {
+    return (_db.select(_db.focusSessions)
+          ..where((s) => s.deletedAt.isNull())
+          ..orderBy([(s) => OrderingTerm.desc(s.completedAt)]))
+        .watch()
+        .map(
           (driftSessions) => driftSessions.map((s) => s.toEntity()).toList(),
         );
   }
@@ -236,7 +251,6 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   Future<void> restoreAlarmsFromCloud() async {
     if (!_cloud.isAuthenticated) return;
     try {
-      // 🔄 استرجاع تفاضلي يشمل المحذوفات والتعديلات
       final cloudAlarms = await _cloud.fetchAlarmsDelta();
       if (cloudAlarms.isNotEmpty) {
         final localAlarms = await _db.select(_db.alarms).get();

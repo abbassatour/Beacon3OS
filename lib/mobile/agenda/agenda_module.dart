@@ -5,6 +5,7 @@ import 'package:beacon_os/core/voice_bus/voice_bus.dart';
 import 'package:beacon_os/mobile/agenda/intents/agenda_intents.dart';
 import 'package:beacon_os/mobile/agenda/view/agenda_floor_0_view.dart';
 import 'package:beacon_os/mobile/agenda/view/agenda_floor_1_view.dart';
+import 'package:beacon_os/mobile/agenda/view/agenda_floor_neg1_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -36,11 +37,13 @@ class AgendaModule extends SpatialModule {
   bool get isVerticallyScrollable => true;
 
   @override
-  bool supportsFloor(int floorLevel) => floorLevel == 0 || floorLevel == 1;
+  bool supportsFloor(int floorLevel) =>
+      floorLevel == -1 || floorLevel == 0 || floorLevel == 1;
 
   @override
   String getFloorTitle(int floorLevel) {
     if (floorLevel == 1) return 'AGENDA PREFERENCES';
+    if (floorLevel == -1) return 'ARCHIVED TASKS & NOTES';
     return title;
   }
 
@@ -74,6 +77,11 @@ class AgendaModule extends SpatialModule {
     if (floorLevel == 1) {
       return const AgendaFloor1View(
         key: ValueKey('agenda_floor_1_view'),
+      );
+    }
+    if (floorLevel == -1) {
+      return const AgendaFloorNeg1StandaloneView(
+        key: ValueKey('agenda_floor_neg1_standalone_view'),
       );
     }
     return const AgendaFloor0StandaloneView(
