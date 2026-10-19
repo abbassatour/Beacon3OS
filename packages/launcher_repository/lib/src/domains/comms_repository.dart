@@ -108,6 +108,12 @@ abstract class CommsRepository {
   Future<bool> isDeviceLinked();
   Future<String?> getLinkedVaultId();
   Future<void> unpairDevice();
+
+  /// ⚡ طلب لقطة الخزنة المباشرة من الهاتف عبر شبكة LAN
+  Future<void> requestVaultSnapshot();
+
+  /// ⚡ إرسال لقطة الخزنة المحلية لجميع الأجهزة المقترنة بالشبكة
+  Future<void> sendVaultSnapshotToPeers();
 }
 
 class CommsRepositoryImpl implements CommsRepository {
@@ -187,9 +193,23 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   void _handleUnifiedIncomingMessage(P2pMessage message) {
+    // 1. معالجة طلب لقطة الخزنة الوارد من الشاشة
+    if (message.type == P2pMessageType.vaultSyncRequest) {
+      log('CommsRepository: 📥 Peer requested vault snapshot via LAN. Packaging and responding...');
+      unawaited(sendVaultSnapshotToPeers());
+      return;
+    }
+
+    // 2. معالجة لقطة الخزنة الواردة من الهاتف وحقنها فورياً
+    if (message.type == P2pMessageType.vaultSyncResponse) {
+      log('CommsRepository: 📥 Received inbound vault snapshot from peer via LAN. Hydrating database...');
+      unawaited(_handleInboundVaultSnapshot(message.payload));
+      return;
+    }
+
     final event = RemoteActionEvent.fromP2pMessage(message);
 
-    // ⚡ معالجة تحديثات الخزنة المحلية عبر المقابس لكافة الجداول
+    // ⚡ معالجة تحديثات الخزنة الفردية عبر المقابس
     if (message.type == P2pMessageType.vaultMutation) {
       final table = message.payload['table'] as String?;
       if (table == 'contacts') {
@@ -209,6 +229,135 @@ class CommsRepositoryImpl implements CommsRepository {
     if (event.actionType == RemoteActionType.locateDevice) {
       executeLocateDevice();
     }
+  }
+
+  /// حقن لقطة الخزنة الكاملة في قاعدة بيانات Drift دفعة واحدة
+  Future<void> _handleInboundVaultSnapshot(Map<String, dynamic> payload) async {
+    try {
+      final rawTasks = payload['tasks'] as List<dynamic>? ?? [];
+      final rawAlarms = payload['alarms'] as List<dynamic>? ?? [];
+      final rawContacts = payload['contacts'] as List<dynamic>? ?? [];
+
+      await _db.batch((batch) {
+        for (final item in rawTasks) {
+          if (item is Map<String, dynamic>) {
+            final id = item['id'] as String?;
+            final title = item['title'] as String?;
+            if (id != null && title != null) {
+              DateTime? due;
+              if (item['due_date'] != null) {
+                due = DateTime.tryParse(item['due_date'].toString());
+              }
+              batch.insert(
+                _db.tasks,
+                db.TasksCompanion.insert(
+                  id: id,
+                  title: title,
+                  dueDate: Value(due?.toUtc()),
+                  priority: Value(item['priority'] as String? ?? 'medium'),
+                  isCompleted: Value(item['is_completed'] as bool? ?? false),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
+        }
+
+        for (final item in rawAlarms) {
+          if (item is Map<String, dynamic>) {
+            final id = item['id'] as String?;
+            final hour = (item['hour'] as num?)?.toInt();
+            final minute = (item['minute'] as num?)?.toInt();
+            if (id != null && hour != null && minute != null) {
+              batch.insert(
+                _db.alarms,
+                db.AlarmsCompanion.insert(
+                  id: id,
+                  hour: hour,
+                  minute: minute,
+                  label: Value(item['label'] as String? ?? 'Beacon Alarm'),
+                  daysOfWeek: Value(item['days_of_week'] as String? ?? 'daily'),
+                  isActive: Value(item['is_active'] as bool? ?? true),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
+        }
+
+        for (final item in rawContacts) {
+          if (item is Map<String, dynamic>) {
+            final id = item['id'] as String?;
+            final name = item['name'] as String?;
+            final phone = item['phone_number'] as String?;
+            if (id != null && name != null && phone != null) {
+              batch.insert(
+                _db.contacts,
+                db.ContactsCompanion.insert(
+                  id: id,
+                  name: name,
+                  phoneNumber: phone,
+                  relationship: Value(item['relationship'] as String?),
+                  isEmergency: Value(item['is_emergency'] as bool? ?? false),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
+        }
+      });
+
+      log('CommsRepository: ⚡ Hydrated database via LAN: ${rawTasks.length} tasks, ${rawAlarms.length} alarms, ${rawContacts.length} contacts.');
+    } catch (e, st) {
+      log('CommsRepository: Error applying inbound vault snapshot: $e', stackTrace: st);
+    }
+  }
+
+  @override
+  Future<void> sendVaultSnapshotToPeers() async {
+    try {
+      final tasks = await (_db.select(_db.tasks)..where((t) => t.deletedAt.isNull())).get();
+      final alarms = await (_db.select(_db.alarms)..where((a) => a.deletedAt.isNull())).get();
+      final contacts = await (_db.select(_db.contacts)..where((c) => c.deletedAt.isNull())).get();
+
+      final snapshot = {
+        'tasks': tasks.map((t) => {
+          'id': t.id,
+          'title': t.title,
+          'due_date': t.dueDate?.toIso8601String(),
+          'priority': t.priority,
+          'is_completed': t.isCompleted,
+        }).toList(),
+        'alarms': alarms.map((a) => {
+          'id': a.id,
+          'hour': a.hour,
+          'minute': a.minute,
+          'label': a.label,
+          'days_of_week': a.daysOfWeek,
+          'is_active': a.isActive,
+        }).toList(),
+        'contacts': contacts.map((c) => {
+          'id': c.id,
+          'name': c.name,
+          'phone_number': c.phoneNumber,
+          'relationship': c.relationship,
+          'is_emergency': c.isEmergency,
+        }).toList(),
+      };
+
+      _hybridSync.sendVaultSnapshot(snapshot);
+      log('CommsRepository: 📤 Dispatched vault snapshot to peers (${tasks.length} tasks, ${alarms.length} alarms, ${contacts.length} contacts).');
+    } catch (e, st) {
+      log('CommsRepository: Error sending vault snapshot: $e', stackTrace: st);
+    }
+  }
+
+  @override
+  Future<void> requestVaultSnapshot() async {
+    _hybridSync.requestVaultSync();
   }
 
   Future<void> _handleInboundContactMutation(Map<String, dynamic> payload) async {
@@ -943,6 +1092,9 @@ class CommsRepositoryImpl implements CommsRepository {
         _hybridSync.updatePairingCode(cleanCode);
         _hybridSync.updateLinkedVaultId(masterVaultId);
         log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
+
+        // ⚡ فور نجاح الاقتران، يبث الهاتف فوراً لقطة الخزنة للشاشة
+        unawaited(sendVaultSnapshotToPeers());
       }
       return success;
     } catch (e) {

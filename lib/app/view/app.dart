@@ -160,7 +160,16 @@ class _AppState extends State<App> {
       }
     });
 
-    // 📱 طلب الأذونات فقط على بيئات الهاتف المحمول
+    // 🌐 5. تشغيل محرك النقل الهجين والـ P2P للهاتف المحمول فور الإقلاع
+    if (!_isDesktop && !_isTv) {
+      unawaited(
+        widget._launcherRepository.comms.initializeHybridTransport(
+          deviceType: 'phone',
+        ),
+      );
+    }
+
+    // 📱 6. طلب الأذونات فقط على بيئات الهاتف المحمول
     if (!_isDesktop && !_isTv) {
       Future.delayed(const Duration(milliseconds: 1200), () {
         if (mounted) {

@@ -110,7 +110,10 @@ class TvShellCubit extends Cubit<TvShellState> {
             isDeviceLinked: true,
           ),
         );
-        // 📥 استرجاع البيانات فورياً في الخلفية في حالة كان التلفاز مقترناً مسبقاً
+        // ⚡ طلب لقطة الخزنة فوراً عبر شبكة الـ LAN المحلية
+        unawaited(_commsRepo.requestVaultSnapshot());
+
+        // 📥 استرجاع البيانات سحابياً كمسار بديل في الخلفية
         unawaited(_launcherRepo?.restoreVaultFromCloud());
       } else {
         await startNewPairingSession();
@@ -178,7 +181,10 @@ class TvShellCubit extends Cubit<TvShellState> {
       ),
     );
 
-    // 📥 حقن بيانات الخزنة المقترنة فوراً (مهام، منبهات، جهات اتصال، إعدادات)
+    // ⚡ 1. سحب بيانات الخزنة المباشرة من الهاتف فوراً عبر LAN P2P
+    unawaited(_commsRepo.requestVaultSnapshot());
+
+    // 📥 2. الاسترجاع السحابي كمسار إضافي موازٍ
     try {
       if (_launcherRepo != null) {
         await _launcherRepo!.restoreVaultFromCloud();
@@ -295,6 +301,8 @@ class TvShellCubit extends Cubit<TvShellState> {
     if (mode == SyncTransportMode.lanDirect) {
       _sound.play(SoundCue.success);
       _assistant.speak('Living room screen linked via high-speed home network.');
+      // ⚡ فور اكتشاف اتصال الـ LAN، نطلب أحدث نسخة بيانات من الهاتف
+      unawaited(_commsRepo.requestVaultSnapshot());
     } else if (mode == SyncTransportMode.cloudRelay &&
         prevMode == SyncTransportMode.lanDirect) {
       _assistant.speak('Local connection paused. Switched to cloud relay.');

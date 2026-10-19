@@ -31,6 +31,7 @@ class CommsCubit extends Cubit<CommsState> {
   final SoundController _sound;
 
   StreamSubscription<List<ContactEntity>>? _contactsSubscription;
+  StreamSubscription<SyncTransportMode>? _transportSubscription;
 
   void _initStreams() {
     emit(state.copyWith(status: CommsStatus.loading));
@@ -59,6 +60,26 @@ class CommsCubit extends Cubit<CommsState> {
         }
       },
     );
+
+    // 🌟 مراقبة حالة اتصال الشبكة والاقتران
+    _transportSubscription = _commsRepo.transportModeStream.listen((_) {
+      _refreshLinkStatus();
+    });
+
+    _refreshLinkStatus();
+  }
+
+  Future<void> _refreshLinkStatus() async {
+    if (isClosed) return;
+    final isLinked = await _commsRepo.isDeviceLinked();
+    final linkedId = await _commsRepo.getLinkedVaultId();
+    if (!isClosed) {
+      emit(state.copyWith(
+        isDeviceLinked: isLinked,
+        linkedVaultId: linkedId,
+        clearLinkedVaultId: !isLinked,
+      ));
+    }
   }
 
   Future<void> callContact(ContactEntity contact) async {
@@ -121,7 +142,6 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  /// تبديل حالة الطوارئ لجهة الاتصال بأمان دون حذف السجل وإعادة إنشائه
   Future<void> toggleEmergencyStatus(ContactEntity contact) async {
     try {
       await _haptics.successNotification();
@@ -179,7 +199,6 @@ class CommsCubit extends Cubit<CommsState> {
     }
   }
 
-  /// مزامنة دفتر هواتف الجهاز وتسويتها داخل الخزنة المشفرة
   Future<void> syncDeviceContacts() async {
     if (state.isSyncingContacts) return;
 
@@ -190,7 +209,6 @@ class CommsCubit extends Cubit<CommsState> {
 
     final result = await _commsRepo.syncDeviceContactsToVault();
 
-    // 🛡️ إذا كان الإذن محجوباً، نوجه المستخدم صوتياً بوضوح
     if (result.permissionDenied) {
       await _haptics.errorAlert();
       await _sound.play(SoundCue.error);
@@ -239,9 +257,59 @@ class CommsCubit extends Cubit<CommsState> {
     return 'Contacts reconciled: ${summaryParts.join(', ')}.';
   }
 
+  // ===========================================================================
+  // 🌟 الاقتران اليدوي من الهاتف
+  // ===========================================================================
+
+  Future<void> authorizePairingCode(String code) async {
+    try {
+      _haptics.selectionClick();
+      await _sound.play(SoundCue.processing);
+
+      final sovereignDid = Web3Service.instance.walletAddressHex.toLowerCase();
+      final success = await _commsRepo.authorizePairingCode(
+        code,
+        customVaultId: sovereignDid,
+      );
+
+      if (success) {
+        await _haptics.successNotification();
+        await _sound.play(SoundCue.success);
+        await _assistant.speak('Living room display successfully linked.');
+        await _refreshLinkStatus();
+      } else {
+        await _haptics.errorAlert();
+        await _sound.play(SoundCue.error);
+        if (!isClosed) {
+          emit(state.copyWith(
+            status: CommsStatus.error,
+            errorMessage: 'Pairing failed. Code may be incorrect or expired.',
+          ));
+        }
+        await _assistant.speak('Pairing failed. Please check the code.');
+      }
+    } catch (e) {
+      await _haptics.errorAlert();
+    }
+  }
+
+  Future<void> unpairDevice() async {
+    try {
+      _haptics.selectionClick();
+      await _commsRepo.unpairDevice();
+      await _haptics.successNotification();
+      await _sound.play(SoundCue.success);
+      await _assistant.speak('Device unpaired successfully.');
+      await _refreshLinkStatus();
+    } catch (e) {
+      await _haptics.errorAlert();
+    }
+  }
+
   @override
   Future<void> close() {
     _contactsSubscription?.cancel();
+    _transportSubscription?.cancel();
     return super.close();
   }
 }

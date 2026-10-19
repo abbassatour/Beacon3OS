@@ -359,9 +359,10 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
   @override
   int get priority => 90;
 
+  // 🌟 تحديث النمط ليقبل أي نص بعد كلمة Pair لنتعامل مع الكلمات والأرقام معاً
   @override
   RegExp get fastPathPattern => RegExp(
-        r'^(?:pair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*([0-9][0-9\s-]{4,8}[0-9])',
+        r'^(?:pair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*(.+)',
         caseSensitive: false,
       );
 
@@ -375,6 +376,30 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
             'The 6-digit numeric pairing code displayed on the target screen.',
       };
 
+  /// 🌟 مساعد ذكي لتحويل الكلمات المنطوقة إلى أرقام لتفادي أخطاء الـ Speech-to-Text
+  String _convertWordsToDigits(String input) {
+    const map = {
+      'zero': '0', 'oh': '0',
+      'one': '1', 'won': '1',
+      'two': '2', 'to': '2', 'too': '2',
+      'three': '3', 'tree': '3',
+      'four': '4', 'for': '4',
+      'five': '5',
+      'six': '6',
+      'seven': '7',
+      'eight': '8', 'ate': '8',
+      'nine': '9',
+    };
+    
+    var res = input.toLowerCase();
+    map.forEach((key, value) {
+      res = res.replaceAll(RegExp(r'\b' + key + r'\b'), value);
+    });
+    
+    // إزالة أي شيء ليس رقماً
+    return res.replaceAll(RegExp(r'\D'), '');
+  }
+
   @override
   Future<LauncherCommandResult> execute(
     BuildContext context,
@@ -383,20 +408,21 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
     final commsRepo = context.read<CommsRepository>();
     final params = intentContext.llmParameters;
 
-    String rawCode = '';
+    String rawInput = '';
 
-    // 1. استخراج الأرقام من التعبير النمطي للمسار السريع (Sub-5ms)
+    // 1. استخراج النص من التعبير النمطي للمسار السريع (Sub-5ms)
     final match = fastPathPattern?.firstMatch(intentContext.rawQuery);
     if (match != null && match.groupCount >= 1) {
-      rawCode = match.group(1)?.trim() ?? '';
+      rawInput = match.group(1)?.trim() ?? '';
     }
 
     // 2. استخراج الأرقام من معطيات الذكاء الاصطناعي كخيار بديل
-    if (rawCode.isEmpty && params.containsKey('pairing_code')) {
-      rawCode = params['pairing_code'] as String? ?? '';
+    if (rawInput.isEmpty && params.containsKey('pairing_code')) {
+      rawInput = params['pairing_code'] as String? ?? '';
     }
 
-    final cleanCode = rawCode.replaceAll(RegExp(r'\D'), '');
+    // 3. تحويل الكلمات الإنجليزية للأرقام، ثم تنظيف النص
+    final cleanCode = _convertWordsToDigits(rawInput);
 
     if (cleanCode.length != 6) {
       return const LauncherCommandResult(

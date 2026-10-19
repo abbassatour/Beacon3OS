@@ -11,6 +11,8 @@ class CommsState extends Equatable {
     this.recentMessages = const [],
     this.isSosBroadcasting = false,
     this.isSyncingContacts = false,
+    this.isDeviceLinked = false, // 👈 تمت الإضافة
+    this.linkedVaultId, // 👈 تمت الإضافة
     this.errorMessage,
   });
 
@@ -19,6 +21,8 @@ class CommsState extends Equatable {
   final List<MessageEntity> recentMessages;
   final bool isSosBroadcasting;
   final bool isSyncingContacts;
+  final bool isDeviceLinked;
+  final String? linkedVaultId;
   final String? errorMessage;
 
   /// جهات اتصال الطوارئ مرتبة أبجدياً
@@ -41,7 +45,11 @@ class CommsState extends Equatable {
     List<MessageEntity>? recentMessages,
     bool? isSosBroadcasting,
     bool? isSyncingContacts,
+    bool? isDeviceLinked,
+    String? linkedVaultId,
+    bool clearLinkedVaultId = false,
     String? errorMessage,
+    bool clearErrorMessage = false,
   }) {
     return CommsState(
       status: status ?? this.status,
@@ -49,7 +57,9 @@ class CommsState extends Equatable {
       recentMessages: recentMessages ?? this.recentMessages,
       isSosBroadcasting: isSosBroadcasting ?? this.isSosBroadcasting,
       isSyncingContacts: isSyncingContacts ?? this.isSyncingContacts,
-      errorMessage: errorMessage,
+      isDeviceLinked: isDeviceLinked ?? this.isDeviceLinked,
+      linkedVaultId: clearLinkedVaultId ? null : (linkedVaultId ?? this.linkedVaultId),
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
     );
   }
 
@@ -60,6 +70,8 @@ class CommsState extends Equatable {
         recentMessages,
         isSosBroadcasting,
         isSyncingContacts,
+        isDeviceLinked,
+        linkedVaultId,
         errorMessage,
       ];
 }

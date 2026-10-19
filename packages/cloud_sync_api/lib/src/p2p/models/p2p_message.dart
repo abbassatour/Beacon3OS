@@ -1,3 +1,4 @@
+// packages/cloud_sync_api/lib/src/p2p/models/p2p_message.dart
 import 'dart:convert';
 import 'dart:developer';
 
@@ -11,6 +12,8 @@ enum P2pMessageType {
   vaultMutation,
   telemetry,
   devicePairing,
+  vaultSyncRequest,  // 👈 طلب مزامنة لقطة الخزنة الكاملة من الشاشة للهاتف
+  vaultSyncResponse, // 👈 إرسال لقطة الخزنة من الهاتف للشاشة بحجم خفيف وسرعة فائقة
   unknown,
 }
 
