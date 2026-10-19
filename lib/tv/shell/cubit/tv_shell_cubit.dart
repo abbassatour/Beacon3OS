@@ -13,10 +13,12 @@ class TvShellCubit extends Cubit<TvShellState> {
     required CommsRepository commsRepository,
     required AssistantRepository assistantRepository,
     required RingRepository ringRepository,
+    LauncherRepository? launcherRepository,
     SoundController? soundController,
   })  : _commsRepo = commsRepository,
         _assistant = assistantRepository,
         _ringRepo = ringRepository,
+        _launcherRepo = launcherRepository,
         _sound = soundController ?? SoundController.instance,
         super(TvShellState(currentTime: DateTime.now())) {
     _initEngine();
@@ -25,6 +27,7 @@ class TvShellCubit extends Cubit<TvShellState> {
   final CommsRepository _commsRepo;
   final AssistantRepository _assistant;
   final RingRepository _ringRepo;
+  final LauncherRepository? _launcherRepo;
   final SoundController _sound;
 
   Timer? _clockTimer;
@@ -72,7 +75,6 @@ class TvShellCubit extends Cubit<TvShellState> {
     });
   }
 
-  /// إيقاظ الشاشة من وضع الخمول عند الضغط على أي زر في الريموت
   void wakeFromAmbient() {
     _resetScreensaverTimer();
     if (state.isAmbient) {
@@ -83,7 +85,7 @@ class TvShellCubit extends Cubit<TvShellState> {
   }
 
   // ===========================================================================
-  // 🛰️ 2. النقل الهجين والاقتران اللاتمركزي (Transport & Pairing)
+  // 🛰️ 2. النقل الهجين والاقتران والتحميل التلقائي للبيانات
   // ===========================================================================
 
   Future<void> _initHybridTransport() async {
@@ -108,6 +110,8 @@ class TvShellCubit extends Cubit<TvShellState> {
             isDeviceLinked: true,
           ),
         );
+        // 📥 استرجاع البيانات فورياً في الخلفية في حالة كان التلفاز مقترناً مسبقاً
+        unawaited(_launcherRepo?.restoreVaultFromCloud());
       } else {
         await startNewPairingSession();
       }
@@ -124,16 +128,29 @@ class TvShellCubit extends Cubit<TvShellState> {
 
   Future<void> startNewPairingSession() async {
     _pairingAuthSub?.cancel();
-    emit(state.copyWith(mode: TvMode.pairing, isDeviceLinked: false));
 
-    final code = await _commsRepo.initiateDevicePairing(deviceType: 'fire_tv');
+    final previousCode = state.activePairingCode;
+
+    emit(state.copyWith(
+      mode: TvMode.pairing,
+      isDeviceLinked: false,
+      clearPairingCode: true,
+    ));
+
+    // حرق الكود السابق إن وجد
+    final code = await _commsRepo.initiateDevicePairing(
+      deviceType: 'fire_tv',
+      previousCode: previousCode,
+    );
+
     if (isClosed || code == null) return;
 
     emit(state.copyWith(activePairingCode: code));
     _announcePairingCodeAloud(code);
 
-    _pairingAuthSub =
-        _commsRepo.listenForDeviceAuthorization(code).listen((vaultId) {
+    _pairingAuthSub = _commsRepo
+        .listenForDeviceAuthorization(code, deviceType: 'fire_tv')
+        .listen((vaultId) {
       if (vaultId != null && vaultId.isNotEmpty) {
         _onPairingAuthorized();
       }
@@ -161,6 +178,15 @@ class TvShellCubit extends Cubit<TvShellState> {
       ),
     );
 
+    // 📥 حقن بيانات الخزنة المقترنة فوراً (مهام، منبهات، جهات اتصال، إعدادات)
+    try {
+      if (_launcherRepo != null) {
+        await _launcherRepo!.restoreVaultFromCloud();
+      }
+    } catch (e) {
+      log('TvShellCubit: Error hydrating vault on pair: $e');
+    }
+
     try {
       await _assistant.speak(
         'Living Room TV linked successfully! Real-time telemetry and agenda are live.',
@@ -169,6 +195,14 @@ class TvShellCubit extends Cubit<TvShellState> {
   }
 
   Future<void> unpairDevice() async {
+    _pairingAuthSub?.cancel();
+    dismissActiveAlert();
+
+    emit(state.copyWith(
+      isDeviceLinked: false,
+      clearPairingCode: true,
+    ));
+
     await _commsRepo.unpairDevice();
     await startNewPairingSession();
   }
@@ -217,7 +251,6 @@ class TvShellCubit extends Cubit<TvShellState> {
       final latest = events.first;
       final nowUtc = DateTime.now().toUtc();
 
-      // إظهار التنبيه إذا كان الحدث جديداً (أقل من 15 ثانية) بتوقيت موحد ولم يقرأ بعد
       final diffSeconds = nowUtc.difference(latest.timestamp.toUtc()).inSeconds.abs();
       if (!latest.isRead && diffSeconds < 15) {
         wakeFromAmbient();

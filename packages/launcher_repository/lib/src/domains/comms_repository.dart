@@ -96,8 +96,14 @@ abstract class CommsRepository {
   // 🔗 بروتوكول الاقتران السيادي بدون حسابات (Zero-Login Device Pairing)
   // ===========================================================================
 
-  Future<String?> initiateDevicePairing({required String deviceType});
-  Stream<String?> listenForDeviceAuthorization(String pairingCode);
+  Future<String?> initiateDevicePairing({
+    required String deviceType,
+    String? previousCode,
+  });
+  Stream<String?> listenForDeviceAuthorization(
+    String pairingCode, {
+    String deviceType = 'fire_tv',
+  });
   Future<bool> authorizePairingCode(String pairingCode, {String? customVaultId});
   Future<bool> isDeviceLinked();
   Future<String?> getLinkedVaultId();
@@ -183,11 +189,15 @@ class CommsRepositoryImpl implements CommsRepository {
   void _handleUnifiedIncomingMessage(P2pMessage message) {
     final event = RemoteActionEvent.fromP2pMessage(message);
 
-    // ⚡ معالجة تحديثات الخزنة المحلية عبر المقابس
+    // ⚡ معالجة تحديثات الخزنة المحلية عبر المقابس لكافة الجداول
     if (message.type == P2pMessageType.vaultMutation) {
       final table = message.payload['table'] as String?;
       if (table == 'contacts') {
         _handleInboundContactMutation(message.payload);
+      } else if (table == 'tasks') {
+        _handleInboundTaskMutation(message.payload);
+      } else if (table == 'alarms') {
+        _handleInboundAlarmMutation(message.payload);
       }
     }
 
@@ -201,8 +211,7 @@ class CommsRepositoryImpl implements CommsRepository {
     }
   }
 
-  Future<void> _handleInboundContactMutation(
-      Map<String, dynamic> payload) async {
+  Future<void> _handleInboundContactMutation(Map<String, dynamic> payload) async {
     try {
       final action = payload['action'] as String?;
       final data = payload['data'] is Map<String, dynamic>
@@ -229,12 +238,85 @@ class CommsRepositoryImpl implements CommsRepository {
       } else if (action == 'DELETE') {
         final id = data['id'] as String?;
         if (id != null) {
-          await (_db.delete(_db.contacts)..where((tbl) => tbl.id.equals(id)))
-              .go();
+          await (_db.delete(_db.contacts)..where((tbl) => tbl.id.equals(id))).go();
         }
       }
     } catch (e) {
       log('CommsRepository: Inbound contact mutation note: $e');
+    }
+  }
+
+  Future<void> _handleInboundTaskMutation(Map<String, dynamic> payload) async {
+    try {
+      final action = payload['action'] as String?;
+      final data = payload['data'] is Map<String, dynamic>
+          ? payload['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (action == 'INSERT' || action == 'UPDATE') {
+        final id = data['id'] as String?;
+        final title = data['title'] as String?;
+        if (id != null && title != null) {
+          DateTime? due;
+          if (data['due_date'] != null) {
+            due = DateTime.tryParse(data['due_date'].toString());
+          }
+          await _db.into(_db.tasks).insert(
+                db.TasksCompanion.insert(
+                  id: id,
+                  title: title,
+                  dueDate: Value(due?.toUtc()),
+                  priority: Value(data['priority'] as String? ?? 'medium'),
+                  isCompleted: Value(data['is_completed'] as bool? ?? false),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+        }
+      } else if (action == 'DELETE') {
+        final id = data['id'] as String?;
+        if (id != null) {
+          await (_db.delete(_db.tasks)..where((tbl) => tbl.id.equals(id))).go();
+        }
+      }
+    } catch (e) {
+      log('CommsRepository: Inbound task mutation note: $e');
+    }
+  }
+
+  Future<void> _handleInboundAlarmMutation(Map<String, dynamic> payload) async {
+    try {
+      final action = payload['action'] as String?;
+      final data = payload['data'] is Map<String, dynamic>
+          ? payload['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (action == 'INSERT' || action == 'UPDATE') {
+        final id = data['id'] as String?;
+        final hour = (data['hour'] as num?)?.toInt();
+        final minute = (data['minute'] as num?)?.toInt();
+        if (id != null && hour != null && minute != null) {
+          await _db.into(_db.alarms).insert(
+                db.AlarmsCompanion.insert(
+                  id: id,
+                  hour: hour,
+                  minute: minute,
+                  label: Value(data['label'] as String? ?? 'Beacon Alarm'),
+                  daysOfWeek: Value(data['days_of_week'] as String? ?? 'daily'),
+                  isActive: Value(data['is_active'] as bool? ?? true),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+        }
+      } else if (action == 'DELETE') {
+        final id = data['id'] as String?;
+        if (id != null) {
+          await (_db.delete(_db.alarms)..where((tbl) => tbl.id.equals(id))).go();
+        }
+      }
+    } catch (e) {
+      log('CommsRepository: Inbound alarm mutation note: $e');
     }
   }
 
@@ -295,9 +377,7 @@ class CommsRepositoryImpl implements CommsRepository {
     }
   }
 
-  Future<void> _handleIncomingRemoteActions(
-    List<Map<String, dynamic>> rawActions,
-  ) async {
+  Future<void> _handleIncomingRemoteActions(List<Map<String, dynamic>> rawActions) async {
     for (final raw in rawActions) {
       final event = RemoteActionEvent.fromMap(raw);
       if (event.id.isEmpty || event.actionType == RemoteActionType.unknown) {
@@ -350,9 +430,7 @@ class CommsRepositoryImpl implements CommsRepository {
     return _hybridSync.dispatchLocatePhone(reason: reason);
   }
 
-  Future<void> _handleCloudRealtimeContacts(
-    List<Map<String, dynamic>> cloudContacts,
-  ) async {
+  Future<void> _handleCloudRealtimeContacts(List<Map<String, dynamic>> cloudContacts) async {
     try {
       if (cloudContacts.isEmpty) return;
 
@@ -402,8 +480,7 @@ class CommsRepositoryImpl implements CommsRepository {
       });
       log('CommsRepository: ⚡ Reconciled ${cloudContacts.length} realtime cloud contacts.');
     } catch (e, st) {
-      log('CommsRepository: Error reconciling realtime contacts: $e',
-          stackTrace: st);
+      log('CommsRepository: Error reconciling realtime contacts: $e', stackTrace: st);
     }
   }
 
@@ -551,7 +628,6 @@ class CommsRepositoryImpl implements CommsRepository {
         int deletedCount,
         bool permissionDenied,
       })> syncDeviceContactsToVault() async {
-    // 1. فحص إذن الوصول لسجل الهاتف مع دعم Limited Access
     final hasPerm = await _hardware.hasContactsPermission();
     if (!hasPerm) {
       log('CommsRepository: Cannot sync contacts. Permission not granted.');
@@ -563,14 +639,12 @@ class CommsRepositoryImpl implements CommsRepository {
       );
     }
 
-    // 2. قراءة جهات الاتصال وتسويتها
     final deviceRecords = await _hardware.getDeviceContacts();
     final result = await _reconciliationService.reconcile(
       deviceRecords: deviceRecords,
       database: _db,
     );
 
-    // 3. بث التحديث محلياً عبر P2P للأجهزة المقترنة (TV / Desktop)
     if (result.addedCount > 0 || result.updatedCount > 0) {
       _hybridSync.broadcastVaultMutation(
         table: 'contacts',
@@ -582,7 +656,6 @@ class CommsRepositoryImpl implements CommsRepository {
       );
     }
 
-    // 4. مزامنة التغييرات المعلقة مع السحابة
     syncPendingComms().catchError((Object err) {
       log('CommsRepository: Cloud sync deferred after diffing: $err');
     });
@@ -785,7 +858,10 @@ class CommsRepositoryImpl implements CommsRepository {
   // ===========================================================================
 
   @override
-  Future<String?> initiateDevicePairing({required String deviceType}) async {
+  Future<String?> initiateDevicePairing({
+    required String deviceType,
+    String? previousCode,
+  }) async {
     final rng = math.Random();
     final code = (rng.nextInt(900000) + 100000).toString();
 
@@ -793,7 +869,9 @@ class CommsRepositoryImpl implements CommsRepository {
       await _cloud.createPairingSession(
         pairingCode: code,
         targetDeviceType: deviceType,
+        previousCode: previousCode,
       );
+      _hybridSync.updatePairingCode(code);
       log('CommsRepository: Pairing code registered with cloud: $code');
     } catch (e) {
       log('CommsRepository: Cloud pairing registration deferred (offline-first): $e');
@@ -803,7 +881,10 @@ class CommsRepositoryImpl implements CommsRepository {
   }
 
   @override
-  Stream<String?> listenForDeviceAuthorization(String pairingCode) {
+  Stream<String?> listenForDeviceAuthorization(
+    String pairingCode, {
+    String deviceType = 'fire_tv',
+  }) {
     try {
       final stream = _cloud.streamPairingSession(pairingCode);
       if (stream == null) return const Stream.empty();
@@ -821,8 +902,10 @@ class CommsRepositoryImpl implements CommsRepository {
                   await _cloud.burnPairingSession(pairingCode);
                 } catch (_) {}
 
+                // استخدام نوع الجهاز الديناميكي الصحيح وتحديث الخزنة
+                _hybridSync.updateLinkedVaultId(vaultId);
                 await initializeHybridTransport(
-                  deviceType: 'fire_tv',
+                  deviceType: deviceType,
                   nodeId: 'node_$vaultId',
                 );
 
@@ -857,6 +940,8 @@ class CommsRepositoryImpl implements CommsRepository {
       );
 
       if (success) {
+        _hybridSync.updatePairingCode(cleanCode);
+        _hybridSync.updateLinkedVaultId(masterVaultId);
         log('CommsRepository: Successfully paired with code $cleanCode for Vault $masterVaultId');
       }
       return success;
@@ -880,7 +965,8 @@ class CommsRepositoryImpl implements CommsRepository {
   @override
   Future<void> unpairDevice() async {
     await _db.deleteDevicePairingMeta('linked_vault_id');
-    log('CommsRepository: Device unpaired successfully.');
+    await _hybridSync.unpairAndReset();
+    log('CommsRepository: Device unpaired and hybrid network state fully reset.');
   }
 }
 

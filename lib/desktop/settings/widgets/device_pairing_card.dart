@@ -37,6 +37,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     await commsRepo.initializeHybridTransport(deviceType: 'desktop');
 
     _transportMode = commsRepo.currentTransportMode;
+    _transportSub?.cancel();
     _transportSub = commsRepo.transportModeStream.listen((mode) {
       if (mounted) setState(() => _transportMode = mode);
     });
@@ -57,7 +58,13 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     setState(() => _isBusy = true);
 
     final commsRepo = context.read<CommsRepository>();
-    final code = await commsRepo.initiateDevicePairing(deviceType: 'desktop');
+    final previousCode = _generatedPairingCode;
+
+    // 🛡️ حرق الكود السابق إن وجد وتوليد كود جديد لجهاز سطح المكتب
+    final code = await commsRepo.initiateDevicePairing(
+      deviceType: 'desktop',
+      previousCode: previousCode,
+    );
 
     if (!mounted) return;
 
@@ -67,8 +74,10 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
         _isBusy = false;
       });
 
-      _authSubscription =
-          commsRepo.listenForDeviceAuthorization(code).listen((vaultId) {
+      // 🛡️ تحديد نوع الجهاز بدقة كـ 'desktop' بدلاً من 'fire_tv'
+      _authSubscription = commsRepo
+          .listenForDeviceAuthorization(code, deviceType: 'desktop')
+          .listen((vaultId) {
         if (!mounted) return;
         if (vaultId != null && vaultId.isNotEmpty) {
           SoundController.instance.play(SoundCue.success);
@@ -87,6 +96,21 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
       });
     } else {
       setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _cancelPairingDisplaySession() async {
+    _authSubscription?.cancel();
+    final codeToCancel = _generatedPairingCode;
+    setState(() => _generatedPairingCode = null);
+
+    if (codeToCancel != null && mounted) {
+      final commsRepo = context.read<CommsRepository>();
+      // حرق الكود في السحابة لتأمين الجلسة
+      await commsRepo.initiateDevicePairing(
+        deviceType: 'desktop',
+        previousCode: codeToCancel,
+      );
     }
   }
 
@@ -133,8 +157,12 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   }
 
   Future<void> _unpair() async {
+    _authSubscription?.cancel();
     final commsRepo = context.read<CommsRepository>();
+
+    // فك الاقتران وتصفير المقابس وحزم الـ UDP في HybridSyncClient
     await commsRepo.unpairDevice();
+
     if (mounted) {
       setState(() {
         _isLinked = false;
@@ -144,6 +172,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Device unlinked from phone vault.')),
       );
+      await _initDesktopHybrid();
     }
   }
 
@@ -297,7 +326,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
                         IconButton(
                           icon: const Icon(Icons.close_rounded),
                           tooltip: 'Cancel',
-                          onPressed: () => setState(() => _generatedPairingCode = null),
+                          onPressed: _cancelPairingDisplaySession,
                         ),
                       ],
                     ),

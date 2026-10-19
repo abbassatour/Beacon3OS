@@ -480,7 +480,7 @@ class CloudSyncClient {
   }
 
   // ===========================================================================
-  // ⏰ 7. المنبهات وجلسات التركيز (Alarms & Focus Sync)
+  // ⏰ 7. المنبهات وجلسات التركيز (Alarms & Focus Sync with Streams)
   // ===========================================================================
 
   Future<void> syncAlarm({
@@ -512,6 +512,37 @@ class CloudSyncClient {
     } catch (e) {
       log('CloudSyncClient: Alarm sync skipped: $e');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAlarms() async {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    try {
+      final response = await client
+          .from('alarms')
+          .select()
+          .eq('user_id', userId)
+          .filter('deleted_at', 'is', null)
+          .order('hour', ascending: true);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>>? streamAlarms() {
+    final client = _client;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return null;
+
+    return client
+        .from('alarms')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('hour', ascending: true);
   }
 
   Future<void> softDeleteAlarmInCloud(String alarmId) async {
@@ -702,7 +733,6 @@ class CloudSyncClient {
   // 🛰️ 11. الأوامر السحابية الواردة عن بُعد من أليكسا (Remote Actions Listener)
   // ===========================================================================
 
-  /// تدفق الأوامر الواردة من أليكسا أو الشاشات المنزلية مع معالجة ذكية للتصفية
   Stream<List<Map<String, dynamic>>>? streamRemoteActions() {
     final client = _client;
     if (client == null) return null;
@@ -715,10 +745,8 @@ class CloudSyncClient {
           .stream(primaryKey: ['id'])
           .eq('status', 'pending')
           .map((actions) {
-            // إذا لم يكن المستخدم مسجلاً بعد بحساب سحابي، يستقبل كل الأوامر العامة المعلقة
             if (userId == null) return actions;
 
-            // تصفية ذكية: قبول الأوامر المخصصة لهذا المستخدم، أو الأوامر العامة/أوامر الضيف
             return actions.where((action) {
               final targetUser = action['user_id'] as String?;
               return targetUser == null ||
@@ -733,7 +761,6 @@ class CloudSyncClient {
     }
   }
 
-  /// إرسال أمر تنفيذي عن بُعد من أي شاشة أو جهاز إلى السحابة
   Future<String?> dispatchRemoteAction({
     required String actionType,
     required Map<String, dynamic> payload,
@@ -763,7 +790,6 @@ class CloudSyncClient {
     }
   }
 
-  /// تأكيد استلام وتنفيذ الأمر الوارد عن بُعد
   Future<void> acknowledgeRemoteAction(String actionId, {String status = 'completed'}) async {
     final client = _client;
     if (client == null) return;
@@ -784,16 +810,21 @@ class CloudSyncClient {
   // ===========================================================================
 
   /// تسجيل كود اقتران مؤقت جديد في السحابة من شاشة التلفزيون أو سطح المكتب
+  /// مع إبطال وحرق الكود القديم إن وجد فورياً لمنع بقائه مفتوحاً.
   Future<bool> createPairingSession({
     required String pairingCode,
     required String targetDeviceType,
+    String? previousCode,
   }) async {
     final client = _client;
     if (client == null) return false;
 
     try {
+      if (previousCode != null && previousCode.trim().isNotEmpty) {
+        await cancelPairingSession(previousCode);
+      }
+
       final nowUtc = DateTime.now().toUtc();
-      // مهلة صلاحية الكود 10 دقائق بالتوقيت العالمي
       final expiresUtc = nowUtc.add(const Duration(minutes: 10));
 
       await client.from('pairing_sessions').upsert({
@@ -813,7 +844,6 @@ class CloudSyncClient {
     }
   }
 
-  /// الاستماع اللحظي لتحول حالة الكود إلى 'paired' على شاشة العرض (TV / Desktop)
   Stream<Map<String, dynamic>?>? streamPairingSession(String pairingCode) {
     final client = _client;
     if (client == null) return null;
@@ -825,7 +855,6 @@ class CloudSyncClient {
         .map((list) => list.isNotEmpty ? list.first : null);
   }
 
-  /// مصادقة وتفويض الكود من الهاتف الرئيسي وحقن معرّف الخزنة (Vault DID)
   Future<bool> claimPairingSession({
     required String pairingCode,
     required String vaultId,
@@ -833,7 +862,6 @@ class CloudSyncClient {
     final client = _client;
     if (client == null) return false;
 
-    // تنظيف الكود من أي مسافات أو رموز لضمان مطابقة الـ 6 أرقام فقط
     final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
     if (cleanCode.length != 6) {
       log('CloudSyncClient: Invalid pairing code length: "$cleanCode"');
@@ -841,8 +869,6 @@ class CloudSyncClient {
     }
 
     try {
-      // 🌟 فحص الكود بالاعتماد على الحالة النشطة فقط (waiting)
-      // تم إلغاء المقارنة الزمنية المباشرة لمنع فشل الاقتران بسبب اختلاف تواريخ المحاكيات عن الكمبيوتر
       final records = await client
           .from('pairing_sessions')
           .select()
@@ -850,14 +876,14 @@ class CloudSyncClient {
           .eq('status', 'waiting');
 
       if (records.isEmpty) {
-        log('CloudSyncClient: Pairing code $cleanCode not found or already paired/claimed.');
+        log('CloudSyncClient: Pairing code $cleanCode not found, expired, or already claimed.');
         return false;
       }
 
-      // اعتماد الاقتران وحقن معرف الخزنة السيادية وتحويل الحالة إلى paired
       await client.from('pairing_sessions').update({
         'vault_id': vaultId,
         'status': 'paired',
+        'claimed_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('pairing_code', cleanCode);
 
       log('CloudSyncClient: ✅ Successfully claimed pairing session for $cleanCode with Vault: $vaultId');
@@ -868,15 +894,35 @@ class CloudSyncClient {
     }
   }
 
-  /// إحراق جلسة الاقتران بعد نجاح الربط لتأمين القناة (One-Time Burn)
+  Future<void> cancelPairingSession(String pairingCode) async {
+    final client = _client;
+    if (client == null) return;
+    final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
+    if (cleanCode.isEmpty) return;
+
+    try {
+      await client.from('pairing_sessions').update({
+        'status': 'cancelled',
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('pairing_code', cleanCode).eq('status', 'waiting');
+      log('CloudSyncClient: 🚫 Previous pairing code $cleanCode marked as cancelled.');
+    } catch (e) {
+      log('CloudSyncClient: Note on cancelling pairing code: $e');
+    }
+  }
+
   Future<void> burnPairingSession(String pairingCode) async {
     final client = _client;
     if (client == null) return;
+    final cleanCode = pairingCode.replaceAll(RegExp(r'\D'), '').trim();
+    if (cleanCode.isEmpty) return;
+
     try {
       await client.from('pairing_sessions').update({
         'status': 'expired',
-      }).eq('pairing_code', pairingCode);
-      log('CloudSyncClient: 🔒 Pairing code $pairingCode burned.');
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('pairing_code', cleanCode);
+      log('CloudSyncClient: 🔒 Pairing code $cleanCode burned.');
     } catch (e) {
       log('CloudSyncClient: Failed to burn pairing session: $e');
     }

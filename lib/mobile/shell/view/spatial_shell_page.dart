@@ -232,6 +232,9 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                               onDescend: shellCubit.descend,
                             ),
                             const AmbientVoiceOverlay(),
+
+                            // 👈 أضف هذا السطر هنا:
+                            const MouseSpatialController(),
                           ],
                         );
                       },
@@ -243,6 +246,126 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
           ),
         ),
       ),
+    );
+  }
+}
+
+
+/// 🛠️ تحكم مؤقت بالفأرة لاختبار التنقل على الحاسوب والمحاكي
+class MouseSpatialController extends StatelessWidget {
+  const MouseSpatialController({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final shellCubit = context.read<SpatialShellCubit>();
+    final colors = Theme.of(context).colorScheme;
+
+    return Positioned(
+      bottom: 90,
+      right: 20,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colors.surface.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colors.primary, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // زر الصعود للطابق العلوي
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _btn(
+                    icon: Icons.keyboard_double_arrow_up_rounded,
+                    tooltip: 'Ascend Floor (Z+)',
+                    color: colors.secondary,
+                    onTap: shellCubit.ascend,
+                  ),
+                  const SizedBox(width: 4),
+                  _btn(
+                    icon: Icons.keyboard_double_arrow_down_rounded,
+                    tooltip: 'Descend Floor (Z-)',
+                    color: colors.secondary,
+                    onTap: shellCubit.descend,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // سهم الشمال (Focus / Perimeter)
+              _btn(
+                icon: Icons.arrow_upward_rounded,
+                tooltip: 'North (Focus / Alarms)',
+                color: colors.primary,
+                onTap: () => shellCubit.navigateToward(SpatialDirection.north),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // سهم الغرب (Agenda)
+                  _btn(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'West (Agenda & Tasks)',
+                    color: colors.primary,
+                    onTap: () => shellCubit.navigateToward(SpatialDirection.west),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر المركز (Cockpit)
+                  _btn(
+                    icon: Icons.home_rounded,
+                    tooltip: 'Origin (Cockpit)',
+                    color: colors.onSurface,
+                    onTap: shellCubit.returnToCenter,
+                  ),
+                  const SizedBox(width: 4),
+                  // سهم الشرق (Vision)
+                  _btn(
+                    icon: Icons.arrow_forward_rounded,
+                    tooltip: 'East (AI Vision)',
+                    color: colors.primary,
+                    onTap: () => shellCubit.navigateToward(SpatialDirection.east),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // سهم الجنوب (Communications)
+              _btn(
+                icon: Icons.arrow_downward_rounded,
+                tooltip: 'South (Communications)',
+                color: colors.primary,
+                onTap: () => shellCubit.navigateToward(SpatialDirection.south),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _btn({
+    required IconData icon,
+    required String tooltip,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return IconButton(
+      icon: Icon(icon, color: color, size: 22),
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      onPressed: onTap,
     );
   }
 }

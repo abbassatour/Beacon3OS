@@ -109,6 +109,7 @@ class HybridSyncClient {
       );
 
       // الاستماع للرسائل الواردة من الهواتف المتصلة محلياً
+      _serverMessagesSubscription?.cancel();
       _serverMessagesSubscription = _server.incomingMessages.listen(
         _handleIncomingP2pMessage,
         onError: (Object err) => log('HybridSync: Server message error: $err'),
@@ -129,17 +130,18 @@ class HybridSyncClient {
     await _discovery.initialize();
 
     // الاستماع للشاشات المكتشفة على نفس شبكة الواي فاي
+    _discoverySubscription?.cancel();
     _discoverySubscription = _discovery.discoveredNodes.listen(
       _handleDiscoveredNode,
       onError: (Object err) => log('HybridSync: Discovery stream error: $err'),
     );
 
     // الاستماع لتغير حالة اتصال العميل بالمقبس المحلي
+    _clientStateSubscription?.cancel();
     _clientStateSubscription = _client.stateChanges.listen((state) {
       if (state == LocalClientState.connected) {
         _updateMode(SyncTransportMode.lanDirect);
       } else if (state == LocalClientState.disconnected) {
-        // التحول السلس للسحابة عند انقطاع الاتصال المحلي
         _updateMode(
           _cloud.isAuthenticated
               ? SyncTransportMode.cloudRelay
@@ -149,6 +151,7 @@ class HybridSyncClient {
     });
 
     // استقبال الرسائل الواردة من التلفزيون/الكمبيوتر
+    _clientMessagesSubscription?.cancel();
     _clientMessagesSubscription = _client.incomingMessages.listen(
       _handleIncomingP2pMessage,
       onError: (Object err) => log('HybridSync: Client message error: $err'),
@@ -158,20 +161,19 @@ class HybridSyncClient {
     await _discovery.probeForNodes();
   }
 
-  /// التعامل مع العقدة المكتشفة بالواي فاي والاتصال بها تلقائياً
+  /// التعامل مع العقدة المكتشفة بالواي فاي والاتصال بها بحذر ودقة
   Future<void> _handleDiscoveredNode(LocalNodeInfo node) async {
     if (_client.isConnected) return;
 
-    // فحص هل هذا الجهاز يطابق كود الاقتران أو الخزنة المشتركة
+    // فحص هل هذا الجهاز يطابق كود الاقتران النشط أو الخزنة المشتركة
     final matchesCode =
-        _pairingCode != null && node.pairingCode == _pairingCode;
+        _pairingCode != null && node.pairingCode != null && node.pairingCode == _pairingCode;
     final matchesVault =
-        _linkedVaultId != null && node.vaultId == _linkedVaultId;
+        _linkedVaultId != null && node.vaultId != null && node.vaultId == _linkedVaultId;
     final isAuthorizedPeer = matchesCode || matchesVault;
 
-    // إذا لم يكن هناك كود محدد، يتصل بأول شاشة BeaconOS معتمدة على الشبكة
-    if (isAuthorizedPeer || (_pairingCode == null && _linkedVaultId == null)) {
-      log('HybridSync: 🎯 Target peer found on LAN (${node.ip}:${node.port}). Connecting...');
+    if (isAuthorizedPeer) {
+      log('HybridSync: 🎯 Target authorized peer found on LAN (${node.ip}:${node.port}). Connecting...');
       final connected = await _client.connectToNode(node);
       if (connected) {
         _updateMode(SyncTransportMode.lanDirect);
@@ -180,10 +182,80 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // ⚡ 2. إرسال الأوامر بالمسار المحلي أولاً (Local-First Dispatch)
+  // 🔄 2. إدارة وتحديث حالة الاقتران والفك (Lifecycle & Session Reset)
   // ===========================================================================
 
-  /// إرسال أمر رنين الهاتف أو البحث الصوتي (Locate Phone)
+  /// تحديث كود الاقتران اللحظي وإعادة إعلانه عبر الـ UDP لمنع بقاء الأكواد القديمة
+  void updatePairingCode(String? newCode) {
+    _pairingCode = newCode;
+    log('HybridSync: 🔄 Pairing code updated to: $newCode');
+
+    if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      if (_server.isRunning) {
+        _discovery.startAdvertising(
+          nodeId: _nodeId,
+          deviceType: _deviceType,
+          listeningPort: _server.port,
+          pairingCode: _pairingCode,
+          vaultId: _linkedVaultId,
+        );
+      }
+    }
+  }
+
+  /// تحديث معرف الخزنة المقترنة بعد إتمام الربط بنجاح
+  void updateLinkedVaultId(String? vaultId) {
+    _linkedVaultId = vaultId;
+    _pairingCode = null; // إبطال الكود بمجرد اعتماد الخزنة
+    log('HybridSync: 🗝️ Linked Vault ID updated to: $vaultId');
+
+    if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      if (_server.isRunning) {
+        _discovery.startAdvertising(
+          nodeId: _nodeId,
+          deviceType: _deviceType,
+          listeningPort: _server.port,
+          pairingCode: null,
+          vaultId: _linkedVaultId,
+        );
+      }
+    }
+  }
+
+  /// 🧹 التطهير الكامل للشبكة عند إلغاء الاقتران للسماح بربط جهاز آخر بسلاسة
+  Future<void> unpairAndReset() async {
+    log('HybridSync: 🧹 Cleaning up active network pairing and resetting session...');
+    _linkedVaultId = null;
+    _pairingCode = null;
+    _seenMessageIds.clear();
+
+    await _client.disconnect();
+
+    if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
+      if (_server.isRunning) {
+        // إعادة البث بحالة فارغة بدون كود أو خزنة سابقة
+        _discovery.startAdvertising(
+          nodeId: _nodeId,
+          deviceType: _deviceType,
+          listeningPort: _server.port,
+          pairingCode: null,
+          vaultId: null,
+        );
+      }
+      _updateMode(SyncTransportMode.discovering);
+    } else {
+      _updateMode(
+        _cloud.isAuthenticated
+            ? SyncTransportMode.cloudRelay
+            : SyncTransportMode.standalone,
+      );
+    }
+  }
+
+  // ===========================================================================
+  // ⚡ 3. إرسال الأوامر بالمسار المحلي أولاً (Local-First Dispatch)
+  // ===========================================================================
+
   Future<bool> dispatchLocatePhone({
     required String reason,
     String? targetUserId,
@@ -199,14 +271,14 @@ class HybridSyncClient {
       senderType: _deviceType,
     );
 
-    // 1. المحاولة عبر المسار المحلي الفائق السرعة (< 2ms)
+    // 1. المحاولة عبر المسار المحلي (< 2ms)
     final sentLocally = _sendViaLocalTransport(message);
     if (sentLocally) {
       log('HybridSync: ⚡ Locate Phone command delivered directly via LAN.');
       return true;
     }
 
-    // 2. المسار البديل: الإرسال عبر سحابة Supabase
+    // 2. المسار البديل عبر السحابة
     log('HybridSync: LAN unreachable. Routing Locate Phone via Cloud Relay...');
     try {
       await _cloud.acknowledgeRemoteAction(
@@ -220,7 +292,6 @@ class HybridSyncClient {
     }
   }
 
-  /// إرسال بث استغاثة الطوارئ SOS مع توثيق الإحداثيات
   Future<void> dispatchEmergencySos({
     required double latitude,
     required double longitude,
@@ -238,10 +309,8 @@ class HybridSyncClient {
       senderType: _deviceType,
     );
 
-    // بث الاستغاثة محلياً لإنذار جميع شاشات المنزل فوراً
     _sendViaLocalTransport(message);
 
-    // وبنفس الوقت بثها للسحابة لضمان وصولها لفرق الإنقاذ والرادار الخارجي
     _cloud.broadcastEmergencySos(
       id: message.id,
       latitude: latitude,
@@ -253,7 +322,6 @@ class HybridSyncClient {
     });
   }
 
-  /// مزامنة تعديل فوري في الخزنة (مهمة جديدة، منبه، إلخ) مع كائن البيانات الكامل
   void broadcastVaultMutation({
     required String table,
     required String action, // 'INSERT', 'UPDATE', 'DELETE'
@@ -270,11 +338,9 @@ class HybridSyncClient {
       senderType: _deviceType,
     );
 
-    // نقل كائن البيانات كاملاً محلياً لتحديث شاشة التلفزيون أو الهاتف بدون إنترنت
     _sendViaLocalTransport(message);
   }
 
-  /// إرسال عام لأي رسالة عبر المقبس المحلي المتاح
   bool _sendViaLocalTransport(P2pMessage message) {
     if (_deviceType == 'phone') {
       return _client.send(message);
@@ -288,7 +354,7 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // 🛡️ 3. معالجة الرسائل الواردة ومنع التكرار (Deduplication)
+  // 🛡️ 4. معالجة الرسائل الواردة ومنع التكرار (Deduplication)
   // ===========================================================================
 
   void _handleIncomingP2pMessage(P2pMessage message) {
@@ -367,7 +433,7 @@ class HybridSyncClient {
   }
 
   // ===========================================================================
-  // 🛑 4. تحرير الموارد وإغلاق القنوات
+  // 🛑 5. تحرير الموارد وإغلاق القنوات
   // ===========================================================================
 
   void dispose() {

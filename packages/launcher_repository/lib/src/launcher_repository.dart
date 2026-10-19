@@ -24,17 +24,17 @@ export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
 export 'domains/topology_repository.dart';
 
+export 'models/alarm_entity.dart';
 export 'models/app_setting_entity.dart';
+export 'models/contact_entity.dart';
+export 'models/focus_session_entity.dart';
+export 'models/message_entity.dart';
+export 'models/remote_action_event.dart';
+export 'models/ring_device_entity.dart';
+export 'models/ring_event_entity.dart';
+export 'models/spatial_node_entity.dart';
 export 'models/task_entity.dart';
 export 'models/voice_memo_entity.dart';
-export 'models/alarm_entity.dart';
-export 'models/focus_session_entity.dart';
-export 'models/contact_entity.dart';
-export 'models/message_entity.dart';
-export 'models/spatial_node_entity.dart';
-export 'models/ring_device_entity.dart'; // 👈 الكيان الجديد
-export 'models/ring_event_entity.dart';  // 👈 الكيان الجديد
-export 'models/remote_action_event.dart';
 
 class LauncherCommandResult {
   const LauncherCommandResult({
@@ -89,9 +89,11 @@ class LauncherRepository {
           cloudSync: cloud,
         );
 
-    // 🛰️ تفعيل الاستماع اللحظي للرادار والطوبولوجيا
+    // 🛰️ تفعيل الاستماع اللحظي التلقائي الشامل لجميع المكونات والبيانات
     comms.initializeRealtimeSync();
     topology.initializeRealtimeSync();
+    tasks.initializeRealtimeSync();
+    focusAlarms.initializeRealtimeSync();
   }
 
   // --- الوصول المباشر للمستودعات الثمانية المتخصصة ---
@@ -118,6 +120,7 @@ class LauncherRepository {
     await settings.restoreSettingsFromCloud();
     await comms.restoreCommsFromCloud();
     await tasks.restoreTasksAndMemosFromCloud();
+    await focusAlarms.restoreAlarmsFromCloud();
     await topology.restoreTopologyFromCloud();
     log('BeaconKernel: Full vault restoration finished.');
   }
@@ -145,6 +148,8 @@ class LauncherRepository {
   void dispose() {
     comms.dispose();
     topology.dispose();
+    tasks.dispose();
+    focusAlarms.dispose();
     ring.dispose();
   }
 }

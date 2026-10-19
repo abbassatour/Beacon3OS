@@ -1,13 +1,15 @@
 // packages/launcher_repository/lib/src/domains/focus_alarms_repository.dart
+import 'dart:async';
 import 'dart:developer';
+
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:drift/drift.dart';
 import 'package:local_vault_api/local_vault_api.dart' as db;
 import 'package:system_hardware_api/system_hardware_api.dart';
 
+import '../mappers/focus_alarms_mapper.dart';
 import '../models/alarm_entity.dart';
 import '../models/focus_session_entity.dart';
-import '../mappers/focus_alarms_mapper.dart';
 
 abstract class FocusAlarmsRepository {
   Stream<List<AlarmEntity>> watchAlarms();
@@ -22,6 +24,15 @@ abstract class FocusAlarmsRepository {
   Stream<List<FocusSessionEntity>> watchTodayFocusSessions();
   Future<String> recordCompletedFocusSession(int minutes);
   Future<void> syncPendingAlarms();
+
+  /// 📥 استرجاع المنبهات المسجلة من السحابة دفعة واحدة
+  Future<void> restoreAlarmsFromCloud();
+
+  /// 🛰️ بدء الاستماع اللحظي لتحديثات المنبهات من السحابة
+  void initializeRealtimeSync();
+
+  /// 🛑 تحرير موارد الاشتراكات
+  void dispose();
 }
 
 class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
@@ -36,6 +47,9 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   final db.AppDatabase _db;
   final CloudSyncClient _cloud;
   final HardwareClient _hardware;
+
+  StreamSubscription<dynamic>? _authSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _realtimeAlarmsSubscription;
 
   @override
   Stream<List<AlarmEntity>> watchAlarms() {
@@ -120,6 +134,130 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
   }
 
   @override
+  void initializeRealtimeSync() {
+    _authSubscription?.cancel();
+    _authSubscription = _cloud.authStateChanges?.listen(
+      (_) {
+        if (_cloud.isAuthenticated) {
+          _subscribeToRealtimeAlarms();
+        } else {
+          _realtimeAlarmsSubscription?.cancel();
+          _realtimeAlarmsSubscription = null;
+        }
+      },
+      onError: (Object error) {
+        log('FocusAlarmsRepository: Auth state stream error: $error');
+      },
+    );
+
+    if (_cloud.isAuthenticated) {
+      _subscribeToRealtimeAlarms();
+    }
+  }
+
+  void _subscribeToRealtimeAlarms() {
+    _realtimeAlarmsSubscription?.cancel();
+    try {
+      final stream = _cloud.streamAlarms();
+      if (stream != null) {
+        _realtimeAlarmsSubscription = stream.listen(
+          (cloudAlarms) async {
+            if (cloudAlarms.isEmpty) return;
+            try {
+              final localAlarms = await (_db.select(_db.alarms)).get();
+              final localMap = {for (final a in localAlarms) a.id: a};
+
+              await _db.batch((batch) {
+                for (final item in cloudAlarms) {
+                  final id = item['id'] as String?;
+                  if (id == null || id.isEmpty) continue;
+
+                  final local = localMap[id];
+                  if (local != null && !local.isSynced) continue;
+
+                  final deletedAtStr = item['deleted_at'] as String?;
+                  final DateTime? deletedAt =
+                      deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+                  if (deletedAt != null) {
+                    if (local != null) {
+                      batch.delete(
+                        _db.alarms,
+                        db.AlarmsCompanion(id: Value(id)),
+                      );
+                    }
+                  } else {
+                    final hour = (item['hour'] as num?)?.toInt() ?? 8;
+                    final minute = (item['minute'] as num?)?.toInt() ?? 0;
+
+                    batch.insert(
+                      _db.alarms,
+                      db.AlarmsCompanion.insert(
+                        id: id,
+                        hour: hour,
+                        minute: minute,
+                        label: Value(item['label'] as String? ?? 'Beacon Alarm'),
+                        daysOfWeek: Value(item['days_of_week'] as String? ?? 'daily'),
+                        isActive: Value(item['is_active'] as bool? ?? true),
+                        isSynced: const Value(true),
+                      ),
+                      mode: InsertMode.insertOrReplace,
+                    );
+                  }
+                }
+              });
+              log('FocusAlarmsRepository: ⚡ Realtime alarms synced (${cloudAlarms.length} alarms).');
+            } catch (e) {
+              log('FocusAlarmsRepository: Error reconciling realtime alarms: $e');
+            }
+          },
+          onError: (Object error) {
+            log('FocusAlarmsRepository: Realtime alarms stream error (offline handled): $error');
+          },
+          cancelOnError: false,
+        );
+      }
+    } catch (e) {
+      log('FocusAlarmsRepository: Safe catch on streamAlarms init: $e');
+    }
+  }
+
+  @override
+  Future<void> restoreAlarmsFromCloud() async {
+    if (!_cloud.isAuthenticated) return;
+    try {
+      final cloudAlarms = await _cloud.fetchAlarms();
+      if (cloudAlarms.isNotEmpty) {
+        await _db.batch((batch) {
+          for (final a in cloudAlarms) {
+            final id = a['id'] as String?;
+            final hour = (a['hour'] as num?)?.toInt();
+            final minute = (a['minute'] as num?)?.toInt();
+            if (id != null && hour != null && minute != null) {
+              batch.insert(
+                _db.alarms,
+                db.AlarmsCompanion.insert(
+                  id: id,
+                  hour: hour,
+                  minute: minute,
+                  label: Value(a['label'] as String? ?? 'Beacon Alarm'),
+                  daysOfWeek: Value(a['days_of_week'] as String? ?? 'daily'),
+                  isActive: Value(a['is_active'] as bool? ?? true),
+                  isSynced: const Value(true),
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
+        });
+        log('FocusAlarmsRepository: Alarms restored from cloud in batch (${cloudAlarms.length} alarms).');
+      }
+    } catch (e, st) {
+      log('FocusAlarmsRepository: Cloud restore error: $e', stackTrace: st);
+    }
+  }
+
+  @override
   Future<void> syncPendingAlarms() async {
     if (!_cloud.isAuthenticated) return;
     try {
@@ -144,5 +282,11 @@ class FocusAlarmsRepositoryImpl implements FocusAlarmsRepository {
     } catch (e) {
       log('FocusAlarmsRepository: Pending alarm sync error: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _realtimeAlarmsSubscription?.cancel();
   }
 }
