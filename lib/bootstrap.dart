@@ -7,6 +7,7 @@ import 'package:beacon_os/app/app.dart';
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/constants/api_constants.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
+import 'package:beacon_os/core/services/background_sync_worker.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import 'package:flutter/widgets.dart';
 import 'package:launcher_repository/launcher_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:voice_ai_api/voice_ai_api.dart';
+import 'package:workmanager/workmanager.dart';
 
 enum AppFlavor { development, staging, production }
 
@@ -65,6 +67,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }
   }
 
+  // 1. تهيئة Supabase إذا توفرت المتغيرات
   if (ApiConstants.supabaseUrl.isNotEmpty && ApiConstants.supabaseAnonKey.isNotEmpty) {
     try {
       await Supabase.initialize(
@@ -77,34 +80,58 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }
   }
 
-  try {
-    await Web3Service.instance.initialize().timeout(const Duration(seconds: 6));
-    log('Bootstrap: Web3 Sovereign Identity initialized.');
-  } catch (e) {
-    log('Bootstrap: Web3 init deferred: $e');
-  }
+  // 2. ⚡ تشغيل Web3 في الخلفية بدون حجب الواجهة
+  unawaited(
+    Web3Service.instance.initialize().catchError((Object e) {
+      log('Bootstrap: Web3 init deferred: $e');
+    }),
+  );
 
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(
     llmAgent: llmAgent,
   );
 
-  try {
-    await launcherRepository.assistant
-        .initializeEngines()
-        .timeout(const Duration(seconds: 6));
-    log('Bootstrap: Audio engines initialized.');
-  } catch (e) {
-    log('Bootstrap: Audio engines init bypassed: $e');
+  // 3. ⚡ تشغيل محركات الصوت (TTS & Speech) في الخلفية دون تجميد شاشة البداية
+  unawaited(
+    launcherRepository.assistant.initializeEngines().catchError((Object e) {
+      log('Bootstrap: Audio engines init bypassed: $e');
+    }),
+  );
+
+  // 4. 🌙 تسجيل محرك المزامنة التلقائية بالخلفية عبر WorkManager (لأندرويد وFire TV)
+  if (Platform.isAndroid) {
+    unawaited(() async {
+      try {
+        await Workmanager().initialize(
+          callbackDispatcher,
+          isInDebugMode: flavor == AppFlavor.development,
+        );
+
+        await Workmanager().registerPeriodicTask(
+          'beacon_vault_sync_periodic',
+          beaconPeriodicSyncTask,
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+          ),
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        );
+        log('Bootstrap: 🌙 WorkManager periodic background sync registered.');
+      } catch (e) {
+        log('Bootstrap: WorkManager init error: $e');
+      }
+    }());
   }
 
-  // ✅ استخدام الكيان النقي (AppSettingEntity) مع القيمة الافتراضية للهمس الصوتي
+  // 5. قراءة الإعدادات بمهلة قصيرة جداً (1.5 ثانية) لضمان عدم التعليق على SQLite
   AppSettingEntity initialSettings;
   try {
     initialSettings = await launcherRepository.settings
         .getSettings()
-        .timeout(const Duration(seconds: 6));
+        .timeout(const Duration(milliseconds: 1500));
   } catch (e) {
+    log('Bootstrap: Settings fallback used: $e');
     initialSettings = AppSettingEntity(
       id: 'local_device_settings',
       userPersona: isTv ? 'blind_accessible' : 'digital_minimalist',
@@ -113,7 +140,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
       hapticsEnabled: true,
       soundCuesEnabled: true,
       isHighContrast: isTv ? true : false,
-      spatialWhisperEnabled: isTv ? false : false,
+      spatialWhisperEnabled: false,
       defaultPriority: 'medium',
       autoArchiveCompleted: true,
       speakDueDatesAloud: true,
@@ -135,6 +162,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
   HapticManager.instance.isEnabled = initialSettings.hapticsEnabled;
   unawaited(launcherRepository.assistant.setSpeechRate(initialSettings.speechRate));
 
+  // 6. 🚀 تشغيل الواجهة فوراً
   runApp(
     App(
       launcherRepository: launcherRepository,

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- تضمين ملف الهوية السيادية فقط لاسترجاعه تلقائياً عند إعادة التثبيت -->
+        <include domain="file" path="sovereign_identity.key" />
+        <!-- استثناء قواعد البيانات لتجنب تعارض ملفات القفل WAL/SHM -->
+        <exclude domain="database" path="beacon_os_vault.sqlite" />
+        <exclude domain="database" path="beacon_os_vault.sqlite-wal" />
+        <exclude domain="database" path="beacon_os_vault.sqlite-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="sovereign_identity.key" />
+    </device-transfer>
+</data-extraction-rules>

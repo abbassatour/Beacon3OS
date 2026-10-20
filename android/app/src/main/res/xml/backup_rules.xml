@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="file" path="sovereign_identity.key" />
+    <exclude domain="database" path="beacon_os_vault.sqlite" />
+    <exclude domain="database" path="beacon_os_vault.sqlite-wal" />
+    <exclude domain="database" path="beacon_os_vault.sqlite-shm" />
+</full-backup-content>

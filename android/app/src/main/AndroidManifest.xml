@@ -1,7 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 1. أذونات العتاد والنظام الأساسية -->
+    <!-- ================================================================= -->
+    <!-- 1. أذونات العتاد والنظام الأساسية                                  -->
+    <!-- ================================================================= -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -14,19 +16,24 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- 🌟 ضروري لـ WorkManager وجدولة المنبهات لإعادة تفعيل المزامنة بعد إعادة تشغيل الهاتف/التلفاز -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- 2. السماح للـ Launcher بفتح جميع التطبيقات المثبتة (Android 11+) -->
+    <!-- ================================================================= -->
+    <!-- 2. ميزات مشغل النظام (Launcher) والوصول للتطبيقات والموقع الجغرافي -->
+    <!-- ================================================================= -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
         tools:ignore="QueryAllPackagesCondition" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- 🌟 3. ميزات العتاد الاختيارية (مهم جداً لقبول التطبيق على Fire TV وجميع الأجهزة) -->
-    <!-- إلغاء شرط شاشة اللمس ليعمل التطبيق على التلفزيون -->
+    <!-- ================================================================= -->
+    <!-- 🌟 3. ميزات العتاد الاختيارية (لتوافق Fire TV و Android TV والهاتف) -->
+    <!-- ================================================================= -->
+    <!-- إلغاء إلزام شاشة اللمس ليعمل على التلفزيون وأجهزة التحكم عن بعد -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <!-- تفعيل واجهة التلفزيون Leanback كخيار غير إلزامي ليعمل على الهاتف والتلفزيون معاً -->
+    <!-- تفعيل بيئة Leanback كخيار غير إلزامي ليعمل على الهاتف والتلفاز في آن واحد -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
-    <!-- أجهزة Fire TV لا تحتوي شريحة اتصال أو كشاف أو كاميرا مدمجة -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
@@ -35,11 +42,18 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
 
+    <!-- ================================================================= -->
+    <!-- 4. التطبيق وإعدادات النسخ الاحتياطي الصامت للهوية السيادية        -->
+    <!-- ================================================================= -->
     <application
         android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:banner="@mipmap/ic_launcher"> <!-- 🌟 راية العرض على شاشة التلفزيون -->
+        android:banner="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
@@ -59,7 +73,7 @@
               android:resource="@style/NormalTheme"
               />            
             
-            <!-- إطلاق التطبيق كمشغل نظام رسمي للهاتف (Phone Launcher) -->
+            <!-- إطلاق التطبيق كمشغل نظام رسمي للهاتف (Phone Home Launcher) -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.HOME"/>
@@ -79,7 +93,9 @@
             android:value="2" />
     </application>
 
-    <!-- 4. استعلامات النظام (System Queries) -->
+    <!-- ================================================================= -->
+    <!-- 5. استعلامات نوايا النظام (System Queries)                        -->
+    <!-- ================================================================= -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

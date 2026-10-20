@@ -22,13 +22,14 @@ dependencies:
   intl: ^0.20.2
   launcher_repository:
     path: packages/launcher_repository
-  sqlite3_flutter_libs: 0.5.24
+  sqlite3_flutter_libs: ^0.5.25
   supabase_flutter: ^2.17.2
   system_hardware_api:
     path: packages/system_hardware_api
   voice_ai_api:
     path: packages/voice_ai_api
   web3dart: ^2.7.3
+  workmanager: ^0.10.10
 
 dev_dependencies:
   bloc_lint: ^0.4.1
