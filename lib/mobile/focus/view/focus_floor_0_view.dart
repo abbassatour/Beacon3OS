@@ -5,7 +5,7 @@ import 'package:beacon_os/mobile/focus/cubit/focus_state.dart';
 import 'package:beacon_os/mobile/shell/spatial_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart'; // ✅ الاستيراد النقي (تم حذف local_vault_api)
+import 'package:launcher_repository/launcher_repository.dart';
 
 /// واجهة الطابق الأرضي لغرفة التركيز والمنبهات (Floor 0: Focus Timer & Alarms)
 class FocusFloor0View extends StatelessWidget {
@@ -26,35 +26,46 @@ class FocusFloor0View extends StatelessWidget {
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
+                // ==========================================
+                // 1. رأس الصفحة المحمي من الطفح نهائياً
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 60, 20, 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'FOCUS & ALARMS',
-                              style: TextStyle(
-                                color: colors.onSurface,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'FOCUS & ALARMS',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurface,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$returnHint or double-tap to return to Cockpit.',
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(height: 2),
+                              Text(
+                                '$returnHint or double-tap to return to Cockpit.',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 10),
                         IconButton.filledTonal(
                           style: IconButton.styleFrom(
                             backgroundColor: colors.surface,
@@ -69,34 +80,52 @@ class FocusFloor0View extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 2. بطاقة عداد التركيز (Pomodoro Timer Card)
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _buildTimerCard(context, state, cubit),
                   ),
                 ),
+
+                // ==========================================
+                // 3. شريط عنوان قسم المنبهات المجدولة
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.access_time_rounded,
-                                color: colors.primary, size: 16),
-                            const SizedBox(width: 6),
-                            Text(
-                              'SCHEDULED ALARMS (${state.alarms.length})',
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.1,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                color: colors.primary,
+                                size: 16,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'SCHEDULED ALARMS (${state.alarms.length})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           'Tap to hear time • Swipe to delete',
                           style: TextStyle(
@@ -108,6 +137,10 @@ class FocusFloor0View extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 4. قائمة المنبهات
+                // ==========================================
                 if (state.alarms.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -184,19 +217,24 @@ class FocusFloor0View extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                state.isTimerRunning
-                    ? 'FOCUS SESSION IN PROGRESS'
-                    : 'STUDY & FOCUS INTERVAL',
-                style: TextStyle(
-                  color: state.isTimerRunning
-                      ? colors.primary
-                      : colors.onSurfaceVariant,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
+              Expanded(
+                child: Text(
+                  state.isTimerRunning
+                      ? 'FOCUS SESSION IN PROGRESS'
+                      : 'STUDY & FOCUS INTERVAL',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: state.isTimerRunning
+                        ? colors.primary
+                        : colors.onSurfaceVariant,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -334,7 +372,7 @@ class FocusFloor0View extends StatelessWidget {
 
   Widget _buildDismissibleAlarmTile(
     BuildContext context,
-    AlarmEntity alarm, // ✅ تم استبدال Alarm بـ AlarmEntity
+    AlarmEntity alarm,
     FocusCubit cubit,
   ) {
     final colors = context.colors;
@@ -405,6 +443,8 @@ class FocusFloor0View extends StatelessWidget {
                           alarm.isActive
                               ? '${alarm.label} • Rings $relativeTime'
                               : '${alarm.label} • Turned Off',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 12,
@@ -413,6 +453,7 @@ class FocusFloor0View extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 6),
                   IconButton(
                     icon: Icon(
                       Icons.volume_up_rounded,
@@ -452,7 +493,7 @@ class FocusFloor0View extends StatelessWidget {
 
   void _confirmDeleteAlarm(
     BuildContext context,
-    AlarmEntity alarm, // ✅ تم استبدال Alarm بـ AlarmEntity
+    AlarmEntity alarm,
     FocusCubit cubit,
   ) {
     final colors = context.colors;

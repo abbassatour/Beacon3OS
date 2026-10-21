@@ -1,4 +1,5 @@
-﻿import 'package:beacon_os/core/theme/app_theme.dart';
+﻿// lib/desktop/topology/view/desktop_topology_view.dart
+import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_cubit.dart';
 import 'package:beacon_os/desktop/topology/cubit/desktop_topology_state.dart';
 import 'package:beacon_os/desktop/topology/widgets/node_inspector_panel.dart';
@@ -16,6 +17,7 @@ class DesktopTopologyView extends StatelessWidget {
     return BlocProvider(
       create: (context) => DesktopTopologyCubit(
         topologyRepository: context.read<TopologyRepository>(),
+        commsRepository: context.read<CommsRepository>(),
       ),
       child: const _DesktopTopologyContent(),
     );

@@ -47,13 +47,15 @@ class AgendaFloor0View extends StatelessWidget {
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
+                // ==========================================
+                // 1. رأس الصفحة المحمي من الطفح
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 60, 20, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 🌟 شريط العنوان محمي بـ Expanded لمنع طفح الـ 18 بكسل نهائياً
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -106,6 +108,8 @@ class AgendaFloor0View extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           '$returnHint or double-tap to return to Cockpit.',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 12,
@@ -116,6 +120,10 @@ class AgendaFloor0View extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 2. شريط الأولويات النشطة (Pending Tasks Title)
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -127,19 +135,24 @@ class AgendaFloor0View extends StatelessWidget {
                           size: 18,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'PENDING PRIORITIES (${state.pendingTasks.length})',
-                          style: TextStyle(
-                            color: colors.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1,
+                        Expanded(
+                          child: Text(
+                            'PENDING PRIORITIES (${state.pendingTasks.length})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+
                 if (state.pendingTasks.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -182,6 +195,10 @@ class AgendaFloor0View extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                // ==========================================
+                // 3. قسم المذكرات الصوتية المحمي (Voice Notes)
+                // ==========================================
                 if (state.sortedMemos.isNotEmpty) ...[
                   SliverToBoxAdapter(
                     child: Padding(
@@ -189,25 +206,32 @@ class AgendaFloor0View extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.mic_none_rounded,
-                                color: colors.secondary,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'VOICE & AI NOTES (${state.sortedMemos.length})',
-                                style: TextStyle(
-                                  color: colors.onSurface,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.1,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.mic_none_rounded,
+                                  color: colors.secondary,
+                                  size: 18,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'VOICE & AI NOTES (${state.sortedMemos.length})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: colors.onSurface,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             'Swipe left to delete',
                             style: TextStyle(
@@ -237,9 +261,9 @@ class AgendaFloor0View extends StatelessWidget {
                   ),
                 ],
 
-                // =========================================================================
-                // 📂 قسم المهام المكتملة
-                // =========================================================================
+                // ==========================================
+                // 4. قسم المهام المكتملة والأرشيف المحمي
+                // ==========================================
                 if (!autoArchive && state.completedTasks.isNotEmpty) ...[
                   SliverToBoxAdapter(
                     child: Padding(
@@ -252,13 +276,17 @@ class AgendaFloor0View extends StatelessWidget {
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'COMPLETED (${state.completedTasks.length})',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.1,
+                          Expanded(
+                            child: Text(
+                              'COMPLETED (${state.completedTasks.length})',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.1,
+                              ),
                             ),
                           ),
                         ],
@@ -303,22 +331,30 @@ class AgendaFloor0View extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.inventory_2_outlined, size: 16, color: Colors.green),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    '${state.completedTasks.length} COMPLETED ARCHIVED ON FLOOR -1',
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.6,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.inventory_2_outlined, size: 16, color: Colors.green),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Text(
+                                        '${state.completedTasks.length} COMPLETED ARCHIVED ON FLOOR -1',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.onSurfaceVariant,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     'View Archive',
@@ -394,7 +430,8 @@ class AgendaFloor0StandaloneView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => AgendaCubit(
-        taskRepository: context.read<TaskAgendaRepository>(),
+        taskRepository: context.read<Tas
+        kAgendaRepository>(),
         assistantRepository: context.read<AssistantRepository>(),
         settingsRepository: context.read<SettingsRepository>(),
       ),

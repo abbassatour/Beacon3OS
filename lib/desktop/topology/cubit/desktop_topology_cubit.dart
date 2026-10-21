@@ -9,13 +9,17 @@ import 'package:launcher_repository/launcher_repository.dart';
 class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
   DesktopTopologyCubit({
     required TopologyRepository topologyRepository,
+    required CommsRepository commsRepository,
   })  : _repository = topologyRepository,
+        _commsRepo = commsRepository,
         super(const DesktopTopologyState()) {
     _initStream();
   }
 
   final TopologyRepository _repository;
+  final CommsRepository _commsRepo;
   StreamSubscription<List<SpatialNodeEntity>>? _subscription;
+  Timer? _p2pSyncDebounceTimer;
 
   void _initStream() {
     emit(state.copyWith(status: TopologyStatus.loading));
@@ -41,7 +45,19 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
     );
   }
 
-  /// تبديل الطابق المعروض (Floor 0 مقابل Floor 1)
+  /// بث تحديثات الفضاء للأجهزة المقترنة على الشبكة مع حماية Debounce
+  void _notifyPeersOfTopologyChange({bool immediate = false}) {
+    _p2pSyncDebounceTimer?.cancel();
+    if (immediate) {
+      unawaited(_commsRepo.sendVaultDeltaToPeers());
+    } else {
+      _p2pSyncDebounceTimer = Timer(const Duration(milliseconds: 120), () {
+        unawaited(_commsRepo.sendVaultDeltaToPeers());
+      });
+    }
+  }
+
+  /// تبديل الطابق المعروض (Floor 0 مقابل Floor 1 أو -1)
   void selectFloor(int floor) {
     if (state.currentFloor == floor) return;
     emit(
@@ -93,6 +109,9 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
         y: newY,
         floorLevel: state.currentFloor,
       );
+
+      // ⚡️ بث تحديث الغرف للأجهزة المقترنة فوراً
+      _notifyPeersOfTopologyChange();
     } catch (e) {
       log('DesktopTopologyCubit: Failed to move node: $e');
       emit(state.copyWith(errorMessage: 'Failed to update coordinates: $e'));
@@ -134,6 +153,9 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
       customTitle: cleanedTitle,
       configJson: node.configJson,
     );
+
+    // ⚡️ بث فوري لتحديث العنوان
+    _notifyPeersOfTopologyChange(immediate: true);
   }
 
   /// استعادة التوزيع القياسي الافتراضي للغرف في الطابق النشط
@@ -160,10 +182,14 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
         );
       }
     }
+
+    // ⚡️ بث فوري لاستعادة الإعدادات الأصلية
+    _notifyPeersOfTopologyChange(immediate: true);
   }
 
   @override
   Future<void> close() {
+    _p2pSyncDebounceTimer?.cancel();
     _subscription?.cancel();
     return super.close();
   }

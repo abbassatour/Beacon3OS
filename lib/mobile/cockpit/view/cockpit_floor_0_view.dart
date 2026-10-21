@@ -58,13 +58,16 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
+                // ==========================================
+                // 1. رأس الصفحة المحمي وتاريخ اليوم
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 60, 20, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 🌟 السطر 1: محمي بـ Expanded لمنع طفح الـ 18 بكسل نهائياً
+                        // السطر 1: اسم اليوم وأزرار الرعاية والإعدادات
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -138,7 +141,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                         ),
                         const SizedBox(height: 4),
 
-                        // 🌟 السطر 2: الساعة والتاريخ محمي بـ Expanded
+                        // السطر 2: الساعة الرقمية والتاريخ المحمي
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -198,6 +201,10 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 2. بطاقة الملخص الصباحي الصوتي (Daily Briefing)
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -283,6 +290,10 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 3. قسم المنبه القادم
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -299,6 +310,10 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     child: _buildNextAlarmCard(context, state.nextAlarm, cubit),
                   ),
                 ),
+
+                // ==========================================
+                // 4. قسم أولويات اليوم (Top Priorities)
+                // ==========================================
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -347,6 +362,10 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                       ),
                     ),
                   ),
+
+                // ==========================================
+                // 5. قسم آخر ملاحظة صوتية مسجلة
+                // ==========================================
                 if (state.latestMemo != null) ...[
                   SliverToBoxAdapter(
                     child: Padding(
@@ -369,6 +388,10 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     ),
                   ),
                 ],
+
+                // ==========================================
+                // 6. دليل التنقل المكاني السفلي
+                // ==========================================
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(20, 28, 20, 40),
@@ -393,13 +416,17 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
       children: [
         Icon(icon, size: 16, color: colors.onSurfaceVariant),
         const SizedBox(width: 6),
-        Text(
-          title,
-          style: TextStyle(
-            color: colors.onSurfaceVariant,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
           ),
         ),
       ],
@@ -474,6 +501,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -549,6 +577,8 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     children: [
                       Text(
                         task.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: colors.onSurface,
                           fontSize: 15,
@@ -562,6 +592,8 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                         const SizedBox(height: 2),
                         Text(
                           'Due: ${DateFormat('EEE, MMM d • h:mm a').format(task.dueDate!.toLocal())}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 11,
@@ -627,6 +659,8 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     children: [
                       Text(
                         memo.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: colors.onSurface,
                           fontSize: 15,
@@ -646,6 +680,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Icon(Icons.volume_up_rounded, color: colors.primary, size: 20),
               ],
             ),

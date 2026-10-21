@@ -175,8 +175,14 @@ class _AppState extends State<App> {
       }
     });
 
-    // 🌐 5. تشغيل محرك النقل الهجين والـ P2P للهاتف المحمول فور الإقلاع
-    if (!_isDesktop && !_isTv) {
+    // 🌐 5. تشغيل محرك النقل الهجين والـ P2P للديسكتوب أو الهاتف فور الإقلاع
+    if (_isDesktop) {
+      unawaited(
+        widget._launcherRepository.comms.initializeHybridTransport(
+          deviceType: 'desktop',
+        ),
+      );
+    } else if (!_isTv) {
       unawaited(
         widget._launcherRepository.comms.initializeHybridTransport(
           deviceType: 'phone',

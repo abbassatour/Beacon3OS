@@ -508,6 +508,7 @@ class CommsRepositoryImpl implements CommsRepository {
         }
 
         // --- 5. العقد المكانية وتوزيع الغرف (Spatial Nodes) ---
+        // 🌟 حماية فض النزاعات: بما أن الهاتف لا يعدل إحداثيات الغرف يدوياً، يقبل الهاتف تحديث الديسكتوب دائماً
         for (final item in rawNodes) {
           if (item is Map<String, dynamic>) {
             final id = item['id'] as String?;
@@ -521,9 +522,11 @@ class CommsRepositoryImpl implements CommsRepository {
                 : null;
 
             final local = nodesMap[id];
+            // نقبل التحديث إذا كانت العقدة غير موجودة، أو إذا كان التاريخ الوارد صالحاً أو أحدث
             final shouldApply = local == null ||
-                (inboundUpdated != null && inboundUpdated.isAfter(local.updatedAt)) ||
-                (local.isSynced);
+                inboundUpdated == null ||
+                !inboundUpdated.isBefore(local.updatedAt.subtract(const Duration(seconds: 10))) ||
+                local.isSynced;
 
             if (shouldApply) {
               if (inboundDeleted != null) {
@@ -896,6 +899,7 @@ class CommsRepositoryImpl implements CommsRepository {
                 ),
                 mode: InsertMode.insertOrReplace,
               );
+          log('CommsRepository: ⚡ Single spatial node mutation applied: $id ($moduleId)');
         }
       } else if (action == 'DELETE') {
         final id = data['id'] as String?;

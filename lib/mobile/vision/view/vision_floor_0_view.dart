@@ -26,34 +26,45 @@ class VisionFloor0View extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ==========================================
+                // 1. رأس الصفحة المحمي من الطفح نهائياً
+                // ==========================================
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 60, 20, 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'AI VISION STUDIO',
-                            style: TextStyle(
-                              color: colors.onSurface,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'AI VISION STUDIO',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.onSurface,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$returnHint or double-tap to return to Cockpit.',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(height: 2),
+                            Text(
+                              '$returnHint or double-tap to return to Cockpit.',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       IconButton.filledTonal(
                         style: IconButton.styleFrom(
                           backgroundColor: state.isTorchOn
@@ -75,6 +86,10 @@ class VisionFloor0View extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // ==========================================
+                // 2. شرائح اختيار نمط الفحص (Mode Chips)
+                // ==========================================
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -119,6 +134,10 @@ class VisionFloor0View extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 3. رادار الكاميرا ومستشعر الفحص باللمس
+                // ==========================================
                 Expanded(
                   child: Semantics(
                     label: state.isSpeaking
@@ -162,6 +181,10 @@ class VisionFloor0View extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // ==========================================
+                // 4. بطاقة نتيجة الفحص الذكية المحمية
+                // ==========================================
                 if (state.lastSpokenResult.isNotEmpty)
                   Semantics(
                     label:
@@ -187,23 +210,31 @@ class VisionFloor0View extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.remove_red_eye_rounded,
-                                      color: colors.primary, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'SCENE DESCRIPTION',
-                                    style: TextStyle(
-                                      color: colors.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.1,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.remove_red_eye_rounded,
+                                        color: colors.primary, size: 18),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'SCENE DESCRIPTION',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
                                     icon: Icon(Icons.volume_up_rounded,
