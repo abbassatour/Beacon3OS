@@ -430,8 +430,7 @@ class AgendaFloor0StandaloneView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => AgendaCubit(
-        taskRepository: context.read<Tas
-        kAgendaRepository>(),
+        taskRepository: context.read<TaskAgendaRepository>(),
         assistantRepository: context.read<AssistantRepository>(),
         settingsRepository: context.read<SettingsRepository>(),
       ),
