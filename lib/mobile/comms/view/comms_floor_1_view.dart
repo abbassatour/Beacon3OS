@@ -5,33 +5,16 @@ import 'package:beacon_os/mobile/comms/cubit/comms_state.dart';
 import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:launcher_repository/launcher_repository.dart';
 
 /// واجهة الطابق الأول لغرفة التواصل (Floor 1: Safety & SOS Radar Preferences)
-class CommsFloor1View extends StatelessWidget {
+class CommsFloor1View extends StatefulWidget {
   const CommsFloor1View({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => CommsCubit(
-        commsRepository: context.read<CommsRepository>(),
-        hardwareRepository: context.read<SystemHardwareRepository>(),
-        assistantRepository: context.read<AssistantRepository>(),
-      ),
-      child: const _CommsFloor1Content(),
-    );
-  }
+  State<CommsFloor1View> createState() => _CommsFloor1ViewState();
 }
 
-class _CommsFloor1Content extends StatefulWidget {
-  const _CommsFloor1Content();
-
-  @override
-  State<_CommsFloor1Content> createState() => _CommsFloor1ContentState();
-}
-
-class _CommsFloor1ContentState extends State<_CommsFloor1Content> {
+class _CommsFloor1ViewState extends State<CommsFloor1View> {
   final TextEditingController _codeInputController = TextEditingController();
 
   @override
@@ -88,8 +71,7 @@ class _CommsFloor1ContentState extends State<_CommsFloor1Content> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      
-                      // 🔗 بطاقة الاقتران التفاعلية الجديدة
+                      // 🔗 بطاقة الاقتران التفاعلية تستخدم CommsCubit العام المرفوع بالأعلى
                       BlocBuilder<CommsCubit, CommsState>(
                         builder: (context, commsState) {
                           final commsCubit = context.read<CommsCubit>();

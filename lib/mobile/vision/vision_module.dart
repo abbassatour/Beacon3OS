@@ -81,8 +81,9 @@ class VisionModule extends SpatialModule {
         key: ValueKey('vision_floor_neg1_view'),
       );
     }
-    return const VisionFloor0StandaloneView(
-      key: ValueKey('vision_floor_0_standalone_view'),
+    // ⚡ العرض المباشر مستفيداً من VisionCubit المرفوع بأعلى الـ Shell
+    return const VisionFloor0View(
+      key: ValueKey('vision_floor_0_view'),
     );
   }
 }

@@ -8,6 +8,11 @@ import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
+import 'package:beacon_os/mobile/agenda/agenda.dart';
+import 'package:beacon_os/mobile/cockpit/cockpit.dart';
+import 'package:beacon_os/mobile/comms/comms.dart';
+import 'package:beacon_os/mobile/focus/focus.dart';
+import 'package:beacon_os/mobile/perimeter/perimeter.dart';
 import 'package:beacon_os/mobile/preferences/preferences.dart';
 import 'package:beacon_os/mobile/shell/controllers/spatial_camera_controller.dart';
 import 'package:beacon_os/mobile/shell/cubit/spatial_shell_cubit.dart';
@@ -19,6 +24,7 @@ import 'package:beacon_os/mobile/shell/widgets/spatial_floor_layout.dart';
 import 'package:beacon_os/mobile/shell/widgets/spatial_portal_transform.dart';
 import 'package:beacon_os/mobile/shell/widgets/tactile_multi_touch_detector.dart';
 import 'package:beacon_os/mobile/shell/widgets/two_finger_gesture_detector.dart';
+import 'package:beacon_os/mobile/vision/vision.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -38,6 +44,7 @@ class SpatialShellPage extends StatelessWidget {
 
     return MultiBlocProvider(
       providers: [
+        // 1. التحكم بالملاحة الفضائية والصوت والإعدادات العامة
         BlocProvider(
           create: (context) => SpatialShellCubit(
             assistantRepository: context.read<AssistantRepository>(),
@@ -59,6 +66,52 @@ class SpatialShellPage extends StatelessWidget {
             focusAlarmsRepository: context.read<FocusAlarmsRepository>(),
             settingsRepository: context.read<SettingsRepository>(),
             commsRepository: context.read<CommsRepository>(),
+          ),
+        ),
+
+        // 🚀 2. رفع الـ Cubits الستة للغرف الفضائية للأعلى (Lift State Up)
+        // يتم إنشاؤها مرة واحدة وتظل حية في الذاكرة لمنع إعادة الجلب وتصفير الحالة عند السحب
+        BlocProvider(
+          create: (context) => CockpitCubit(
+            taskRepository: context.read<TaskAgendaRepository>(),
+            focusAlarmsRepository: context.read<FocusAlarmsRepository>(),
+            hardwareRepository: context.read<SystemHardwareRepository>(),
+            assistantRepository: context.read<AssistantRepository>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => AgendaCubit(
+            taskRepository: context.read<TaskAgendaRepository>(),
+            assistantRepository: context.read<AssistantRepository>(),
+            settingsRepository: context.read<SettingsRepository>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => CommsCubit(
+            commsRepository: context.read<CommsRepository>(),
+            hardwareRepository: context.read<SystemHardwareRepository>(),
+            assistantRepository: context.read<AssistantRepository>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => FocusCubit(
+            focusRepository: context.read<FocusAlarmsRepository>(),
+            assistantRepository: context.read<AssistantRepository>(),
+            settingsRepository: context.read<SettingsRepository>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => PerimeterCubit(
+            ringRepository: context.read<RingRepository>(),
+            assistantRepository: context.read<AssistantRepository>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => VisionCubit(
+            assistantRepository: context.read<AssistantRepository>(),
+            hardwareRepository: context.read<SystemHardwareRepository>(),
+            settingsRepository: context.read<SettingsRepository>(),
+            taskRepository: context.read<TaskAgendaRepository>(),
           ),
         ),
       ],
@@ -243,7 +296,7 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
                             ),
                             const AmbientVoiceOverlay(),
 
-                            // 🔮 كرة التوجيه والمصعد الفضائي الأنيقة (3 طوابق):
+                            // 🔮 كرة التوجيه والمصعد الفضائي
                             const SpatialNavigationOrb(),
                           ],
                         );
@@ -261,9 +314,6 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
 }
 
 /// 🔮 كرة التوجيه الفضائية التفاعلية (Spatial Gyro Orb)
-/// - اسحب الكرة في أي اتجاه للانتقال بسلاسة بين الغرف
-/// - اضغط ضغطة واحدة لفتح قائمة مصعد الطوابق الثلاثة (Floor 1 / Floor 0 / Floor -1)
-/// - اضغط ضغطة مطولة للعودة الفورية لمركز اليوم (Cockpit)
 class SpatialNavigationOrb extends StatefulWidget {
   const SpatialNavigationOrb({super.key});
 
@@ -310,7 +360,7 @@ class _SpatialNavigationOrbState extends State<SpatialNavigationOrb>
           ),
           if (_isMenuOpen) const SizedBox(height: 10),
 
-          // 🔮 الكرة الفضائية المفرغة
+          // 🔮 الكرة الفضائية
           GestureDetector(
             onTap: () {
               HapticManager.instance.selectionClick();

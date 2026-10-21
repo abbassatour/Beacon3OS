@@ -64,19 +64,26 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 🌟 السطر 1: محمي بـ Expanded لمنع طفح الـ 18 بكسل نهائياً
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              dayName,
-                              style: TextStyle(
-                                color: colors.primary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.5,
+                            Expanded(
+                              child: Text(
+                                dayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 TextButton.icon(
                                   style: TextButton.styleFrom(
@@ -88,6 +95,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                                       vertical: 4,
                                     ),
                                     minimumSize: const Size(0, 32),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -117,7 +125,9 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                                     side: BorderSide(color: colors.outline),
                                     minimumSize: const Size(32, 32),
                                     padding: EdgeInsets.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                   icon: const Icon(Icons.tune_rounded, size: 18),
                                   tooltip: 'Floor 1 • Engine & Settings',
                                   onPressed: shellCubit.goToSettingsFloor,
@@ -126,7 +136,9 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
+
+                        // 🌟 السطر 2: الساعة والتاريخ محمي بـ Expanded
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -136,26 +148,30 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                               timeString,
                               style: TextStyle(
                                 color: colors.onSurface,
-                                fontSize: 32,
+                                fontSize: 30,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -1,
                               ),
                             ),
-                            Flexible(
+                            const SizedBox(width: 10),
+                            Expanded(
                               child: Text(
                                 fullDate,
                                 maxLines: 1,
+                                textAlign: TextAlign.end,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: colors.onSurfaceVariant,
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
+
+                        // السطر 3: حالة البطارية
                         Row(
                           children: [
                             Icon(
@@ -308,7 +324,7 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
                           border: Border.all(color: colors.outline),
                         ),
                         child: Text(
-                          'Your day is completely clear. Swipe 2 fingers ${CompassDirection.west.arrowSymbol} to view full agenda.',
+                          'Your day is completely clear. Swipe 2 fingers ${CompassDirection.west.arrowSymbol} for Agenda.',
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 13,
@@ -434,27 +450,32 @@ class _CockpitFloor0ViewState extends State<CockpitFloor0View> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$hourStr:$minuteStr',
-                      style: TextStyle(
-                        color: colors.onSurface,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$hourStr:$minuteStr',
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    Text(
-                      alarm.label,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
+                      Text(
+                        alarm.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: Icon(

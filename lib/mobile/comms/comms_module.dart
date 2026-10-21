@@ -84,8 +84,9 @@ class CommsModule extends SpatialModule {
         key: ValueKey('comms_floor_neg1_view'),
       );
     }
-    return const CommsFloor0StandaloneView(
-      key: ValueKey('comms_floor_0_standalone_view'),
+    // ⚡ استخدام CommsFloor0View مباشرة مستفيداً من الـ CommsCubit المرفوع بالأعلى
+    return const CommsFloor0View(
+      key: ValueKey('comms_floor_0_view'),
     );
   }
 }

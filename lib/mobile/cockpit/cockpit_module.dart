@@ -60,7 +60,7 @@ class CockpitModule extends SpatialModule {
 
   @override
   List<VoiceIntentHandler> get voiceIntents => [
-        FloorNavigationIntentHandler(), // 👈 تم تسجيل معالج التنقل الصوتي بين الطوابق
+        FloorNavigationIntentHandler(),
         BatteryStatusIntentHandler(),
         FlashlightIntentHandler(),
         LockScreenIntentHandler(),
@@ -82,8 +82,9 @@ class CockpitModule extends SpatialModule {
         key: ValueKey('cockpit_floor_neg1_view'),
       );
     }
-    return const CockpitFloor0StandaloneView(
-      key: ValueKey('cockpit_floor_0_standalone_view'),
+    // ⚡ استخدام CockpitFloor0View مباشرة مستفيداً من الـ Cubit المرفوع بأعلى الـ Shell
+    return const CockpitFloor0View(
+      key: ValueKey('cockpit_floor_0_view'),
     );
   }
 }

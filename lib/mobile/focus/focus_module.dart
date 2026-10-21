@@ -83,8 +83,9 @@ class FocusModule extends SpatialModule {
         key: ValueKey('focus_floor_neg1_view'),
       );
     }
-    return const FocusFloor0StandaloneView(
-      key: ValueKey('focus_floor_0_standalone_view'),
+    // ⚡ العرض المباشر مستفيداً من FocusCubit المرفوع بأعلى الـ Shell دون إعادة بناء
+    return const FocusFloor0View(
+      key: ValueKey('focus_floor_0_view'),
     );
   }
 }

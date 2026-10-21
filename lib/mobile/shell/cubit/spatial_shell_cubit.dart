@@ -117,7 +117,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   Future<void> ascend() async {
     final nextFloor = state.currentFloor + 1;
     if (!_topology.hasFloor(nextFloor)) {
-      await _sound.playBoundaryBump();
+      unawaited(_sound.playBoundaryBump());
       _haptics.selectionClick();
       return;
     }
@@ -127,7 +127,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   Future<void> descend() async {
     final nextFloor = state.currentFloor - 1;
     if (!_topology.hasFloor(nextFloor)) {
-      await _sound.playBoundaryBump();
+      unawaited(_sound.playBoundaryBump());
       _haptics.selectionClick();
       return;
     }
@@ -189,7 +189,8 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
   Future<void> moveToCoordinate(SpatialCoordinate destination) async {
     if (state.currentCoordinate == destination) return;
 
-    await _haptics.successNotification();
+    // ⚡ تشغيل الاهتزاز بالتوازي دون حجب الفريمات
+    unawaited(_haptics.successNotification());
 
     final deltaX = destination.x - state.currentCoordinate.x;
     final deltaY = destination.y - state.currentCoordinate.y;
@@ -201,9 +202,12 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
       compDir = deltaY > 0 ? CompassDirection.north : CompassDirection.south;
     }
 
-    await _sound.playCompassMove(
-      direction: compDir,
-      floorLevel: destination.floor,
+    // ⚡ تشغيل نغمة التنقل دون انتظار (Zero-Latency Unawaited Audio)
+    unawaited(
+      _sound.playCompassMove(
+        direction: compDir,
+        floorLevel: destination.floor,
+      ),
     );
 
     final module = _topology.moduleAtCoordinate(destination);
@@ -233,7 +237,7 @@ class SpatialShellCubit extends Cubit<SpatialShellState> {
       await moveToCoordinate(nextNode);
       return true;
     } else {
-      await _sound.playBoundaryBump();
+      unawaited(_sound.playBoundaryBump());
       _haptics.selectionClick();
       return false;
     }

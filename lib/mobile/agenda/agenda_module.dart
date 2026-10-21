@@ -80,12 +80,14 @@ class AgendaModule extends SpatialModule {
       );
     }
     if (floorLevel == -1) {
-      return const AgendaFloorNeg1StandaloneView(
-        key: ValueKey('agenda_floor_neg1_standalone_view'),
+      // ⚡ مشاركة نفس كائن AgendaCubit للأرشيف بدون إعادة بنائه
+      return const AgendaFloorNeg1View(
+        key: ValueKey('agenda_floor_neg1_view'),
       );
     }
-    return const AgendaFloor0StandaloneView(
-      key: ValueKey('agenda_floor_0_standalone_view'),
+    // ⚡ العرض المباشر مستفيداً من AgendaCubit المرفوع في أعلى شجرة الـ Shell
+    return const AgendaFloor0View(
+      key: ValueKey('agenda_floor_0_view'),
     );
   }
 }

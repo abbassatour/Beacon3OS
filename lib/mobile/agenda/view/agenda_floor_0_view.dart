@@ -38,7 +38,7 @@ class AgendaFloor0View extends StatelessWidget {
           builder: (context, state) {
             final cubit = context.read<AgendaCubit>();
 
-            if (state.status == AgendaStatus.loading) {
+            if (state.status == AgendaStatus.loading && state.tasks.isEmpty) {
               return Center(
                 child: CircularProgressIndicator(color: colors.primary),
               );
@@ -53,38 +53,49 @@ class AgendaFloor0View extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 🌟 شريط العنوان محمي بـ Expanded لمنع طفح الـ 18 بكسل نهائياً
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'AGENDA & TASKS',
-                              style: TextStyle(
-                                color: colors.onSurface,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
+                            Expanded(
+                              child: Text(
+                                'AGENDA & TASKS',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurface,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.1,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton.filledTonal(
                                   style: IconButton.styleFrom(
                                     backgroundColor: colors.surface,
                                     foregroundColor: colors.onSurface,
                                     side: BorderSide(color: colors.outline),
+                                    minimumSize: const Size(36, 36),
+                                    padding: EdgeInsets.zero,
                                   ),
-                                  icon: const Icon(Icons.note_add_rounded),
+                                  icon: const Icon(Icons.note_add_rounded, size: 20),
                                   tooltip: 'Add Note',
                                   onPressed: () => _showAddMemo(context, cubit),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 IconButton.filledTonal(
                                   style: IconButton.styleFrom(
                                     backgroundColor: colors.surface,
                                     foregroundColor: colors.onSurface,
                                     side: BorderSide(color: colors.outline),
+                                    minimumSize: const Size(36, 36),
+                                    padding: EdgeInsets.zero,
                                   ),
-                                  icon: const Icon(Icons.add_task_rounded),
+                                  icon: const Icon(Icons.add_task_rounded, size: 20),
                                   tooltip: 'Add Task',
                                   onPressed: () => _showAddTask(context, cubit),
                                 ),
@@ -227,10 +238,9 @@ class AgendaFloor0View extends StatelessWidget {
                 ],
 
                 // =========================================================================
-                // 📂 قسم المهام المكتملة: معالجة ذكية للأرشفة
+                // 📂 قسم المهام المكتملة
                 // =========================================================================
                 if (!autoArchive && state.completedTasks.isNotEmpty) ...[
-                  // 1. إذا كان خيار الأرشفة معطلاً: نعرض المهام المكتملة في الطابق 0
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
@@ -273,7 +283,6 @@ class AgendaFloor0View extends StatelessWidget {
                     ),
                   ),
                 ] else if (autoArchive && state.completedTasks.isNotEmpty) ...[
-                  // 2. إذا كانت الأرشفة مفعلة: تبقى واجهة اليوم نقية مع زر أنيق للذهاب للأرشيف
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),

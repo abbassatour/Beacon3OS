@@ -2,7 +2,6 @@
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/topology/topology.dart';
 import 'package:beacon_os/core/voice_bus/voice_bus.dart';
-import 'package:beacon_os/mobile/perimeter/cubit/perimeter_cubit.dart';
 import 'package:beacon_os/mobile/perimeter/intents/perimeter_intents.dart';
 import 'package:beacon_os/mobile/perimeter/view/perimeter_floor_0_view.dart';
 import 'package:beacon_os/mobile/perimeter/view/perimeter_floor_1_view.dart';
@@ -72,14 +71,9 @@ class PerimeterModule extends SpatialModule {
   @override
   Widget buildFloorView(BuildContext context, int floorLevel) {
     if (floorLevel == 1) {
-      return BlocProvider(
-        create: (context) => PerimeterCubit(
-          ringRepository: context.read<LauncherRepository>().ring,
-          assistantRepository: context.read<AssistantRepository>(),
-        ),
-        child: const PerimeterFloor1View(
-          key: ValueKey('perimeter_floor_1_view'),
-        ),
+      // ⚡ استخدام الواجهة مباشرة مع PerimeterCubit المرفوع بالأعلى
+      return const PerimeterFloor1View(
+        key: ValueKey('perimeter_floor_1_view'),
       );
     }
     if (floorLevel == -1) {
@@ -87,8 +81,9 @@ class PerimeterModule extends SpatialModule {
         key: ValueKey('perimeter_floor_neg1_view'),
       );
     }
-    return const PerimeterFloor0StandaloneView(
-      key: ValueKey('perimeter_floor_0_standalone_view'),
+    // ⚡ العرض المباشر لمنع إعادة إنشاء الكيوبت عند كل سحبة
+    return const PerimeterFloor0View(
+      key: ValueKey('perimeter_floor_0_view'),
     );
   }
 }

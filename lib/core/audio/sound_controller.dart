@@ -58,9 +58,9 @@ class SoundController {
 
     try {
       await player.stop();
-      await player.setReleaseMode(
-        cue.isLooping ? ReleaseMode.loop : ReleaseMode.stop,
-      );
+      if (cue.isLooping) {
+        await player.setReleaseMode(ReleaseMode.loop);
+      }
       await player.setVolume(volumeOverride ?? cue.volume);
 
       final effectiveFloor = isSettingsFloor ? 1 : floorLevel;
@@ -84,7 +84,6 @@ class SoundController {
 
     try {
       await _navPlayer.stop();
-      await _navPlayer.setReleaseMode(ReleaseMode.stop);
 
       if (direction == CompassDirection.center) {
         await _navPlayer.setVolume(SoundCue.navReturn.volume);
@@ -141,7 +140,6 @@ class SoundController {
 
     try {
       await _radarPlayer.stop();
-      await _radarPlayer.setReleaseMode(ReleaseMode.loop);
       await _radarPlayer.setVolume(_lastVolume);
       await _radarPlayer.setPlaybackRate(_lastPlaybackRate);
       await _radarPlayer.setBalance(_lastBalance);
