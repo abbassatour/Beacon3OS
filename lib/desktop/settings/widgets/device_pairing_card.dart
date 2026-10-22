@@ -39,23 +39,25 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   }
 
   Future<void> _initDesktopHybrid() async {
-    final commsRepo = context.read<CommsRepository>();
-    await commsRepo.initializeHybridTransport(deviceType: 'desktop');
+    final vaultSync = context.read<VaultSyncCoordinator>();
+    final devicePairing = context.read<DevicePairingRepository>();
 
-    _transportMode = commsRepo.currentTransportMode;
+    await vaultSync.initializeHybridTransport(deviceType: 'desktop');
+
+    _transportMode = vaultSync.currentTransportMode;
     _transportSub?.cancel();
-    _transportSub = commsRepo.transportModeStream.listen((mode) {
+    _transportSub = vaultSync.transportModeStream.listen((mode) {
       if (mounted) setState(() => _transportMode = mode);
     });
 
-    _activePeers = commsRepo.activeMeshNodes;
+    _activePeers = vaultSync.activeMeshNodes;
     _peersSub?.cancel();
-    _peersSub = commsRepo.activeMeshNodesStream.listen((peers) {
+    _peersSub = vaultSync.activeMeshNodesStream.listen((peers) {
       if (mounted) setState(() => _activePeers = peers);
     });
 
-    final isLinked = await commsRepo.isDeviceLinked();
-    final vaultId = await commsRepo.getLinkedVaultId();
+    final isLinked = await devicePairing.isDeviceLinked();
+    final vaultId = await devicePairing.getLinkedVaultId();
 
     if (mounted) {
       setState(() {
@@ -73,13 +75,13 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
       _syncStatusMessage = 'Hydrating tasks, notes & spatial canvas...';
     });
 
-    final commsRepo = context.read<CommsRepository>();
+    final vaultSync = context.read<VaultSyncCoordinator>();
     final launcherRepo = context.read<LauncherRepository>();
 
     try {
       // 1. طلب لقطة مباشرة عبر LAN P2P إن وجد اتصال محلي (< 2ms)
       unawaited(
-        commsRepo.requestVaultSnapshot().catchError((Object e) {
+        vaultSync.requestVaultSnapshot().catchError((Object e) {
           log('DevicePairingCard: LAN snapshot request note: $e');
         }),
       );
@@ -103,10 +105,10 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     _authSubscription?.cancel();
     setState(() => _isBusy = true);
 
-    final commsRepo = context.read<CommsRepository>();
+    final devicePairing = context.read<DevicePairingRepository>();
     final previousCode = _generatedPairingCode;
 
-    final code = await commsRepo.initiateDevicePairing(
+    final code = await devicePairing.initiateDevicePairing(
       deviceType: 'desktop',
       previousCode: previousCode,
     );
@@ -119,7 +121,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
         _isBusy = false;
       });
 
-      _authSubscription = commsRepo
+      _authSubscription = devicePairing
           .listenForDeviceAuthorization(code, deviceType: 'desktop')
           .listen((vaultId) async {
         if (!mounted) return;
@@ -164,8 +166,8 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     setState(() => _generatedPairingCode = null);
 
     if (codeToCancel != null && mounted) {
-      final commsRepo = context.read<CommsRepository>();
-      await commsRepo.initiateDevicePairing(
+      final devicePairing = context.read<DevicePairingRepository>();
+      await devicePairing.initiateDevicePairing(
         deviceType: 'desktop',
         previousCode: codeToCancel,
       );
@@ -182,10 +184,10 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     }
 
     setState(() => _isBusy = true);
-    final commsRepo = context.read<CommsRepository>();
+    final devicePairing = context.read<DevicePairingRepository>();
     final sovereignDid = Web3Service.instance.walletAddressHex.toLowerCase();
 
-    final success = await commsRepo.authorizePairingCode(
+    final success = await devicePairing.authorizePairingCode(
       clean,
       customVaultId: sovereignDid,
     );
@@ -216,9 +218,9 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   }
 
   Future<void> _pingDevice(String targetLabel) async {
-    final commsRepo = context.read<CommsRepository>();
+    final safetyRadar = context.read<SafetyRadarRepository>();
     await SoundController.instance.play(SoundCue.wake);
-    await commsRepo.requestLocatePhone(reason: 'Desktop Command Center Ping');
+    await safetyRadar.requestLocatePhone(reason: 'Desktop Command Center Ping');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -231,8 +233,8 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
 
   Future<void> _unpair() async {
     _authSubscription?.cancel();
-    final commsRepo = context.read<CommsRepository>();
-    await commsRepo.unpairDevice();
+    final devicePairing = context.read<DevicePairingRepository>();
+    await devicePairing.unpairDevice();
 
     if (mounted) {
       setState(() {

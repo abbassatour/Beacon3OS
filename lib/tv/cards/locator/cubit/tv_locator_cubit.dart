@@ -10,13 +10,13 @@ import 'package:launcher_repository/launcher_repository.dart';
 
 class TvLocatorCubit extends Cubit<TvLocatorState> {
   TvLocatorCubit({
-    required CommsRepository commsRepository,
+    required SafetyRadarRepository safetyRadarRepository,
     SoundController? soundController,
-  })  : _commsRepo = commsRepository,
+  })  : _safetyRadar = safetyRadarRepository,
         _sound = soundController ?? SoundController.instance,
         super(const TvLocatorState());
 
-  final CommsRepository _commsRepo;
+  final SafetyRadarRepository _safetyRadar;
   final SoundController _sound;
   Timer? _cooldownTimer;
 
@@ -34,7 +34,7 @@ class TvLocatorCubit extends Cubit<TvLocatorState> {
     await _sound.play(SoundCue.wake);
 
     try {
-      final isDelivered = await _commsRepo.requestLocatePhone(reason: reason);
+      final isDelivered = await _safetyRadar.requestLocatePhone(reason: reason);
 
       if (isDelivered) {
         emit(state.copyWith(status: TvLocatorStatus.success));

@@ -10,21 +10,27 @@ import 'package:voice_ai_api/voice_ai_api.dart';
 
 import 'domains/assistant_repository.dart';
 import 'domains/comms_repository.dart';
+import 'domains/device_pairing_repository.dart';
 import 'domains/focus_alarms_repository.dart';
 import 'domains/ring_repository.dart';
+import 'domains/safety_radar_repository.dart';
 import 'domains/settings_repository.dart';
 import 'domains/system_hardware_repository.dart';
 import 'domains/task_agenda_repository.dart';
 import 'domains/topology_repository.dart';
+import 'domains/vault_sync_coordinator.dart';
 
 export 'domains/assistant_repository.dart';
 export 'domains/comms_repository.dart';
+export 'domains/device_pairing_repository.dart';
 export 'domains/focus_alarms_repository.dart';
 export 'domains/ring_repository.dart';
+export 'domains/safety_radar_repository.dart';
 export 'domains/settings_repository.dart';
 export 'domains/system_hardware_repository.dart';
 export 'domains/task_agenda_repository.dart';
 export 'domains/topology_repository.dart';
+export 'domains/vault_sync_coordinator.dart';
 
 export 'models/alarm_entity.dart';
 export 'models/app_setting_entity.dart';
@@ -51,7 +57,7 @@ class LauncherCommandResult {
 }
 
 /// منسق النظام المركزي ونواة التشغيل السيادية (BeaconOS Spatial Kernel)
-/// يدير المستودعات النطاقية الثمانية وينظم دورات المزامنة الهجينة
+/// يدير المستودعات النطاقية المتخصصة وينظم دورات المزامنة الهجينة
 class LauncherRepository {
   LauncherRepository({
     AppDatabase? database,
@@ -69,37 +75,54 @@ class LauncherRepository {
     AssistantRepository? assistantRepository,
     TopologyRepository? topologyRepository,
     RingRepository? ringRepository,
+    DevicePairingRepository? devicePairingRepository,
+    SafetyRadarRepository? safetyRadarRepository,
+    VaultSyncCoordinator? vaultSyncCoordinator,
   }) {
     final db = database ?? AppDatabase();
     final cloud = cloudSyncClient ?? CloudSyncClient();
     final hw = hardwareClient ?? HardwareClient();
+    final hybrid = HybridSyncClient(cloudSyncClient: cloud);
 
     settings = settingsRepository ?? SettingsRepositoryImpl(database: db, cloudSync: cloud);
     tasks = taskAgendaRepository ?? TaskAgendaRepositoryImpl(database: db, cloudSync: cloud);
     focusAlarms = focusAlarmsRepository ?? FocusAlarmsRepositoryImpl(database: db, cloudSync: cloud, hardware: hw);
     hardware = hardwareRepository ?? SystemHardwareRepositoryImpl(hardwareClient: hw);
-    comms = commsRepository ?? CommsRepositoryImpl(database: db, cloudSync: cloud, hardware: hw);
     assistant = assistantRepository ?? AssistantRepositoryImpl(speechEngine: speechEngine, ttsEngine: ttsEngine, llmAgent: llmAgent);
     topology = topologyRepository ?? TopologyRepositoryImpl(database: db, cloudSync: cloud);
 
+    // 🛡️ المستودعات الجديدة المعزولة
+    safetyRadar = safetyRadarRepository ?? SafetyRadarRepositoryImpl(
+      database: db, hardware: hw, hybridSync: hybrid,
+    );
+
+    vaultSync = vaultSyncCoordinator ?? VaultSyncCoordinatorImpl(
+      database: db, cloudSync: cloud, hybridSync: hybrid, safetyRadarRepository: safetyRadar,
+    );
+
+    devicePairing = devicePairingRepository ?? DevicePairingRepositoryImpl(
+      database: db, cloudSync: cloud, hybridSync: hybrid,
+    );
+
+    comms = commsRepository ?? CommsRepositoryImpl(
+      database: db, cloudSync: cloud, hardware: hw, vaultSyncCoordinator: vaultSync,
+    );
+
     // 🔔 تهيئة منظومة كاميرات Ring
     final ringCl = ringClient ?? RingSimulatorClient();
-    ring = ringRepository ??
-        RingRepositoryImpl(
-          database: db,
-          ringClient: ringCl,
-          assistantRepository: assistant,
-          cloudSync: cloud,
-        );
+    ring = ringRepository ?? RingRepositoryImpl(
+      database: db, ringClient: ringCl, assistantRepository: assistant, cloudSync: cloud,
+    );
 
     // 🛰️ تفعيل الاستماع اللحظي التلقائي الشامل لجميع المكونات والبيانات
+    vaultSync.initializeCloudRealtimeSync();
     comms.initializeRealtimeSync();
     topology.initializeRealtimeSync();
     tasks.initializeRealtimeSync();
     focusAlarms.initializeRealtimeSync();
   }
 
-  // --- الوصول المباشر للمستودعات الثمانية المتخصصة ---
+  // --- الوصول المباشر للمستودعات المتخصصة ---
   late final SettingsRepository settings;
   late final TaskAgendaRepository tasks;
   late final FocusAlarmsRepository focusAlarms;
@@ -108,6 +131,9 @@ class LauncherRepository {
   late final AssistantRepository assistant;
   late final TopologyRepository topology;
   late final RingRepository ring;
+  late final DevicePairingRepository devicePairing;
+  late final SafetyRadarRepository safetyRadar;
+  late final VaultSyncCoordinator vaultSync;
 
   Future<LauncherCommandResult> Function(String userQuery, {String? base64Image})? _customVoiceDispatcher;
 
@@ -188,5 +214,6 @@ class LauncherRepository {
     tasks.dispose();
     focusAlarms.dispose();
     ring.dispose();
+    vaultSync.dispose();
   }
 }

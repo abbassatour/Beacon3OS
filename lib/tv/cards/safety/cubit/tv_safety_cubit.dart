@@ -10,13 +10,13 @@ import 'package:launcher_repository/launcher_repository.dart';
 
 class TvSafetyCubit extends Cubit<TvSafetyState> {
   TvSafetyCubit({
-    required CommsRepository commsRepository,
+    required SafetyRadarRepository safetyRadarRepository,
     SoundController? soundController,
-  })  : _commsRepo = commsRepository,
+  })  : _safetyRadar = safetyRadarRepository,
         _sound = soundController ?? SoundController.instance,
         super(const TvSafetyState());
 
-  final CommsRepository _commsRepo;
+  final SafetyRadarRepository _safetyRadar;
   final SoundController _sound;
   Timer? _broadcastCooldownTimer;
 
@@ -33,7 +33,7 @@ class TvSafetyCubit extends Cubit<TvSafetyState> {
     await _sound.play(SoundCue.sosAlarm);
 
     try {
-      final alertId = await _commsRepo.triggerEmergencySos();
+      final alertId = await _safetyRadar.triggerEmergencySos();
       emit(state.copyWith(
         status: TvSafetyStatus.success,
         lastSosAlertId: alertId,

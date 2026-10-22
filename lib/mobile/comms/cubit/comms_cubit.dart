@@ -11,11 +11,17 @@ import 'package:launcher_repository/launcher_repository.dart';
 class CommsCubit extends Cubit<CommsState> {
   CommsCubit({
     required CommsRepository commsRepository,
+    required SafetyRadarRepository safetyRadarRepository,
+    required DevicePairingRepository devicePairingRepository,
+    required VaultSyncCoordinator vaultSyncCoordinator,
     required SystemHardwareRepository hardwareRepository,
     required AssistantRepository assistantRepository,
     HapticManager? hapticManager,
     SoundController? soundController,
   })  : _commsRepo = commsRepository,
+        _safetyRadar = safetyRadarRepository,
+        _devicePairing = devicePairingRepository,
+        _vaultSync = vaultSyncCoordinator,
         _hardwareRepo = hardwareRepository,
         _assistant = assistantRepository,
         _haptics = hapticManager ?? HapticManager.instance,
@@ -25,6 +31,9 @@ class CommsCubit extends Cubit<CommsState> {
   }
 
   final CommsRepository _commsRepo;
+  final SafetyRadarRepository _safetyRadar;
+  final DevicePairingRepository _devicePairing;
+  final VaultSyncCoordinator _vaultSync;
   final SystemHardwareRepository _hardwareRepo;
   final AssistantRepository _assistant;
   final HapticManager _haptics;
@@ -62,7 +71,7 @@ class CommsCubit extends Cubit<CommsState> {
     );
 
     // 🌟 مراقبة حالة اتصال الشبكة والاقتران
-    _transportSubscription = _commsRepo.transportModeStream.listen((_) {
+    _transportSubscription = _vaultSync.transportModeStream.listen((_) {
       _refreshLinkStatus();
     });
 
@@ -71,8 +80,8 @@ class CommsCubit extends Cubit<CommsState> {
 
   Future<void> _refreshLinkStatus() async {
     if (isClosed) return;
-    final isLinked = await _commsRepo.isDeviceLinked();
-    final linkedId = await _commsRepo.getLinkedVaultId();
+    final isLinked = await _devicePairing.isDeviceLinked();
+    final linkedId = await _devicePairing.getLinkedVaultId();
     if (!isClosed) {
       emit(state.copyWith(
         isDeviceLinked: isLinked,
@@ -180,7 +189,7 @@ class CommsCubit extends Cubit<CommsState> {
       'Emergency SOS broadcast initiated! Broadcasting real GPS coordinates and attesting to Arbitrum ledger.',
     );
 
-    await _commsRepo.triggerEmergencySos();
+    await _safetyRadar.triggerEmergencySos();
 
     unawaited(
       _hardwareRepo.getCurrentLocation().then((coords) {
@@ -267,7 +276,7 @@ class CommsCubit extends Cubit<CommsState> {
       await _sound.play(SoundCue.processing);
 
       final sovereignDid = Web3Service.instance.walletAddressHex.toLowerCase();
-      final success = await _commsRepo.authorizePairingCode(
+      final success = await _devicePairing.authorizePairingCode(
         code,
         customVaultId: sovereignDid,
       );
@@ -296,7 +305,7 @@ class CommsCubit extends Cubit<CommsState> {
   Future<void> unpairDevice() async {
     try {
       _haptics.selectionClick();
-      await _commsRepo.unpairDevice();
+      await _devicePairing.unpairDevice();
       await _haptics.successNotification();
       await _sound.play(SoundCue.success);
       await _assistant.speak('Device unpaired successfully.');

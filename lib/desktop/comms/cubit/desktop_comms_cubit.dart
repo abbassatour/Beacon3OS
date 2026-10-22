@@ -9,12 +9,15 @@ import 'package:launcher_repository/launcher_repository.dart';
 class DesktopCommsCubit extends Cubit<DesktopCommsState> {
   DesktopCommsCubit({
     required CommsRepository commsRepository,
+    required SafetyRadarRepository safetyRadarRepository,
   })  : _commsRepo = commsRepository,
+        _safetyRadar = safetyRadarRepository,
         super(const DesktopCommsState()) {
     _initStreams();
   }
 
   final CommsRepository _commsRepo;
+  final SafetyRadarRepository _safetyRadar;
   StreamSubscription<List<ContactEntity>>? _contactsSub;
 
   void _initStreams() {
@@ -72,7 +75,6 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  /// تبديل حالة الطوارئ لجهة الاتصال دون حذف السجل أو تغيير الـ UUID
   Future<void> toggleEmergencyStatus(ContactEntity contact) async {
     try {
       await _commsRepo.toggleEmergencyStatus(
@@ -133,14 +135,13 @@ class DesktopCommsCubit extends Cubit<DesktopCommsState> {
     }
   }
 
-  /// إطلاق بث رادار طوارئ تجريبي للتحقق من الاتصال السحابي
   Future<void> triggerTestSosBroadcast() async {
     if (state.isBroadcastingSos) return;
 
     emit(state.copyWith(isBroadcastingSos: true));
 
     try {
-      final alertId = await _commsRepo.triggerEmergencySos(
+      final alertId = await _safetyRadar.triggerEmergencySos(
         latitude: 52.3676,
         longitude: 4.9041,
         batteryLevel: 95,

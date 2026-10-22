@@ -82,7 +82,8 @@ class _AppState extends State<App> {
     );
 
     // 🔔 3. تسجيل معالج صفارة الإنذار والاهتزاز عند طلب العثور على الهاتف
-    widget._launcherRepository.comms.registerLocateHandler(() async {
+    // ✅ تم التحديث ليعتمد على safetyRadar بدلاً من comms
+    widget._launcherRepository.safetyRadar.registerLocateHandler(() async {
       log('App: 📢 Inbound Remote Locate Triggered! Sounding siren & haptics...');
       try {
         await SoundController.instance.play(SoundCue.sosAlarm);
@@ -98,8 +99,9 @@ class _AppState extends State<App> {
     });
 
     // 🛰️ 4. الاستماع للأوامر الواردة عن بعد وعرض إشعار فوري
+    // ✅ تم التحديث ليعتمد على vaultSync بدلاً من comms
     _remoteActionsSubscription =
-        widget._launcherRepository.comms.remoteActionEvents.listen((event) {
+        widget._launcherRepository.vaultSync.remoteActionEvents.listen((event) {
       log('App: ⚡ Received remote action event: ${event.actionType}');
       final navContext = appNavigatorKey.currentContext;
       if (navContext != null) {
@@ -176,15 +178,16 @@ class _AppState extends State<App> {
     });
 
     // 🌐 5. تشغيل محرك النقل الهجين والـ P2P للديسكتوب أو الهاتف فور الإقلاع
+    // ✅ تم التحديث ليعتمد على vaultSync بدلاً من comms
     if (_isDesktop) {
       unawaited(
-        widget._launcherRepository.comms.initializeHybridTransport(
+        widget._launcherRepository.vaultSync.initializeHybridTransport(
           deviceType: 'desktop',
         ),
       );
     } else if (!_isTv) {
       unawaited(
-        widget._launcherRepository.comms.initializeHybridTransport(
+        widget._launcherRepository.vaultSync.initializeHybridTransport(
           deviceType: 'phone',
         ),
       );
@@ -204,7 +207,7 @@ class _AppState extends State<App> {
   void dispose() {
     _locateSoundTimer?.cancel();
     _remoteActionsSubscription?.cancel();
-    widget._launcherRepository.comms.unregisterLocateHandler();
+    widget._launcherRepository.safetyRadar.unregisterLocateHandler();
     _nodesSubscription?.cancel();
     _topology.dispose();
     super.dispose();
@@ -242,6 +245,16 @@ class _AppState extends State<App> {
         ),
         RepositoryProvider<CommsRepository>.value(
           value: widget._launcherRepository.comms,
+        ),
+        // ✅ توفير المستودعات الجديدة لكافة طبقات التطبيق
+        RepositoryProvider<SafetyRadarRepository>.value(
+          value: widget._launcherRepository.safetyRadar,
+        ),
+        RepositoryProvider<DevicePairingRepository>.value(
+          value: widget._launcherRepository.devicePairing,
+        ),
+        RepositoryProvider<VaultSyncCoordinator>.value(
+          value: widget._launcherRepository.vaultSync,
         ),
         RepositoryProvider<SystemHardwareRepository>.value(
           value: widget._launcherRepository.hardware,

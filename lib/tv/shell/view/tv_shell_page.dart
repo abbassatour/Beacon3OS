@@ -25,6 +25,8 @@ class TvShellPage extends StatelessWidget {
         BlocProvider<TvShellCubit>(
           create: (context) => TvShellCubit(
             commsRepository: context.read<CommsRepository>(),
+            vaultSyncCoordinator: context.read<VaultSyncCoordinator>(),
+            devicePairingRepository: context.read<DevicePairingRepository>(),
             assistantRepository: context.read<AssistantRepository>(),
             ringRepository: context.read<LauncherRepository>().ring,
             launcherRepository: context.read<LauncherRepository>(),
@@ -42,12 +44,12 @@ class TvShellPage extends StatelessWidget {
         ),
         BlocProvider<TvLocatorCubit>(
           create: (context) => TvLocatorCubit(
-            commsRepository: context.read<CommsRepository>(),
+            safetyRadarRepository: context.read<SafetyRadarRepository>(),
           ),
         ),
         BlocProvider<TvSafetyCubit>(
           create: (context) => TvSafetyCubit(
-            commsRepository: context.read<CommsRepository>(),
+            safetyRadarRepository: context.read<SafetyRadarRepository>(),
           ),
         ),
       ],

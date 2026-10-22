@@ -11,11 +11,15 @@ import 'package:launcher_repository/launcher_repository.dart';
 class TvShellCubit extends Cubit<TvShellState> {
   TvShellCubit({
     required CommsRepository commsRepository,
+    required VaultSyncCoordinator vaultSyncCoordinator,
+    required DevicePairingRepository devicePairingRepository,
     required AssistantRepository assistantRepository,
     required RingRepository ringRepository,
     LauncherRepository? launcherRepository,
     SoundController? soundController,
   })  : _commsRepo = commsRepository,
+        _vaultSync = vaultSyncCoordinator,
+        _devicePairing = devicePairingRepository,
         _assistant = assistantRepository,
         _ringRepo = ringRepository,
         _launcherRepo = launcherRepository,
@@ -25,6 +29,8 @@ class TvShellCubit extends Cubit<TvShellState> {
   }
 
   final CommsRepository _commsRepo;
+  final VaultSyncCoordinator _vaultSync;
+  final DevicePairingRepository _devicePairing;
   final AssistantRepository _assistant;
   final RingRepository _ringRepo;
   final LauncherRepository? _launcherRepo;
@@ -51,10 +57,6 @@ class TvShellCubit extends Cubit<TvShellState> {
     await _initHybridTransport();
   }
 
-  // ===========================================================================
-  // ⏰ 1. إدارة الوقت وشاشة التوقف الخاملة (Ambient & Clock Engine)
-  // ===========================================================================
-
   void _startClockTicker() {
     _clockTimer?.cancel();
     _clockTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -68,8 +70,6 @@ class TvShellCubit extends Cubit<TvShellState> {
 
   void _resetScreensaverTimer() {
     _screensaverTimer?.cancel();
-    // 🛡️ حوكمة أمنية: شاشة التوقف التسكينية تنشط فقط عندما يكون التلفاز في Dashboard
-    // يُحظر الدخول في الخمول أثناء شاشة الاقتران (Pairing) ليبقى الكود ظاهراً للمستخدم
     _screensaverTimer = Timer(_screensaverTimeout, () {
       if (!isClosed && !state.hasActiveAlert && state.isDashboard) {
         emit(state.copyWith(mode: TvMode.ambient));
@@ -86,30 +86,26 @@ class TvShellCubit extends Cubit<TvShellState> {
     }
   }
 
-  // ===========================================================================
-  // 🛰️ 2. النقل الهجين والاقتران والتحميل التلقائي للبيانات
-  // ===========================================================================
-
   Future<void> _initHybridTransport() async {
     try {
-      await _commsRepo.initializeHybridTransport(deviceType: 'fire_tv');
+      await _vaultSync.initializeHybridTransport(deviceType: 'fire_tv');
 
       _transportSub?.cancel();
-      _transportSub = _commsRepo.transportModeStream.listen((mode) {
+      _transportSub = _vaultSync.transportModeStream.listen((mode) {
         if (isClosed) return;
         final prevMode = state.transportMode;
         emit(state.copyWith(transportMode: mode));
         _announceTransportChange(mode, prevMode);
       });
 
-      final isLinked = await _commsRepo.isDeviceLinked();
+      final isLinked = await _devicePairing.isDeviceLinked();
       if (isClosed) return;
 
       if (isLinked) {
-        final linkedVaultId = await _commsRepo.getLinkedVaultId();
+        final linkedVaultId = await _devicePairing.getLinkedVaultId();
         if (linkedVaultId != null && linkedVaultId.isNotEmpty) {
-          // 🔑 مصادقة التلفاز بحساب الهاتف سحابياً:
-          await _commsRepo.authenticateCloudWithDid(linkedVaultId);
+          // ✅ تم التعديل للاعتماد على _devicePairing
+          await _devicePairing.authenticateCloudWithDid(linkedVaultId);
         }
 
         emit(
@@ -118,10 +114,7 @@ class TvShellCubit extends Cubit<TvShellState> {
             isDeviceLinked: true,
           ),
         );
-        // ⚡ طلب لقطة الخزنة فوراً عبر شبكة الـ LAN المحلية
-        unawaited(_commsRepo.requestVaultSnapshot());
-
-        // 📥 استرجاع البيانات سحابياً كمسار بديل في الخلفية
+        unawaited(_vaultSync.requestVaultSnapshot());
         unawaited(_launcherRepo?.restoreVaultFromCloud());
       } else {
         await startNewPairingSession();
@@ -148,8 +141,7 @@ class TvShellCubit extends Cubit<TvShellState> {
       clearPairingCode: true,
     ));
 
-    // حرق الكود السابق إن وجد
-    final code = await _commsRepo.initiateDevicePairing(
+    final code = await _devicePairing.initiateDevicePairing(
       deviceType: 'fire_tv',
       previousCode: previousCode,
     );
@@ -159,7 +151,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     emit(state.copyWith(activePairingCode: code));
     _announcePairingCodeAloud(code);
 
-    _pairingAuthSub = _commsRepo
+    _pairingAuthSub = _devicePairing
         .listenForDeviceAuthorization(code, deviceType: 'fire_tv')
         .listen((vaultId) {
       if (vaultId != null && vaultId.isNotEmpty) {
@@ -180,14 +172,12 @@ class TvShellCubit extends Cubit<TvShellState> {
   }
 
   Future<void> _onPairingAuthorized([String? vaultId]) async {
-    // 🔊 1. تشغيل نغمة النجاح مع حماية من أخطاء مشغل الصوت
     try {
       await _sound.play(SoundCue.success);
     } catch (e) {
       log('TvShellCubit: Sound cue error on pairing: $e');
     }
 
-    // 🖥️ 2. تحديث واجهة التلفاز فوراً إلى شاشة التحكم (Dashboard)
     if (!isClosed) {
       emit(
         state.copyWith(
@@ -198,25 +188,23 @@ class TvShellCubit extends Cubit<TvShellState> {
       );
     }
 
-    // ⚡ 3. سحب بيانات الخزنة المباشرة من الهاتف فوراً عبر LAN P2P مع حماية الـ Future
     unawaited(
-      _commsRepo.requestVaultSnapshot().catchError((Object e) {
+      _vaultSync.requestVaultSnapshot().catchError((Object e) {
         log('TvShellCubit: LAN snapshot request error: $e');
       }),
     );
 
-    // 🔑 4. توثيق الجلسة السحابية بهوية الهاتف مع حماية وضع الـ Offline
     try {
-      final effectiveVaultId = vaultId ?? await _commsRepo.getLinkedVaultId();
+      final effectiveVaultId = vaultId ?? await _devicePairing.getLinkedVaultId();
       if (effectiveVaultId != null && effectiveVaultId.isNotEmpty) {
-        await _commsRepo.authenticateCloudWithDid(effectiveVaultId);
+        // ✅ تم التعديل للاعتماد على _devicePairing
+        await _devicePairing.authenticateCloudWithDid(effectiveVaultId);
         log('TvShellCubit: ✅ Cloud session authenticated for Vault: $effectiveVaultId');
       }
     } catch (e) {
-      log('TvShellCubit: Cloud authentication note on pair (offline-first fallback): $e');
+      log('TvShellCubit: Cloud authentication note on pair: $e');
     }
 
-    // 📥 5. استرجاع بيانات الخزنة من السحابة كمسار إضافي موازٍ
     try {
       if (_launcherRepo != null) {
         await _launcherRepo!.restoreVaultFromCloud();
@@ -225,7 +213,6 @@ class TvShellCubit extends Cubit<TvShellState> {
       log('TvShellCubit: Error hydrating vault on pair: $e');
     }
 
-    // 🗣️ 6. نطق إشعار نجاح الربط للمستخدم
     try {
       await _assistant.speak(
         'Living Room TV linked successfully! Real-time telemetry and agenda are live.',
@@ -244,7 +231,7 @@ class TvShellCubit extends Cubit<TvShellState> {
       clearPairingCode: true,
     ));
 
-    await _commsRepo.unpairDevice();
+    await _devicePairing.unpairDevice();
     await startNewPairingSession();
   }
 
@@ -252,13 +239,9 @@ class TvShellCubit extends Cubit<TvShellState> {
     emit(state.copyWith(mode: TvMode.dashboard));
   }
 
-  // ===========================================================================
-  // 🚨 3. رادار الطوارئ والـ Ping الوارد (Remote Actions)
-  // ===========================================================================
-
   void _listenToRemoteActions() {
     _remoteActionsSub?.cancel();
-    _remoteActionsSub = _commsRepo.remoteActionEvents.listen((event) {
+    _remoteActionsSub = _vaultSync.remoteActionEvents.listen((event) {
       if (isClosed) return;
 
       wakeFromAmbient();
@@ -279,10 +262,6 @@ class TvShellCubit extends Cubit<TvShellState> {
       });
     });
   }
-
-  // ===========================================================================
-  // 🔔 4. كاميرات المراقبة المحيطية والأحداث (Ring Integration)
-  // ===========================================================================
 
   void _listenToRingEvents() {
     _ringEventsSub?.cancel();
@@ -337,8 +316,7 @@ class TvShellCubit extends Cubit<TvShellState> {
     if (mode == SyncTransportMode.lanDirect) {
       _sound.play(SoundCue.success);
       _assistant.speak('Living room screen linked via high-speed home network.');
-      // ⚡ فور اكتشاف اتصال الـ LAN، نطلب أحدث نسخة بيانات من الهاتف
-      unawaited(_commsRepo.requestVaultSnapshot());
+      unawaited(_vaultSync.requestVaultSnapshot());
     } else if (mode == SyncTransportMode.cloudRelay &&
         prevMode == SyncTransportMode.lanDirect) {
       _assistant.speak('Local connection paused. Switched to cloud relay.');

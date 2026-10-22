@@ -18,6 +18,7 @@ class DesktopCommsView extends StatelessWidget {
     return BlocProvider(
       create: (context) => DesktopCommsCubit(
         commsRepository: context.read<CommsRepository>(),
+        safetyRadarRepository: context.read<SafetyRadarRepository>(),
       ),
       child: const _DesktopCommsContent(),
     );

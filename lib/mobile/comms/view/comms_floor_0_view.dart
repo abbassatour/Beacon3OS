@@ -692,6 +692,9 @@ class CommsFloor0StandaloneView extends StatelessWidget {
     return BlocProvider(
       create: (context) => CommsCubit(
         commsRepository: context.read<CommsRepository>(),
+        safetyRadarRepository: context.read<SafetyRadarRepository>(),
+        devicePairingRepository: context.read<DevicePairingRepository>(),
+        vaultSyncCoordinator: context.read<VaultSyncCoordinator>(),
         hardwareRepository: context.read<SystemHardwareRepository>(),
         assistantRepository: context.read<AssistantRepository>(),
       ),

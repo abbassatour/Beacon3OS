@@ -69,8 +69,7 @@ class SpatialShellPage extends StatelessWidget {
           ),
         ),
 
-        // 🚀 2. رفع الـ Cubits الستة للغرف الفضائية للأعلى (Lift State Up)
-        // يتم إنشاؤها مرة واحدة وتظل حية في الذاكرة لمنع إعادة الجلب وتصفير الحالة عند السحب
+        // 🚀 2. رفع الـ Cubits الستة للغرف الفضائية للأعلى
         BlocProvider(
           create: (context) => CockpitCubit(
             taskRepository: context.read<TaskAgendaRepository>(),
@@ -86,9 +85,13 @@ class SpatialShellPage extends StatelessWidget {
             settingsRepository: context.read<SettingsRepository>(),
           ),
         ),
+        // ✅ حقن المستودعات الثلاثة الجديدة لـ CommsCubit
         BlocProvider(
           create: (context) => CommsCubit(
             commsRepository: context.read<CommsRepository>(),
+            safetyRadarRepository: context.read<SafetyRadarRepository>(),
+            devicePairingRepository: context.read<DevicePairingRepository>(),
+            vaultSyncCoordinator: context.read<VaultSyncCoordinator>(),
             hardwareRepository: context.read<SystemHardwareRepository>(),
             assistantRepository: context.read<AssistantRepository>(),
           ),
@@ -146,9 +149,9 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
       _cameraController.snapToCoordinate(state.currentCoordinate, screenSize);
       _cameraController.animateToFloor(state.currentFloor);
 
-      // 🛰️ الاستماع المباشر لأوامر تبديل الطوابق القادمة من أليكسا أو شاشات المنزل
-      final commsRepo = context.read<CommsRepository>();
-      _remoteActionsSubscription = commsRepo.remoteActionEvents.listen((event) {
+      // 🛰️ الاستماع المباشر لأوامر تبديل الطوابق القادمة من أليكسا أو شاشات المنزل (عبر VaultSyncCoordinator)
+      final vaultSync = context.read<VaultSyncCoordinator>();
+      _remoteActionsSubscription = vaultSync.remoteActionEvents.listen((event) {
         if (event.actionType == RemoteActionType.navigateFloor) {
           final targetFloor = (event.payload['target_floor'] as num?)?.toInt() ?? 0;
           shellCubit.jumpToFloor(targetFloor);
@@ -180,8 +183,8 @@ class _SpatialShellBodyState extends State<_SpatialShellBody>
     await HapticManager.instance.emergencyAlarmPulse();
     if (!context.mounted) return;
     try {
-      final commsRepo = context.read<CommsRepository>();
-      await commsRepo.triggerEmergencySos();
+      final safetyRadar = context.read<SafetyRadarRepository>();
+      await safetyRadar.triggerEmergencySos();
     } catch (_) {}
   }
 
