@@ -19,6 +19,39 @@ class CloudSyncClient {
     }
   }
 
+
+  /// 🔑 توثيق الجهاز في Supabase باستخدام معرّف الهوية السيادية (DID)
+  Future<AuthResponse?> signInWithSovereignDid(String didAddress) async {
+    final cleanDid = didAddress.toLowerCase().replaceAll('0x', '').trim();
+    // 🌟 استخدام نطاق معتمد رسمياً وصيغة بريد تبدأ بحروف لتفادي رفض Supabase
+    final syntheticEmail = 'did_${cleanDid.replaceAll('0x', '')}@beaconos.com';
+    final passSlice = cleanDid.length >= 20
+        ? cleanDid.substring(0, 20)
+        : cleanDid;
+    final syntheticPassword = 'BeaconDID:${passSlice}!Sovereign2026';
+
+    try {
+      final res = await signInWithEmail(
+        email: syntheticEmail,
+        password: syntheticPassword,
+      );
+      log('CloudSyncClient: ✅ Signed in with Sovereign DID ($cleanDid)');
+      return res;
+    } catch (_) {
+      try {
+        final res = await signUpWithEmail(
+          email: syntheticEmail,
+          password: syntheticPassword,
+        );
+        log('CloudSyncClient: 🆕 Registered and signed in with Sovereign DID ($cleanDid)');
+        return res;
+      } catch (e) {
+        log('CloudSyncClient: Sovereign DID auth error: $e');
+        return null;
+      }
+    }
+  }
+
   // ===========================================================================
   // 🔐 1. المصادقة وإدارة الجلسة (Auth & Session Management)
   // ===========================================================================

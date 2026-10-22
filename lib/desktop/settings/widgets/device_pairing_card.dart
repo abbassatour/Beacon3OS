@@ -1,5 +1,7 @@
 ﻿// lib/desktop/settings/widgets/device_pairing_card.dart
 import 'dart:async';
+import 'dart:developer';
+
 import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/services/web3_service.dart';
@@ -22,6 +24,8 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
   String? _linkedVaultId;
   String? _generatedPairingCode;
   bool _isBusy = false;
+  String? _syncStatusMessage;
+
   StreamSubscription<String?>? _authSubscription;
   StreamSubscription<SyncTransportMode>? _transportSub;
   StreamSubscription<List<LocalNodeInfo>>? _peersSub;
@@ -61,6 +65,40 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
     }
   }
 
+  /// 🚀 سحب وتسوية بيانات الخزنة بالكامل فور نجاح الاقتران
+  Future<void> _hydrateVaultAfterPairing(String vaultId) async {
+    if (!mounted) return;
+    setState(() {
+      _isBusy = true;
+      _syncStatusMessage = 'Hydrating tasks, notes & spatial canvas...';
+    });
+
+    final commsRepo = context.read<CommsRepository>();
+    final launcherRepo = context.read<LauncherRepository>();
+
+    try {
+      // 1. طلب لقطة مباشرة عبر LAN P2P إن وجد اتصال محلي (< 2ms)
+      unawaited(
+        commsRepo.requestVaultSnapshot().catchError((Object e) {
+          log('DevicePairingCard: LAN snapshot request note: $e');
+        }),
+      );
+
+      // 2. سحب البيانات الشاملة من السحابة لملء الجداول محلياً في SQLite
+      await launcherRepo.restoreVaultFromCloud();
+      log('DevicePairingCard: ✅ Successfully restored vault data from cloud.');
+    } catch (e) {
+      log('DevicePairingCard: Hydration error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _syncStatusMessage = null;
+        });
+      }
+    }
+  }
+
   Future<void> _startPairingDisplaySession() async {
     _authSubscription?.cancel();
     setState(() => _isBusy = true);
@@ -83,7 +121,7 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
 
       _authSubscription = commsRepo
           .listenForDeviceAuthorization(code, deviceType: 'desktop')
-          .listen((vaultId) {
+          .listen((vaultId) async {
         if (!mounted) return;
         if (vaultId != null && vaultId.isNotEmpty) {
           SoundController.instance.play(SoundCue.success);
@@ -92,12 +130,27 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
             _linkedVaultId = vaultId;
             _generatedPairingCode = null;
           });
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Desktop linked to Beacon phone vault successfully!'),
+              content: Text('Desktop linked! Hydrating vault data across devices...'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
+
+          // ⚡ السحب الفوري للبيانات من الهاتف والسحابة
+          await _hydrateVaultAfterPairing(vaultId);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Vault data fully synchronized!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         }
       });
     } else {
@@ -145,11 +198,12 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
       _codeInputController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Successfully authorized device pairing for code $clean!'),
+          content: Text('Successfully paired code $clean! Syncing vault...'),
           backgroundColor: Colors.green,
         ),
       );
-      _initDesktopHybrid();
+      await _initDesktopHybrid();
+      await _hydrateVaultAfterPairing(sovereignDid);
     } else {
       SoundController.instance.play(SoundCue.error);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -230,6 +284,40 @@ class _DevicePairingCardState extends State<DevicePairingCard> {
             ],
           ),
           const SizedBox(height: 12),
+          if (_syncStatusMessage != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _syncStatusMessage!,
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (_isLinked) ...[
             Container(
               padding: const EdgeInsets.all(14),

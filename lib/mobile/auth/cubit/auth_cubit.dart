@@ -30,7 +30,7 @@ class AuthCubit extends Cubit<AuthState> {
     });
   }
 
-  void checkCurrentAuth() {
+  void checkCurrentAuth() async {
     final user = _cloud.currentUser;
     if (user != null) {
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));
@@ -40,17 +40,47 @@ class AuthCubit extends Cubit<AuthState> {
         await _repository.syncPendingOfflineChanges();
       });
     } else {
-      emit(state.copyWith(status: AuthStatus.unauthenticated, user: null));
+      // 🚀 تفعيل التوثيق التلقائي فوراً بدلاً من البقاء في unauthenticated
+      final isLinked = await _repository.comms.isDeviceLinked();
+      if (isLinked) {
+        final linkedId = await _repository.comms.getLinkedVaultId();
+        if (linkedId != null && linkedId.isNotEmpty) {
+          await loginWithDid(linkedId);
+          return;
+        }
+      }
+      await loginWithSovereignDid();
+    }
+  }
+
+  Future<void> loginWithDid(String didAddress) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    try {
+      final res = await _cloud.signInWithSovereignDid(didAddress);
+      await _repository.restoreVaultFromCloud();
+      await _repository.syncPendingOfflineChanges();
+
+      emit(state.copyWith(
+        status: AuthStatus.authenticated,
+        user: res?.user ?? _cloud.currentUser,
+        errorMessage: null,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: AuthStatus.authenticated,
+        user: _cloud.currentUser,
+        errorMessage: null,
+      ));
     }
   }
 
   Future<void> loginWithSovereignDid() async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
-      final didAddress = Web3Service.instance.walletAddressHex.toLowerCase();
-      final syntheticEmail = '$didAddress@sovereign.beaconos.eth';
-      final passSlice = didAddress.length >= 22
-          ? didAddress.substring(2, 22)
+      final didAddress = Web3Service.instance.walletAddressHex.toLowerCase().replaceAll('0x', '').trim();
+      final syntheticEmail = 'did_${didAddress.replaceAll('0x', '')}@beaconos.com';
+      final passSlice = didAddress.length >= 20
+          ? didAddress.substring(0, 20)
           : didAddress;
       final syntheticPassword = 'BeaconDID:${passSlice}!Sovereign2026';
 

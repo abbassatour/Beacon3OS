@@ -362,7 +362,7 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
   // 🌟 تحديث النمط ليقبل أي نص بعد كلمة Pair لنتعامل مع الكلمات والأرقام معاً
   @override
   RegExp get fastPathPattern => RegExp(
-        r'^(?:pair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*(.+)',
+        r'^(?:pair|bear|bare|pear|fair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*(.+)',
         caseSensitive: false,
       );
 

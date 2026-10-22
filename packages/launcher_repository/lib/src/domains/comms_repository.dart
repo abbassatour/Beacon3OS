@@ -64,7 +64,9 @@ abstract class CommsRepository {
     bool isEmergency = false,
   });
   Future<void> deleteContact(dynamic contactOrId);
-
+  
+/// 🔑 توثيق الجلسة السحابية في Supabase باستخدام معرف الـ DID
+  Future<void> authenticateCloudWithDid(String didAddress);
   /// تبديل حالة الطوارئ لجهة الاتصال بأمان دون حذف السجل وإعادة إنشائه
   Future<void> toggleEmergencyStatus(String contactId, {bool? isEmergency});
 
@@ -1262,7 +1264,15 @@ class CommsRepositoryImpl implements CommsRepository {
       },
     );
   }
-
+  @override
+  Future<void> authenticateCloudWithDid(String didAddress) async {
+    try {
+      await _cloud.signInWithSovereignDid(didAddress);
+      log('CommsRepository: ✅ Authenticated cloud session with DID: $didAddress');
+    } catch (e) {
+      log('CommsRepository: Note on authenticating cloud with DID: $e');
+    }
+  }
   @override
   Future<
       ({
@@ -1586,22 +1596,46 @@ class CommsRepositoryImpl implements CommsRepository {
             log('CommsRepository: Safe catch on pairing stream error: $error');
           })
           .asyncMap((data) async {
-            if (data != null && data['status'] == 'paired') {
-              final vaultId = data['vault_id'] as String?;
-              if (vaultId != null && vaultId.isNotEmpty) {
-                await _db.setDevicePairingMeta('linked_vault_id', vaultId);
-                try {
-                  await _cloud.burnPairingSession(pairingCode);
-                } catch (_) {}
+            try {
+              if (data != null && data['status'] == 'paired') {
+                final vaultId = data['vault_id'] as String?;
+                if (vaultId != null && vaultId.isNotEmpty) {
+                  // 1. حفظ معرف الخزنة محلياً
+                  await _db.setDevicePairingMeta('linked_vault_id', vaultId);
 
-                _hybridSync.updateLinkedVaultId(vaultId);
-                await initializeHybridTransport(
-                  deviceType: deviceType,
-                  nodeId: 'node_$vaultId',
-                );
+                  // 2. محاولة حرق جلسة الاقتران لعدم تكرارها
+                  try {
+                    await _cloud.burnPairingSession(pairingCode);
+                  } catch (e) {
+                    log('CommsRepository: Safe catch on burning pairing session: $e');
+                  }
 
-                return vaultId;
+                  // 3. 🔑 توثيق حساب السحابة بهوية الـ DID للهاتف (محمية لتفادي تعطل الاقتران أوفلاين)
+                  try {
+                    await _cloud.signInWithSovereignDid(vaultId);
+                    log('CommsRepository: ✅ Cloud authenticated on screen using Phone DID: $vaultId');
+                  } catch (e) {
+                    log('CommsRepository: Cloud authentication deferred (offline-first fallback): $e');
+                  }
+
+                  // 4. تحديث معرّف الخزنة في المحرك الهجين
+                  _hybridSync.updateLinkedVaultId(vaultId);
+
+                  // 5. تهيئة قناة النقل للـ LAN
+                  try {
+                    await initializeHybridTransport(
+                      deviceType: deviceType,
+                      nodeId: 'node_$vaultId',
+                    );
+                  } catch (e) {
+                    log('CommsRepository: Error initializing hybrid transport on pair: $e');
+                  }
+
+                  return vaultId;
+                }
               }
+            } catch (innerError, stackTrace) {
+              log('CommsRepository: Error inside pairing asyncMap handler: $innerError', stackTrace: stackTrace);
             }
             return null;
           })

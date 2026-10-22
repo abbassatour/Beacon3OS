@@ -106,6 +106,12 @@ class TvShellCubit extends Cubit<TvShellState> {
       if (isClosed) return;
 
       if (isLinked) {
+        final linkedVaultId = await _commsRepo.getLinkedVaultId();
+        if (linkedVaultId != null && linkedVaultId.isNotEmpty) {
+          // 🔑 مصادقة التلفاز بحساب الهاتف سحابياً:
+          await _commsRepo.authenticateCloudWithDid(linkedVaultId);
+        }
+
         emit(
           state.copyWith(
             mode: TvMode.dashboard,
@@ -157,7 +163,7 @@ class TvShellCubit extends Cubit<TvShellState> {
         .listenForDeviceAuthorization(code, deviceType: 'fire_tv')
         .listen((vaultId) {
       if (vaultId != null && vaultId.isNotEmpty) {
-        _onPairingAuthorized();
+        _onPairingAuthorized(vaultId);
       }
     });
   }
@@ -173,20 +179,44 @@ class TvShellCubit extends Cubit<TvShellState> {
     } catch (_) {}
   }
 
-  Future<void> _onPairingAuthorized() async {
-    await _sound.play(SoundCue.success);
-    emit(
-      state.copyWith(
-        mode: TvMode.dashboard,
-        isDeviceLinked: true,
-        clearPairingCode: true,
-      ),
+  Future<void> _onPairingAuthorized([String? vaultId]) async {
+    // 🔊 1. تشغيل نغمة النجاح مع حماية من أخطاء مشغل الصوت
+    try {
+      await _sound.play(SoundCue.success);
+    } catch (e) {
+      log('TvShellCubit: Sound cue error on pairing: $e');
+    }
+
+    // 🖥️ 2. تحديث واجهة التلفاز فوراً إلى شاشة التحكم (Dashboard)
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          mode: TvMode.dashboard,
+          isDeviceLinked: true,
+          clearPairingCode: true,
+        ),
+      );
+    }
+
+    // ⚡ 3. سحب بيانات الخزنة المباشرة من الهاتف فوراً عبر LAN P2P مع حماية الـ Future
+    unawaited(
+      _commsRepo.requestVaultSnapshot().catchError((Object e) {
+        log('TvShellCubit: LAN snapshot request error: $e');
+      }),
     );
 
-    // ⚡ 1. سحب بيانات الخزنة المباشرة من الهاتف فوراً عبر LAN P2P
-    unawaited(_commsRepo.requestVaultSnapshot());
+    // 🔑 4. توثيق الجلسة السحابية بهوية الهاتف مع حماية وضع الـ Offline
+    try {
+      final effectiveVaultId = vaultId ?? await _commsRepo.getLinkedVaultId();
+      if (effectiveVaultId != null && effectiveVaultId.isNotEmpty) {
+        await _commsRepo.authenticateCloudWithDid(effectiveVaultId);
+        log('TvShellCubit: ✅ Cloud session authenticated for Vault: $effectiveVaultId');
+      }
+    } catch (e) {
+      log('TvShellCubit: Cloud authentication note on pair (offline-first fallback): $e');
+    }
 
-    // 📥 2. الاسترجاع السحابي كمسار إضافي موازٍ
+    // 📥 5. استرجاع بيانات الخزنة من السحابة كمسار إضافي موازٍ
     try {
       if (_launcherRepo != null) {
         await _launcherRepo!.restoreVaultFromCloud();
@@ -195,11 +225,14 @@ class TvShellCubit extends Cubit<TvShellState> {
       log('TvShellCubit: Error hydrating vault on pair: $e');
     }
 
+    // 🗣️ 6. نطق إشعار نجاح الربط للمستخدم
     try {
       await _assistant.speak(
         'Living Room TV linked successfully! Real-time telemetry and agenda are live.',
       );
-    } catch (_) {}
+    } catch (e) {
+      log('TvShellCubit: Voice announcement skipped: $e');
+    }
   }
 
   Future<void> unpairDevice() async {

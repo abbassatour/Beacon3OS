@@ -1,6 +1,7 @@
 // packages/cloud_sync_api/lib/src/hybrid_sync_client.dart
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:cloud_sync_api/src/cloud_sync_client.dart';
 import 'package:cloud_sync_api/src/local_p2p_client.dart';
@@ -14,8 +15,6 @@ enum SyncTransportMode {
 }
 
 /// منسق المزامنة الهجين المؤمن (Secure Hybrid Sync Orchestrator)
-/// يجمع بين السيادة والسرعة الخاطفة محلياً، والتغطية العالمية سحابياً،
-/// مع إدارة التوثيق الأمني والمزامنة التفاضلية (Delta Sync) وتتبع الأجهزة النشطة.
 class HybridSyncClient {
   HybridSyncClient({
     CloudSyncClient? cloudSyncClient,
@@ -41,32 +40,31 @@ class HybridSyncClient {
   SyncTransportMode get currentMode => _currentMode;
   bool get isLanDirect => _currentMode == SyncTransportMode.lanDirect;
 
-  // 📡 قائمة وتدفق الأجهزة النشطة في الشبكة المحلية (Mesh Peers Tracking)
+  // 📡 قائمة وتدفق الأجهزة النشطة في الشبكة المحلية
   final Map<String, LocalNodeInfo> _peersMap = {};
   Timer? _peerEvictionTimer;
+  Timer? _emulatorProbeTimer;
+
   final StreamController<List<LocalNodeInfo>> _activePeersController =
       StreamController<List<LocalNodeInfo>>.broadcast();
 
   Stream<List<LocalNodeInfo>> get activePeersStream =>
       _activePeersController.stream;
   List<LocalNodeInfo> get activePeers => _peersMap.values.toList();
+  List<LocalNodeInfo> get activeMeshNodes => activePeers;
 
-  // تدفق الإشعار بتغير نمط النقل لتحديث الواجهات والتوجيه الصوتي
   final StreamController<SyncTransportMode> _transportModeController =
       StreamController<SyncTransportMode>.broadcast();
   Stream<SyncTransportMode> get transportModeStream =>
       _transportModeController.stream;
 
-  // تدفق الأحداث الموحد المصفى من التكرار (Unified Deduplicated Event Stream)
   final StreamController<P2pMessage> _unifiedEventsController =
       StreamController<P2pMessage>.broadcast();
   Stream<P2pMessage> get unifiedEvents => _unifiedEventsController.stream;
 
-  // ذاكرة حماية منع التكرار (Idempotency Cache)
   final Map<String, DateTime> _seenMessageIds = {};
   Timer? _deduplicationCleanupTimer;
 
-  // اشتراكات القنوات والمقابس
   StreamSubscription<LocalNodeInfo>? _discoverySubscription;
   StreamSubscription<LocalClientState>? _clientStateSubscription;
   StreamSubscription<P2pMessage>? _clientMessagesSubscription;
@@ -102,11 +100,9 @@ class HybridSyncClient {
     }
   }
 
-  /// تهيئة الشاشات المنزلية كخادم محلي مؤمن
   Future<void> _initializeAsHostDisplay() async {
     _updateMode(SyncTransportMode.discovering);
 
-    // تحديث الهوية الأمنية للخادم
     _server.updateSecurityCredentials(
       linkedVaultId: _linkedVaultId,
       pairingCode: _pairingCode,
@@ -116,7 +112,6 @@ class HybridSyncClient {
     if (actualPort != null) {
       await _discovery.initialize();
 
-      // إعلان الوجود بانتظام عبر شبكة الواي فاي
       _discovery.startAdvertising(
         nodeId: _nodeId,
         deviceType: _deviceType,
@@ -125,7 +120,6 @@ class HybridSyncClient {
         vaultId: _linkedVaultId,
       );
 
-      // الاستماع للرسائل الواردة من الهواتف المصادق عليها فقط
       _serverMessagesSubscription?.cancel();
       _serverMessagesSubscription = _server.incomingMessages.listen(
         _handleIncomingP2pMessage,
@@ -140,7 +134,6 @@ class HybridSyncClient {
     }
   }
 
-  /// تهيئة الهاتف كعميل يكتشف الشاشات المنزلية ويقدم إثبات الهوية
   Future<void> _initializeAsMobileClient() async {
     _updateMode(SyncTransportMode.discovering);
 
@@ -152,14 +145,12 @@ class HybridSyncClient {
 
     await _discovery.initialize();
 
-    // الاستماع للشاشات المكتشفة على نفس شبكة الواي فاي
     _discoverySubscription?.cancel();
     _discoverySubscription = _discovery.discoveredNodes.listen(
       _handleDiscoveredNode,
       onError: (Object err) => log('HybridSync: Discovery stream error: $err'),
     );
 
-    // الاستماع لتغير حالة اتصال العميل والمصادقة التشفيرية
     _clientStateSubscription?.cancel();
     _clientStateSubscription = _client.stateChanges.listen((clientState) {
       if (clientState == LocalClientState.connected) {
@@ -180,22 +171,65 @@ class HybridSyncClient {
       }
     });
 
-    // استقبال الرسائل المعتمدة من التلفزيون/الكمبيوتر
     _clientMessagesSubscription?.cancel();
     _clientMessagesSubscription = _client.incomingMessages.listen(
       _handleIncomingP2pMessage,
       onError: (Object err) => log('HybridSync: Client message error: $err'),
     );
 
-    // إرسال نداء استكشاف أولي فوري في الشبكة
     await _discovery.probeForNodes();
+
+    // 🌟 فحص فوري ومستمر لمضيف المحاكي (Windows Host)
+    if (Platform.isAndroid) {
+      unawaited(_probeEmulatorHost());
+      _emulatorProbeTimer?.cancel();
+      _emulatorProbeTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!_client.isConnected && Platform.isAndroid) {
+          _probeEmulatorHost();
+        }
+      });
+    }
   }
 
-  /// التعامل مع العقدة المكتشفة بالواي فاي وحفظها في قائمة الأجهزة النشطة
+  /// 🎯 جسر الاتصال الصريح لمحاكي الأندرويد مع الويندوز (10.0.2.2 و 127.0.0.1)
+  Future<void> _probeEmulatorHost() async {
+    if (!Platform.isAndroid || _client.isConnected) return;
+
+    final hostCandidates = ['10.0.2.2', '127.0.0.1'];
+    for (final hostIp in hostCandidates) {
+      if (_client.isConnected) break;
+
+      final candidateNode = LocalNodeInfo(
+        nodeId: 'host_desktop_$hostIp',
+        deviceType: 'desktop',
+        ip: hostIp,
+        port: 8492,
+        pairingCode: _pairingCode,
+        vaultId: _linkedVaultId,
+        lastSeen: DateTime.now().toUtc(),
+      );
+
+      try {
+        final connected = await _client.connectToNode(
+          candidateNode,
+          vaultId: _linkedVaultId,
+          pairingCode: _pairingCode,
+          clientId: _nodeId,
+        );
+        if (connected) {
+          _peersMap[candidateNode.nodeId] = candidateNode;
+          _activePeersController.add(activeMeshNodes);
+          _updateMode(SyncTransportMode.lanDirect);
+          log('HybridSync: ⚡ Connected directly to Windows host emulator gateway ($hostIp:8492)!');
+          break;
+        }
+      } catch (_) {}
+    }
+  }
+
   Future<void> _handleDiscoveredNode(LocalNodeInfo node) async {
-    // 1. تسجيل أو تحديث حضور الجهاز في خريطة الـ Mesh
     _peersMap[node.nodeId] = node;
-    _activePeersController.add(activePeers);
+    _activePeersController.add(activeMeshNodes);
 
     if (_client.isConnected) return;
 
@@ -219,7 +253,6 @@ class HybridSyncClient {
     }
   }
 
-  /// ⏱️ مؤقت طرد الأجهزة الخاملة (Heartbeat Pruning - 10 Seconds Threshold)
   void _startPeerEvictionTimer() {
     _peerEvictionTimer?.cancel();
     _peerEvictionTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -227,6 +260,9 @@ class HybridSyncClient {
       var changed = false;
 
       _peersMap.removeWhere((id, node) {
+        // حماية عقدة المحاكي من الحذف المؤقت
+        if (id.startsWith('host_desktop_')) return false;
+
         final isStale = now.difference(node.lastSeen).inSeconds > 10;
         if (isStale) {
           changed = true;
@@ -236,7 +272,7 @@ class HybridSyncClient {
       });
 
       if (changed) {
-        _activePeersController.add(activePeers);
+        _activePeersController.add(activeMeshNodes);
       }
     });
   }
@@ -269,12 +305,15 @@ class HybridSyncClient {
         pairingCode: _pairingCode,
         clientId: _nodeId,
       );
+      if (Platform.isAndroid && newCode != null) {
+        unawaited(_probeEmulatorHost());
+      }
     }
   }
 
   void updateLinkedVaultId(String? vaultId) {
     _linkedVaultId = vaultId;
-    _pairingCode = null; // إبطال الكود بمجرد اعتماد الخزنة
+    _pairingCode = null;
     log('HybridSync: 🗝️ Linked Vault ID updated to: $vaultId');
 
     if (_deviceType == 'fire_tv' || _deviceType == 'desktop') {
@@ -297,6 +336,9 @@ class HybridSyncClient {
         pairingCode: null,
         clientId: _nodeId,
       );
+      if (Platform.isAndroid && vaultId != null) {
+        unawaited(_probeEmulatorHost());
+      }
     }
   }
 
@@ -351,14 +393,12 @@ class HybridSyncClient {
       senderType: _deviceType,
     );
 
-    // 1. المحاولة عبر المسار المحلي (< 2ms)
     final sentLocally = _sendViaLocalTransport(message);
     if (sentLocally) {
       log('HybridSync: ⚡ Locate Phone command delivered directly via LAN.');
       return true;
     }
 
-    // 2. المسار البديل عبر السحابة
     log('HybridSync: LAN unreachable. Routing Locate Phone via Cloud Relay...');
     try {
       await _cloud.acknowledgeRemoteAction(
@@ -404,7 +444,7 @@ class HybridSyncClient {
 
   void broadcastVaultMutation({
     required String table,
-    required String action, // 'INSERT', 'UPDATE', 'DELETE'
+    required String action,
     required Map<String, dynamic> data,
   }) {
     final message = P2pMessage.create(
@@ -425,7 +465,6 @@ class HybridSyncClient {
   // 🔄 4. بروتوكول المزامنة التفاضلية واللقطات (Delta & Snapshot Sync)
   // ===========================================================================
 
-  /// ⚡ طلب التغييرات التي تمت بعد تاريخ معين فقط (Delta Sync Request)
   void requestVaultDelta({DateTime? since}) {
     final message = P2pMessage.create(
       type: P2pMessageType.vaultDeltaRequest,
@@ -441,7 +480,6 @@ class HybridSyncClient {
     log('HybridSync: 📤 Dispatched vault delta request via LAN (Since: ${since?.toIso8601String() ?? "initial"}).');
   }
 
-  /// ⚡ إرسال السجلات المعدلة والمحذوفة تفاضلياً عبر LAN
   void sendVaultDelta(Map<String, dynamic> deltaPayload) {
     final message = P2pMessage.create(
       type: P2pMessageType.vaultDeltaResponse,
@@ -454,7 +492,6 @@ class HybridSyncClient {
     log('HybridSync: 📤 Dispatched vault delta response via LAN.');
   }
 
-  /// طلب لقطة الخزنة الكاملة (يُستخدم كخيار احتياطي عند أول اقتران)
   void requestVaultSync() {
     final message = P2pMessage.create(
       type: P2pMessageType.vaultSyncRequest,
@@ -469,7 +506,6 @@ class HybridSyncClient {
     log('HybridSync: 📤 Dispatched full vault snapshot request via LAN.');
   }
 
-  /// إرسال لقطة الخزنة الكاملة
   void sendVaultSnapshot(Map<String, dynamic> snapshot) {
     final message = P2pMessage.create(
       type: P2pMessageType.vaultSyncResponse,
@@ -580,6 +616,7 @@ class HybridSyncClient {
   void dispose() {
     _deduplicationCleanupTimer?.cancel();
     _peerEvictionTimer?.cancel();
+    _emulatorProbeTimer?.cancel();
     _discoverySubscription?.cancel();
     _clientStateSubscription?.cancel();
     _clientMessagesSubscription?.cancel();

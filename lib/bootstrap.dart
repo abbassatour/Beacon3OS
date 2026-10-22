@@ -129,7 +129,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
   try {
     initialSettings = await launcherRepository.settings
         .getSettings()
-        .timeout(const Duration(milliseconds: 1500));
+        .timeout(const Duration(milliseconds: 5000));
   } catch (e) {
     log('Bootstrap: Settings fallback used: $e');
     initialSettings = AppSettingEntity(
