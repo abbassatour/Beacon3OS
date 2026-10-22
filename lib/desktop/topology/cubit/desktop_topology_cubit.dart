@@ -9,15 +9,15 @@ import 'package:launcher_repository/launcher_repository.dart';
 class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
   DesktopTopologyCubit({
     required TopologyRepository topologyRepository,
-    required CommsRepository commsRepository,
+    required VaultSyncCoordinator vaultSyncCoordinator,
   })  : _repository = topologyRepository,
-        _commsRepo = commsRepository,
+        _vaultSync = vaultSyncCoordinator,
         super(const DesktopTopologyState()) {
     _initStream();
   }
 
   final TopologyRepository _repository;
-  final CommsRepository _commsRepo;
+  final VaultSyncCoordinator _vaultSync;
   StreamSubscription<List<SpatialNodeEntity>>? _subscription;
   Timer? _p2pSyncDebounceTimer;
 
@@ -49,10 +49,10 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
   void _notifyPeersOfTopologyChange({bool immediate = false}) {
     _p2pSyncDebounceTimer?.cancel();
     if (immediate) {
-      unawaited(_commsRepo.sendVaultDeltaToPeers());
+      unawaited(_vaultSync.sendVaultDeltaToPeers());
     } else {
       _p2pSyncDebounceTimer = Timer(const Duration(milliseconds: 120), () {
-        unawaited(_commsRepo.sendVaultDeltaToPeers());
+        unawaited(_vaultSync.sendVaultDeltaToPeers());
       });
     }
   }
@@ -110,7 +110,7 @@ class DesktopTopologyCubit extends Cubit<DesktopTopologyState> {
         floorLevel: state.currentFloor,
       );
 
-      // ⚡️ بث تحديث الغرف للأجهزة المقترنة فوراً
+      // ⚡️ بث تحديث الغرف للأجهزة المقترنة عبر VaultSyncCoordinator فوراً
       _notifyPeersOfTopologyChange();
     } catch (e) {
       log('DesktopTopologyCubit: Failed to move node: $e');

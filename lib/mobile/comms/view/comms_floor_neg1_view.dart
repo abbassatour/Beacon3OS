@@ -20,7 +20,8 @@ class CommsFloorNeg1View extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final commsRepo = context.read<CommsRepository>();
+    // ✅ الاعتماد على SafetyRadarRepository لسجل الطوارئ التاريخي
+    final safetyRadar = context.read<SafetyRadarRepository>();
     final assistant = context.read<AssistantRepository>();
     final shellCubit = context.read<SpatialShellCubit>();
 
@@ -230,9 +231,9 @@ class CommsFloorNeg1View extends StatelessWidget {
               ),
             ),
             StreamBuilder<List<SosAlertRecord>>(
-              stream: commsRepo.watchSosHistory(),
+              // ✅ الاستماع لسجل الطوارئ من safetyRadar
+              stream: safetyRadar.watchSosHistory(),
               builder: (context, snapshot) {
-                // 🛡️ حماية من الوميض البصري عند بداية الاتصال بقاعدة البيانات
                 if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                   return SliverToBoxAdapter(
                     child: Padding(
@@ -367,7 +368,6 @@ class CommsFloorNeg1View extends StatelessWidget {
                                           onPressed: () async {
                                             if (alert.googleMapsUrl.startsWith('http')) {
                                               final uri = Uri.parse(alert.googleMapsUrl);
-                                              // 🌐 دعم أندرويد الحديث بفتح التطبيق الخارجي مباشرة
                                               await launchUrl(
                                                 uri,
                                                 mode: LaunchMode.externalApplication,

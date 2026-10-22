@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:beacon_os/core/services/web3_service.dart';
-import 'package:beacon_os/mobile/auth/cubit/auth_state.dart'; // 👈 مصحح
+import 'package:beacon_os/mobile/auth/cubit/auth_state.dart';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_sync_api/cloud_sync_api.dart';
 import 'package:launcher_repository/launcher_repository.dart';
@@ -40,10 +40,10 @@ class AuthCubit extends Cubit<AuthState> {
         await _repository.syncPendingOfflineChanges();
       });
     } else {
-      // 🚀 تفعيل التوثيق التلقائي فوراً بدلاً من البقاء في unauthenticated
-      final isLinked = await _repository.comms.isDeviceLinked();
+      // 🚀 التحقق من الاقتران عبر devicePairing بدلاً من comms
+      final isLinked = await _repository.devicePairing.isDeviceLinked();
       if (isLinked) {
-        final linkedId = await _repository.comms.getLinkedVaultId();
+        final linkedId = await _repository.devicePairing.getLinkedVaultId();
         if (linkedId != null && linkedId.isNotEmpty) {
           await loginWithDid(linkedId);
           return;

@@ -17,7 +17,8 @@ class DesktopTopologyView extends StatelessWidget {
     return BlocProvider(
       create: (context) => DesktopTopologyCubit(
         topologyRepository: context.read<TopologyRepository>(),
-        commsRepository: context.read<CommsRepository>(),
+        // ✅ حقن VaultSyncCoordinator لبث تحديثات الفضاء عبر LAN
+        vaultSyncCoordinator: context.read<VaultSyncCoordinator>(),
       ),
       child: const _DesktopTopologyContent(),
     );

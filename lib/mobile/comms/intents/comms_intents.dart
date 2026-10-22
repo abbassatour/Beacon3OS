@@ -31,8 +31,9 @@ class EmergencySosIntentHandler extends VoiceIntentHandler {
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
-    final commsRepo = context.read<CommsRepository>();
-    final alertId = await commsRepo.triggerEmergencySos();
+    // ✅ الاعتماد على SafetyRadarRepository لإطلاق الاستغاثة
+    final safetyRadar = context.read<SafetyRadarRepository>();
+    final alertId = await safetyRadar.triggerEmergencySos();
 
     return LauncherCommandResult(
       intent: intentId,
@@ -359,7 +360,6 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
   @override
   int get priority => 90;
 
-  // 🌟 تحديث النمط ليقبل أي نص بعد كلمة Pair لنتعامل مع الكلمات والأرقام معاً
   @override
   RegExp get fastPathPattern => RegExp(
         r'^(?:pair|bear|bare|pear|fair|connect|link)\s*(?:device|tv|screen|display|computer|desktop)?\s*(.+)',
@@ -376,7 +376,6 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
             'The 6-digit numeric pairing code displayed on the target screen.',
       };
 
-  /// 🌟 مساعد ذكي لتحويل الكلمات المنطوقة إلى أرقام لتفادي أخطاء الـ Speech-to-Text
   String _convertWordsToDigits(String input) {
     const map = {
       'zero': '0', 'oh': '0',
@@ -396,7 +395,6 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
       res = res.replaceAll(RegExp(r'\b' + key + r'\b'), value);
     });
     
-    // إزالة أي شيء ليس رقماً
     return res.replaceAll(RegExp(r'\D'), '');
   }
 
@@ -405,7 +403,8 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
     BuildContext context,
     VoiceIntentContext intentContext,
   ) async {
-    final commsRepo = context.read<CommsRepository>();
+    // ✅ الاعتماد على DevicePairingRepository للاعتماد والمصادقة
+    final devicePairing = context.read<DevicePairingRepository>();
     final params = intentContext.llmParameters;
 
     String rawInput = '';
@@ -435,7 +434,7 @@ class PairDeviceIntentHandler extends VoiceIntentHandler {
     // استخدام المعرف السيادي اللامركزي للهاتف كـ Master Vault ID
     final sovereignDid = Web3Service.instance.walletAddressHex.toLowerCase();
 
-    final success = await commsRepo.authorizePairingCode(
+    final success = await devicePairing.authorizePairingCode(
       cleanCode,
       customVaultId: sovereignDid,
     );

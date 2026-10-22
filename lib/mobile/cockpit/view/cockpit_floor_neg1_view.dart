@@ -32,8 +32,9 @@ class _CockpitFloorNeg1ViewState extends State<CockpitFloorNeg1View> {
       final assistant = context.read<AssistantRepository>();
       await assistant.speak('Pinging hardware siren and strobe on $deviceLabel.');
 
-      final commsRepo = context.read<CommsRepository>();
-      await commsRepo.executeLocateDevice(pulseCycles: 6);
+      // ✅ الاعتماد على SafetyRadarRepository لإطلاق صفارة الإنذار ووميض الكشاف
+      final safetyRadar = context.read<SafetyRadarRepository>();
+      await safetyRadar.executeLocateDevice(pulseCycles: 6);
     } catch (_) {
     } finally {
       if (mounted) {
@@ -46,7 +47,8 @@ class _CockpitFloorNeg1ViewState extends State<CockpitFloorNeg1View> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final web3 = Web3Service.instance;
-    final commsRepo = context.read<CommsRepository>();
+    // ✅ الاعتماد على VaultSyncCoordinator لمتابعة حالة الشبكة وأجهزة الـ Mesh
+    final vaultSync = context.read<VaultSyncCoordinator>();
     final launcherRepo = context.read<LauncherRepository>();
     final shellCubit = context.read<SpatialShellCubit>();
 
@@ -150,8 +152,8 @@ class _CockpitFloorNeg1ViewState extends State<CockpitFloorNeg1View> {
                             ],
                           ),
                           StreamBuilder<SyncTransportMode>(
-                            stream: commsRepo.transportModeStream,
-                            initialData: commsRepo.currentTransportMode,
+                            stream: vaultSync.transportModeStream,
+                            initialData: vaultSync.currentTransportMode,
                             builder: (context, snapshot) {
                               final mode = snapshot.data ?? SyncTransportMode.discovering;
                               return _buildTransportBadge(mode, colors);
@@ -238,8 +240,8 @@ class _CockpitFloorNeg1ViewState extends State<CockpitFloorNeg1View> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: StreamBuilder<List<LocalNodeInfo>>(
-                  stream: commsRepo.activeMeshNodesStream,
-                  initialData: commsRepo.activeMeshNodes,
+                  stream: vaultSync.activeMeshNodesStream,
+                  initialData: vaultSync.activeMeshNodes,
                   builder: (context, snapshot) {
                     final peers = snapshot.data ?? [];
 
