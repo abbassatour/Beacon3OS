@@ -48,8 +48,10 @@ class CommsModule extends SpatialModule {
   Future<Map<String, dynamic>?> getVoiceContext(BuildContext context) async {
     try {
       final commsRepo = context.read<CommsRepository>();
+      final devicePairingRepo = context.read<DevicePairingRepository>();
+
       final emergency = await commsRepo.getEmergencyContacts();
-      final isLinked = await commsRepo.isDeviceLinked();
+      final isLinked = await devicePairingRepo.isDeviceLinked();
 
       return {
         'emergency_contacts_count': emergency.length,
@@ -84,7 +86,6 @@ class CommsModule extends SpatialModule {
         key: ValueKey('comms_floor_neg1_view'),
       );
     }
-    // ⚡ استخدام CommsFloor0View مباشرة مستفيداً من الـ CommsCubit المرفوع بالأعلى
     return const CommsFloor0View(
       key: ValueKey('comms_floor_0_view'),
     );
