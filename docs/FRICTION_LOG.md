@@ -1,12 +1,12 @@
 
 # BeaconOS x Alexa+ MCP Developer Friction Log (Executive Summary)
 
-> **Submission for Amazon Developer Hackathon -- Evaluated for the 10% Friction Log Bonus**
-> Full 3-Part Deep-Dive Logs:
+> Submission for Amazon Developer Hackathon -- Evaluated for the 10% Friction Log Bonus
+> Full 3-Part Deep-Dive Documentation available in the repository:
 >
-> - [Part 1: Architecture, Test Harness &amp; Streamable HTTP Transport](docs/friction_log/01_architecture_and_transport.md)
-> - [Part 2: Multimodal Surface (Echo Show / MCP Apps) &amp; Hardware Latency](docs/friction_log/02_multimodal_and_latency.md)
-> - [Part 3: AWS Bedrock Integration, Tool Ergonomics &amp; Recommendations](docs/friction_log/03_aws_and_recommendations.md)
+> - Part 1: Architecture, Test Harness & Streamable HTTP Transport (Located at docs/friction_log/01_architecture_and_transport.md)
+> - Part 2: Multimodal Surface (Echo Show / MCP Apps) & Hardware Latency (Located at docs/friction_log/02_multimodal_and_latency.md)
+> - Part 3: AWS Bedrock Integration, Tool Ergonomics & Recommendations (Located at docs/friction_log/03_aws_and_recommendations.md)
 
 ---
 
