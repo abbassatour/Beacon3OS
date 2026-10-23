@@ -3,12 +3,13 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class TvFocusableCard extends StatefulWidget {
   const TvFocusableCard({
     required this.focusNode,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.icon,
     required this.accentColor,
     required this.child,
@@ -18,7 +19,7 @@ class TvFocusableCard extends StatefulWidget {
 
   final FocusNode focusNode;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final IconData icon;
   final Color accentColor;
   final Widget child;
@@ -40,7 +41,9 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
         SoundController.instance.play(SoundCue.navMove);
       }
     }
-    setState(() => _isFocused = hasFocus);
+    if (mounted) {
+      setState(() => _isFocused = hasFocus);
+    }
   }
 
   @override
@@ -48,7 +51,7 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
     final colors = context.colors;
     final isOled = Theme.of(context).brightness == Brightness.dark;
 
-    // تدرج لوني سينمائي ناعم يبرز عند تحديد البطاقة
+    // تدرج لوني سينمائي ناعم يبرز عند تحديد البطاقة بالريموت
     final backgroundGradient = _isFocused
         ? LinearGradient(
             begin: Alignment.topLeft,
@@ -64,43 +67,47 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
     return FocusableActionDetector(
       focusNode: widget.focusNode,
       onFocusChange: _onFocusChanged,
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+      },
       actions: <Type, Action<Intent>>{
         ActivateIntent: CallbackAction<ActivateIntent>(
           onInvoke: (_) => widget.onSelect?.call(),
         ),
       },
       child: AnimatedScale(
-        scale: _isFocused ? 1.035 : 1.0,
-        duration: const Duration(milliseconds: 200),
+        scale: _isFocused ? 1.025 : 1.0,
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: _isFocused ? null : colors.surface,
             gradient: backgroundGradient,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _isFocused
                   ? widget.accentColor
-                  : colors.outline.withValues(alpha: 0.4),
-              width: _isFocused ? 3.0 : 1.2,
+                  : colors.outline.withValues(alpha: 0.35),
+              width: _isFocused ? 2.5 : 1.2,
             ),
             boxShadow: [
               if (_isFocused) ...[
-                // هالة توهج علوية
                 BoxShadow(
-                  color: widget.accentColor.withValues(alpha: 0.40),
-                  blurRadius: 32,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8),
+                  color: widget.accentColor.withValues(alpha: 0.35),
+                  blurRadius: 24,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
                 ),
-                // ظل عمق ثلاثي الأبعاد
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.30),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ],
@@ -108,14 +115,14 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // رأس البطاقة
+              // هيدر البطاقة المدمج والمحمي من الطفح
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: widget.accentColor.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: widget.accentColor.withValues(alpha: 0.35),
                       ),
@@ -123,13 +130,14 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
                     child: Icon(
                       widget.icon,
                       color: widget.accentColor,
-                      size: 24,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           widget.title,
@@ -138,54 +146,57 @@ class _TvFocusableCardState extends State<TvFocusableCard> {
                           style: TextStyle(
                             color: colors.onSurface,
                             fontWeight: FontWeight.w900,
-                            fontSize: 17,
-                            letterSpacing: 1.1,
+                            fontSize: 14.5,
+                            letterSpacing: 1.0,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        if (widget.subtitle != null &&
+                            widget.subtitle!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            widget.subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
                   if (_isFocused)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                    Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: widget.accentColor,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(6),
                         boxShadow: [
                           BoxShadow(
-                            color: widget.accentColor.withValues(alpha: 0.5),
-                            blurRadius: 8,
+                            color: widget.accentColor.withValues(alpha: 0.4),
+                            blurRadius: 6,
                           ),
                         ],
                       ),
                       child: Text(
-                        'PRESS [SELECT]',
+                        'SELECT',
                         style: TextStyle(
                           color: colors.surface,
-                          fontSize: 11,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
+                          letterSpacing: 0.6,
                         ),
                       ),
                     ),
                 ],
               ),
-              const Divider(height: 24, thickness: 1.0),
+              const SizedBox(height: 8),
+              // مساحة المحتوى المرنة
               Expanded(
                 child: Focus(
                   canRequestFocus: false,

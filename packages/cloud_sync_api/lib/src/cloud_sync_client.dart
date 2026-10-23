@@ -1,6 +1,5 @@
 // packages/cloud_sync_api/lib/src/cloud_sync_client.dart
 import 'dart:developer';
-import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// عميل المزامنة السحابية وبث الرادار لمنظومة BeaconOS عبر Supabase.
@@ -19,11 +18,9 @@ class CloudSyncClient {
     }
   }
 
-
   /// 🔑 توثيق الجهاز في Supabase باستخدام معرّف الهوية السيادية (DID)
   Future<AuthResponse?> signInWithSovereignDid(String didAddress) async {
     final cleanDid = didAddress.toLowerCase().replaceAll('0x', '').trim();
-    // 🌟 استخدام نطاق معتمد رسمياً وصيغة بريد تبدأ بحروف لتفادي رفض Supabase
     final syntheticEmail = 'did_${cleanDid.replaceAll('0x', '')}@beaconos.com';
     final passSlice = cleanDid.length >= 20
         ? cleanDid.substring(0, 20)
@@ -58,7 +55,7 @@ class CloudSyncClient {
 
   User? get currentUser => _client?.auth.currentUser;
   bool get isAuthenticated => currentUser != null;
-  String get activeUserId => currentUser?.id ?? 'local_guest_user';
+  String get activeUserId => currentUser?.id ?? '00000000-0000-0000-0000-000000000000';
   Stream<AuthState>? get authStateChanges => _client?.auth.onAuthStateChange;
 
   Future<AuthResponse?> signInWithEmail({
@@ -186,7 +183,6 @@ class CloudSyncClient {
     }
   }
 
-  /// ⚡ مزامنة دفعة كاملة من جهات الاتصال في طلب شبكي واحد (Batch Upsert)
   Future<void> syncContactsBatch(List<Map<String, dynamic>> contactsList) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -228,7 +224,6 @@ class CloudSyncClient {
     }
   }
 
-  /// 🔄 جلب التغييرات التفاضلية لجهات الاتصال منذ تاريخ محدد (يشمل العناصر المحذوفة)
   Future<List<Map<String, dynamic>>> fetchContactsDelta({DateTime? since}) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -431,7 +426,6 @@ class CloudSyncClient {
     }
   }
 
-  /// ⚡ مزامنة دفعة مهام بالكامل في طلب واحد
   Future<void> syncTasksBatch(List<Map<String, dynamic>> tasksList) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -472,7 +466,6 @@ class CloudSyncClient {
     }
   }
 
-  /// 🔄 جلب التغييرات التفاضلية للمهام (يشمل المهام المحذوفة لحذفها محلياً)
   Future<List<Map<String, dynamic>>> fetchTasksDelta({DateTime? since}) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -548,7 +541,6 @@ class CloudSyncClient {
     }
   }
 
-  /// 🔄 جلب التغييرات التفاضلية للمذكرات الصوتية
   Future<List<Map<String, dynamic>>> fetchMemosDelta({DateTime? since}) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -630,7 +622,6 @@ class CloudSyncClient {
     }
   }
 
-  /// ⚡ مزامنة دفعة منبهات بالكامل في طلب واحد
   Future<void> syncAlarmsBatch(List<Map<String, dynamic>> alarmsList) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -671,7 +662,6 @@ class CloudSyncClient {
     }
   }
 
-  /// 🔄 جلب التغييرات التفاضلية للمنبهات (يشمل المنبهات المحذوفة)
   Future<List<Map<String, dynamic>>> fetchAlarmsDelta({DateTime? since}) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -757,16 +747,20 @@ class CloudSyncClient {
     String status = 'active',
   }) async {
     final client = _client;
-    final userId = currentUser?.id ?? 'guest_offline_user';
     if (client == null) return false;
+
+    // 🛡️ معالجة حاسمة: لا نرسل نصاً عشوائياً كـ UUID أبداً. نرسل userId الحقيقي، أو نتركه null.
+    final effectiveUserId = (currentUser?.id != null && currentUser!.id.isNotEmpty)
+        ? currentUser!.id
+        : null;
 
     try {
       final googleMapsUrl = 'https://maps.google.com/?q=$latitude,$longitude';
       final nowUtc = DateTime.now().toUtc().toIso8601String();
 
-      await client.from('sos_alerts').insert({
+      final payload = <String, dynamic>{
         'id': id,
-        'user_id': userId,
+        if (effectiveUserId != null) 'user_id': effectiveUserId,
         'latitude': latitude,
         'longitude': longitude,
         'battery_level': batteryLevel,
@@ -775,8 +769,9 @@ class CloudSyncClient {
         'triggered_at': nowUtc,
         'created_at': nowUtc,
         'updated_at': nowUtc,
-      });
+      };
 
+      await client.from('sos_alerts').insert(payload);
       log('CloudSyncClient: Emergency SOS alert broadcasted to cloud radar.');
       return true;
     } catch (e, st) {
@@ -875,7 +870,6 @@ class CloudSyncClient {
     }
   }
 
-  /// 🔄 جلب التغييرات التفاضلية للعقد المكانية
   Future<List<Map<String, dynamic>>> fetchSpatialNodesDelta({DateTime? since}) async {
     final client = _client;
     final userId = currentUser?.id;
@@ -928,7 +922,7 @@ class CloudSyncClient {
               final targetUser = action['user_id'] as String?;
               return targetUser == null ||
                   targetUser.isEmpty ||
-                  targetUser == 'local_guest_user' ||
+                  targetUser == '00000000-0000-0000-0000-000000000000' ||
                   targetUser == userId;
             }).toList();
           });
@@ -956,7 +950,7 @@ class CloudSyncClient {
         'action_type': actionType,
         'payload': payload,
         'status': 'pending',
-        'user_id': effectiveUserId,
+        if (effectiveUserId != null) 'user_id': effectiveUserId,
         'created_at': nowUtc.toIso8601String(),
       });
       log('CloudSyncClient: Dispatched remote action [$actionType] with ID: $actionId');
@@ -986,7 +980,6 @@ class CloudSyncClient {
   // 🔗 12. بروتوكول الاقتران السيادي المحمي من التصادم (Collision-Proof Pairing)
   // ===========================================================================
 
-  /// فحص هل الكود المكون من 6 أرقام محجوز حالياً في جلسة نشطة غير منتهية
   Future<bool> isPairingCodeInActiveUse(String pairingCode) async {
     final client = _client;
     if (client == null) return false;
@@ -1007,7 +1000,6 @@ class CloudSyncClient {
     }
   }
 
-  /// تسجيل جلسة اقتران مؤقتة جديدة مع حماية ضد تصادم الأكواد العشوائية
   Future<bool> createPairingSession({
     required String pairingCode,
     required String targetDeviceType,
@@ -1017,7 +1009,6 @@ class CloudSyncClient {
     if (client == null) return false;
 
     try {
-      // 1. حرق وإبطال الجلسة السابقة إن وجدت لهذا الجهاز
       if (previousCode != null && previousCode.trim().isNotEmpty) {
         await cancelPairingSession(previousCode);
       }
@@ -1054,7 +1045,6 @@ class CloudSyncClient {
         .map((list) => list.isNotEmpty ? list.first : null);
   }
 
-  /// حجز واعتماد كود الاقتران من الهاتف مع التحقق الصارم من صلاحية الوقت
   Future<bool> claimPairingSession({
     required String pairingCode,
     required String vaultId,
@@ -1071,7 +1061,6 @@ class CloudSyncClient {
     try {
       final nowUtc = DateTime.now().toUtc().toIso8601String();
 
-      // التحقق من وجود جلسة صالحة وغير منتهية
       final List<Map<String, dynamic>> records = List<Map<String, dynamic>>.from(
         await client
             .from('pairing_sessions')
@@ -1088,7 +1077,6 @@ class CloudSyncClient {
         return false;
       }
 
-      // تحويل المعرف الصريح إلى String لضمان توافقه مع Object وتفادي تحذيرات strict-casts
       final String sessionId = records.first['id'].toString();
 
       await client.from('pairing_sessions').update({

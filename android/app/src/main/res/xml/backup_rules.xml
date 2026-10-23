@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <include domain="file" path="sovereign_identity.key" />
+    <!-- 1. تضمين نطاق قواعد البيانات أولاً ليسمح نظام أندرويد بالاستبعاد منه قانونياً -->
+    <include domain="database" path="." />
     <exclude domain="database" path="beacon_os_vault.sqlite" />
     <exclude domain="database" path="beacon_os_vault.sqlite-wal" />
     <exclude domain="database" path="beacon_os_vault.sqlite-shm" />
+
+    <!-- 2. تضمين نطاق الملفات الداخلية مع استبعاد ملف قاعدة البيانات التابع لـ Flutter -->
+    <include domain="file" path="." />
+    <exclude domain="file" path="app_flutter/beacon_os_vault.sqlite" />
+    <exclude domain="file" path="app_flutter/beacon_os_vault.sqlite-wal" />
+    <exclude domain="file" path="app_flutter/beacon_os_vault.sqlite-shm" />
+
+    <!-- 3. تضمين التفضيلات المشتركة للنظام -->
+    <include domain="sharedpref" path="." />
 </full-backup-content>

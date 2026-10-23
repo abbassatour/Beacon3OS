@@ -25,83 +25,102 @@ class TvSafetyCard extends StatelessWidget {
 
         return TvFocusableCard(
           focusNode: focusNode,
-          title: 'HOUSEHOLD SAFETY RADAR',
-          subtitle: isBroadcasting
-              ? 'Broadcasting SOS distress telemetry...'
-              : 'Immutable distress beacon & Arbitrum L2',
+          title: 'EMERGENCY DISTRESS BEACON',
+          subtitle: isBroadcasting ? 'Broadcasting live GPS distress radar...' : null,
           icon: Icons.shield_rounded,
           accentColor: colors.error,
           onSelect: cubit.triggerEmergencySos,
-          child: Row(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.error.withValues(alpha: isBroadcasting ? 0.35 : 0.14),
-                  border: Border.all(color: colors.error, width: 2),
-                ),
-                child: Icon(
-                  isBroadcasting ? Icons.cell_tower_rounded : Icons.warning_amber_rounded,
-                  size: 32,
-                  color: colors.error,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          isBroadcasting ? 'EMERGENCY ACTIVE' : 'ARBITRUM VERIFIED',
-                          style: TextStyle(
-                            color: colors.error,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.green, width: 0.8),
-                          ),
-                          child: const Text(
-                            'ON-CHAIN',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isBroadcasting
-                          ? 'Broadcasting live GPS beacon to emergency contacts and Arbitrum Sepolia ledger.'
-                          : 'Press [SELECT] to broadcast immediate distress alarm and stream GPS to rescue radar.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.onSurface,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  // أيقونة الطوارئ النبضية
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.error.withValues(
+                        alpha: isBroadcasting ? 0.35 : 0.15,
+                      ),
+                      border: Border.all(
+                        color: colors.error,
+                        width: isBroadcasting ? 2.5 : 1.5,
                       ),
                     ),
-                  ],
-                ),
+                    child: Icon(
+                      isBroadcasting
+                          ? Icons.cell_tower_rounded
+                          : Icons.warning_amber_rounded,
+                      size: 24,
+                      color: colors.error,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // معلومات الاستغاثة المباشرة
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isBroadcasting
+                                ? 'DISTRESS BROADCAST ACTIVE'
+                                : 'SOS RADAR READY',
+                            style: TextStyle(
+                              color: colors.error,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.5),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Text(
+                              'ARBITRUM L2',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isBroadcasting
+                            ? 'Streaming real-time coordinates to rescue radar.'
+                            : 'Press [SELECT] to sound siren & dispatch live GPS.',
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

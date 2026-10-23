@@ -40,43 +40,47 @@ class TvDashboardView extends StatelessWidget {
 
         return Padding(
           key: const ValueKey('tv_active_dashboard'),
-          padding: const EdgeInsets.fromLTRB(36, 20, 36, 16),
+          padding: const EdgeInsets.fromLTRB(28, 14, 28, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ===============================================================
-              // 1. الشريط الزجاجي العلوي (Cinematic Frosted Header Bar)
+              // 1. الشريط الزجاجي العلوي المدمج (Frosted Ambient Header)
               // ===============================================================
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: colors.surface.withValues(alpha: 0.70),
-                  borderRadius: BorderRadius.circular(20),
+                  color: colors.surface.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: colors.outline.withValues(alpha: 0.5),
-                    width: 1.2,
+                    color: colors.outline.withValues(alpha: 0.35),
+                    width: 1.0,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 18,
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    // شعار النظام وهوية الشاشة
+                    // شعار النظام وشارة شاشة غرفة المعيشة
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: colors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colors.primary, width: 1.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: colors.primary, width: 1.2),
                       ),
-                      child: Icon(Icons.tv_rounded, color: colors.primary, size: 26),
+                      child: Icon(
+                        Icons.tv_rounded,
+                        color: colors.primary,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -85,16 +89,16 @@ class TvDashboardView extends StatelessWidget {
                           'BEACON OS',
                           style: TextStyle(
                             color: colors.onSurface,
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 2.0,
+                            letterSpacing: 1.8,
                           ),
                         ),
                         Text(
                           'Living Room Command Bridge',
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
-                            fontSize: 12.5,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -102,32 +106,34 @@ class TvDashboardView extends StatelessWidget {
                     ),
                     const Spacer(),
 
-                    // شارات الحالة السريعة
+                    // شارات الحالة السريعة وفك الارتباط
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         TvStatusPill.forTransport(state.transportMode, colors),
-                        const SizedBox(width: 10),
-                        TvStatusPill(
+                        const SizedBox(width: 8),
+                        const TvStatusPill(
                           icon: Icons.verified_rounded,
                           label: 'ARBITRUM L2',
                           color: Colors.green,
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 6),
                         IconButton(
                           icon: Icon(
                             Icons.link_off_rounded,
                             color: colors.onSurfaceVariant,
-                            size: 20,
+                            size: 18,
                           ),
                           tooltip: 'Unpair this display',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           onPressed: cubit.unpairDevice,
                         ),
                       ],
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 16),
 
-                    // ساعة التلفاز العريضة
+                    // ساعة التلفاز المدمجة
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
@@ -141,17 +147,17 @@ class TvDashboardView extends StatelessWidget {
                               timeStr,
                               style: TextStyle(
                                 color: colors.onSurface,
-                                fontSize: 32,
+                                fontSize: 24,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 3),
                             Text(
                               periodStr,
                               style: TextStyle(
                                 color: colors.primary,
-                                fontSize: 14,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -161,7 +167,7 @@ class TvDashboardView extends StatelessWidget {
                           dateStr,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -170,7 +176,7 @@ class TvDashboardView extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // ===============================================================
               // 2. شريط التنبيه المباشر في حال الطوارئ أو الرنين
@@ -180,11 +186,11 @@ class TvDashboardView extends StatelessWidget {
                   alert: state.activeAlert!,
                   onDismiss: cubit.dismissActiveAlert,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
               ],
 
               // ===============================================================
-              // 3. شبكة البطاقات الأربع (2x2 Matrix)
+              // 3. شبكة البطاقات الأربع المتوازنة (Balanced 2x2 Matrix)
               // ===============================================================
               Expanded(
                 child: TvGridFocusScope(
@@ -193,37 +199,31 @@ class TvDashboardView extends StatelessWidget {
                     children: [
                       // العمود الأيسر: الرادار الصوتي + استغاثة الطوارئ
                       Expanded(
-                        flex: 5,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              flex: 6,
                               child: TvLocatorCard(focusNode: locateCardFocus),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             Expanded(
-                              flex: 4,
                               child: TvSafetyCard(focusNode: sosCardFocus),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
 
                       // العمود الأيمن: أجندة اليوم + المنبه القادم
                       Expanded(
-                        flex: 5,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              flex: 6,
                               child: TvAgendaCard(focusNode: agendaFocus),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             Expanded(
-                              flex: 4,
                               child: TvAlarmsCard(focusNode: alarmsFocus),
                             ),
                           ],
@@ -233,10 +233,10 @@ class TvDashboardView extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               // ===============================================================
-              // 4. شريط إرشادات الريموت السفلي (Remote Navigation Legend)
+              // 4. شريط إرشادات الريموت السفلي المقاوم للطفح
               // ===============================================================
               _buildRemoteLegendBar(colors),
             ],
@@ -248,25 +248,30 @@ class TvDashboardView extends StatelessWidget {
 
   Widget _buildRemoteLegendBar(ColorScheme colors) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(14),
+        color: colors.surface.withValues(alpha: 0.40),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colors.outline.withValues(alpha: 0.3),
+          color: colors.outline.withValues(alpha: 0.25),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildLegendItem(Icons.gamepad_rounded, 'D-PAD', 'Navigate Matrix', colors),
-          _buildDivider(colors),
-          _buildLegendItem(Icons.radio_button_checked_rounded, 'SELECT', 'Action / Ping / Toggle', colors),
-          _buildDivider(colors),
-          _buildLegendItem(Icons.arrow_back_rounded, 'BACK', 'Screensaver / Dismiss Alert', colors),
-          _buildDivider(colors),
-          _buildLegendItem(Icons.wifi_tethering_rounded, 'LAN P2P', '< 2ms Ultra-Low Latency', colors),
-        ],
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildLegendItem(Icons.gamepad_rounded, 'D-PAD', 'Navigate Matrix', colors),
+              _buildDivider(colors),
+              _buildLegendItem(Icons.radio_button_checked_rounded, 'SELECT', 'Action / Ping / Toggle', colors),
+              _buildDivider(colors),
+              _buildLegendItem(Icons.arrow_back_rounded, 'BACK', 'Screensaver / Dismiss', colors),
+              _buildDivider(colors),
+              _buildLegendItem(Icons.wifi_tethering_rounded, 'LAN DIRECT', '< 2ms Local Bridge', colors),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -275,29 +280,29 @@ class TvDashboardView extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: colors.primary),
-        const SizedBox(width: 6),
+        Icon(icon, size: 12, color: colors.primary),
+        const SizedBox(width: 5),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
           decoration: BoxDecoration(
             color: colors.onSurface.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
             keyLabel,
             style: TextStyle(
               color: colors.onSurface,
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w900,
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         Text(
           action,
           style: TextStyle(
             color: colors.onSurfaceVariant,
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -307,10 +312,10 @@ class TvDashboardView extends StatelessWidget {
 
   Widget _buildDivider(ColorScheme colors) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      height: 12,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      height: 10,
       width: 1,
-      color: colors.outline.withValues(alpha: 0.4),
+      color: colors.outline.withValues(alpha: 0.35),
     );
   }
 }

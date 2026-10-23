@@ -24,7 +24,6 @@ class TvAlarmsCard extends StatelessWidget {
         return TvFocusableCard(
           focusNode: focusNode,
           title: 'UPCOMING ALARM',
-          subtitle: 'Synchronized with Native Android Clock',
           icon: Icons.alarm_rounded,
           accentColor: colors.primary,
           onSelect: () {
@@ -46,18 +45,35 @@ class TvAlarmsCard extends StatelessWidget {
   ) {
     if (state.status == TvAlarmsStatus.loading && !state.hasUpcomingAlarm) {
       return Center(
-        child: CircularProgressIndicator(color: colors.primary, strokeWidth: 2.5),
+        child: CircularProgressIndicator(
+          color: colors.primary,
+          strokeWidth: 2.0,
+        ),
       );
     }
 
     if (!state.hasUpcomingAlarm) {
       return Center(
-        child: Text(
-          'No active alarms scheduled for today.',
-          style: TextStyle(
-            color: colors.onSurfaceVariant,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.alarm_off_rounded,
+                size: 20,
+                color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'No Active Alarms Scheduled',
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -68,48 +84,66 @@ class TvAlarmsCard extends StatelessWidget {
     final period = next.hour >= 12 ? 'PM' : 'AM';
     final minStr = next.minute.toString().padLeft(2, '0');
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.access_time_filled_rounded, size: 36, color: colors.primary),
-        const SizedBox(width: 16),
-        Text(
-          '$hour12:$minStr',
-          style: TextStyle(
-            color: colors.onSurface,
-            fontSize: 38,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          period,
-          style: TextStyle(
-            color: colors.primary,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(width: 20),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.primary, width: 1.2),
-          ),
-          child: Text(
-            next.label,
-            style: TextStyle(
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // رمز المنبه
+            Icon(
+              Icons.access_time_filled_rounded,
+              size: 28,
               color: colors.primary,
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
-              letterSpacing: 0.5,
             ),
-          ),
+            const SizedBox(width: 10),
+            // الوقت الرقمي
+            Text(
+              '$hour12:$minStr',
+              style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              period,
+              style: TextStyle(
+                color: colors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 14),
+            // شارة اسم المنبه
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: colors.primary.withValues(alpha: 0.4),
+                  width: 1.0,
+                ),
+              ),
+              child: Text(
+                next.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

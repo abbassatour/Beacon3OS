@@ -5,11 +5,13 @@ class TvPulsingRadarIcon extends StatefulWidget {
   const TvPulsingRadarIcon({
     required this.icon,
     required this.color,
+    this.radius = 24.0,
     super.key,
   });
 
   final IconData icon;
   final Color color;
+  final double radius;
 
   @override
   State<TvPulsingRadarIcon> createState() => _TvPulsingRadarIconState();
@@ -24,7 +26,7 @@ class _TvPulsingRadarIconState extends State<TvPulsingRadarIcon>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1800),
     )..repeat();
   }
 
@@ -36,31 +38,46 @@ class _TvPulsingRadarIconState extends State<TvPulsingRadarIcon>
 
   @override
   Widget build(BuildContext context) {
+    final baseSize = widget.radius * 2;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 70 + (_controller.value * 24),
-              height: 70 + (_controller.value * 24),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.color.withValues(
-                    alpha: (1.0 - _controller.value) * 0.5,
+        final pulseExpansion = _controller.value * 14.0;
+        final currentPulseSize = baseSize + pulseExpansion;
+
+        return SizedBox(
+          width: baseSize + 16,
+          height: baseSize + 16,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // حلقة النبض الرادارية المتلاشية
+              Container(
+                width: currentPulseSize,
+                height: currentPulseSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.color.withValues(
+                      alpha: (1.0 - _controller.value) * 0.45,
+                    ),
+                    width: 1.5,
                   ),
-                  width: 1.8,
                 ),
               ),
-            ),
-            CircleAvatar(
-              radius: 34,
-              backgroundColor: widget.color.withValues(alpha: 0.15),
-              child: Icon(widget.icon, size: 34, color: widget.color),
-            ),
-          ],
+              // الدائرة المركزية الثابتة
+              CircleAvatar(
+                radius: widget.radius,
+                backgroundColor: widget.color.withValues(alpha: 0.15),
+                child: Icon(
+                  widget.icon,
+                  size: widget.radius * 1.05,
+                  color: widget.color,
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
