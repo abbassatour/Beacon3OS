@@ -8,6 +8,7 @@ import 'package:beacon_os/core/audio/sound_controller.dart';
 import 'package:beacon_os/core/audio/sound_cue.dart';
 import 'package:beacon_os/core/haptics/haptic_manager.dart';
 import 'package:beacon_os/core/services/permission_service.dart';
+import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:beacon_os/core/topology/topology.dart';
@@ -82,7 +83,6 @@ class _AppState extends State<App> {
     );
 
     // 🔔 3. تسجيل معالج صفارة الإنذار والاهتزاز عند طلب العثور على الهاتف
-    // ✅ تم التحديث ليعتمد على safetyRadar بدلاً من comms
     widget._launcherRepository.safetyRadar.registerLocateHandler(() async {
       log('App: 📢 Inbound Remote Locate Triggered! Sounding siren & haptics...');
       try {
@@ -99,7 +99,6 @@ class _AppState extends State<App> {
     });
 
     // 🛰️ 4. الاستماع للأوامر الواردة عن بعد وعرض إشعار فوري
-    // ✅ تم التحديث ليعتمد على vaultSync بدلاً من comms
     _remoteActionsSubscription =
         widget._launcherRepository.vaultSync.remoteActionEvents.listen((event) {
       log('App: ⚡ Received remote action event: ${event.actionType}');
@@ -178,7 +177,6 @@ class _AppState extends State<App> {
     });
 
     // 🌐 5. تشغيل محرك النقل الهجين والـ P2P للديسكتوب أو الهاتف فور الإقلاع
-    // ✅ تم التحديث ليعتمد على vaultSync بدلاً من comms
     if (_isDesktop) {
       unawaited(
         widget._launcherRepository.vaultSync.initializeHybridTransport(
@@ -186,11 +184,17 @@ class _AppState extends State<App> {
         ),
       );
     } else if (!_isTv) {
-      unawaited(
-        widget._launcherRepository.vaultSync.initializeHybridTransport(
+      unawaited(() async {
+        // ننتظر استعادة المفتاح السيادي لضمان تزويد المحرك بمعرف الهاتف (DID)
+        if (!Web3Service.instance.isInitialized) {
+          await Web3Service.instance.initialize();
+        }
+        final phoneDid = Web3Service.instance.walletAddressHex.toLowerCase();
+        await widget._launcherRepository.vaultSync.initializeHybridTransport(
           deviceType: 'phone',
-        ),
-      );
+          linkedVaultId: phoneDid,
+        );
+      }());
     }
 
     // 📱 6. طلب الأذونات فقط على بيئات الهاتف المحمول
@@ -246,7 +250,6 @@ class _AppState extends State<App> {
         RepositoryProvider<CommsRepository>.value(
           value: widget._launcherRepository.comms,
         ),
-        // ✅ توفير المستودعات الجديدة لكافة طبقات التطبيق
         RepositoryProvider<SafetyRadarRepository>.value(
           value: widget._launcherRepository.safetyRadar,
         ),

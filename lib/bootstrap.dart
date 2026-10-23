@@ -80,16 +80,22 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }
   }
 
-  // 2. ⚡ تشغيل Web3 في الخلفية بدون حجب الواجهة
-  unawaited(
-    Web3Service.instance.initialize().catchError((Object e) {
-      log('Bootstrap: Web3 init deferred: $e');
-    }),
-  );
-
   final llmAgent = LlmAgent(openRouterApiKey: ApiConstants.openRouterApiKey);
   final launcherRepository = LauncherRepository(
     llmAgent: llmAgent,
+  );
+
+  // 2. ⚡ تشغيل Web3 في الخلفية وتحديث أوراق اعتماد الخزنة تلقائياً فور توفرها
+  unawaited(
+    Web3Service.instance.initialize().then((_) {
+      final did = Web3Service.instance.walletAddressHex.toLowerCase();
+      if (did.isNotEmpty && did != '0x0000000000000000000000000000000000000000') {
+        launcherRepository.vaultSync.updatePairingCredentials(linkedVaultId: did);
+        log('Bootstrap: 🗝️ Vault credentials updated with Web3 DID: $did');
+      }
+    }).catchError((Object e) {
+      log('Bootstrap: Web3 init deferred: $e');
+    }),
   );
 
   // 3. ⚡ تشغيل محركات الصوت (TTS & Speech) في الخلفية دون تجميد شاشة البداية
@@ -124,7 +130,7 @@ Future<void> bootstrap({AppFlavor flavor = AppFlavor.development}) async {
     }());
   }
 
-  // 5. قراءة الإعدادات بمهلة قصيرة جداً (1.5 ثانية) لضمان عدم التعليق على SQLite
+  // 5. قراءة الإعدادات بمهلة قصيرة جداً لضمان عدم التعليق على SQLite
   AppSettingEntity initialSettings;
   try {
     initialSettings = await launcherRepository.settings

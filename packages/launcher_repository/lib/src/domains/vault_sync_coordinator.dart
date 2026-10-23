@@ -12,49 +12,37 @@ import 'safety_radar_repository.dart';
 
 export 'package:cloud_sync_api/cloud_sync_api.dart' show LocalNodeInfo, SyncTransportMode;
 
-/// منسق المزامنة المركزي: مسؤول عن التفاوض بين الأجهزة (P2P LAN) والسحابة،
-/// ونقل التغييرات التفاضلية (Delta Sync)، وفض النزاعات الزمنية (LWW).
 abstract class VaultSyncCoordinator {
-  /// 🛰️ تدفق الأوامر الواردة عن بعد (مثل: رادار التحديد، الطوارئ، التبديل المكاني)
   Stream<RemoteActionEvent> get remoteActionEvents;
 
-  /// 🧭 تدفق نمط الاتصال النشط (LAN Direct vs Cloud Relay vs Standalone)
   Stream<SyncTransportMode> get transportModeStream;
   SyncTransportMode get currentTransportMode;
 
-  /// 📡 تدفق وقائمة الأجهزة النشطة المكتشفة في شبكة الـ Mesh المحلية
   Stream<List<LocalNodeInfo>> get activeMeshNodesStream;
   List<LocalNodeInfo> get activeMeshNodes;
 
-  /// تهيئة المحرك الهجين للجهاز النشط للاتصال عبر الشبكة المحلية P2P
   Future<void> initializeHybridTransport({
     required String deviceType,
     String? nodeId,
+    String? linkedVaultId,
   });
 
-  /// 🛰️ بدء الاستماع اللحظي للأوامر السحابية الواردة (Remote Actions)
   void initializeCloudRealtimeSync();
 
-  /// ⚡ طلب لقطة الخزنة المباشرة من الأجهزة المقترنة عبر شبكة LAN
   Future<void> requestVaultSnapshot();
 
-  /// ⚡ إرسال لقطة الخزنة المحلية لجميع الأجهزة المقترنة بالشبكة
   Future<void> sendVaultSnapshotToPeers();
 
-  /// 🔄 طلب التغييرات التفاضلية فقط بعد تاريخ محدد عبر LAN
   Future<void> requestVaultDelta({DateTime? since});
 
-  /// 🔄 إرسال التغييرات التفاضلية لجميع الأجهزة المقترنة عبر LAN
   Future<void> sendVaultDeltaToPeers({DateTime? since});
 
-  /// بث تعديلات فردية للشبكة المحلية فور حدوثها لتحديث الشاشات المتصلة
   void broadcastVaultMutation({
     required String table,
     required String action,
     required Map<String, dynamic> data,
   });
 
-  /// تحديث الهوية النشطة محلياً للارتباط الآمن
   void updatePairingCredentials({String? pairingCode, String? linkedVaultId});
 
   void dispose();
@@ -103,8 +91,9 @@ class VaultSyncCoordinatorImpl implements VaultSyncCoordinator {
   Future<void> initializeHybridTransport({
     required String deviceType,
     String? nodeId,
+    String? linkedVaultId,
   }) async {
-    final vaultId = await _db.getDevicePairingMeta('linked_vault_id');
+    final vaultId = linkedVaultId ?? await _db.getDevicePairingMeta('linked_vault_id');
     await _hybridSync.initialize(
       deviceType: deviceType,
       nodeId: nodeId ?? 'beacon_${deviceType}_${_uuid.v4().substring(0, 6)}',

@@ -21,6 +21,8 @@ class Web3Service {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  Completer<void>? _initCompleter;
+
   /// العنوان الست عشري القياسي بصيغة EIP-55 الصريحة
   String get walletAddressHex =>
       _credentials?.address.hexEip55 ??
@@ -53,11 +55,14 @@ class Web3Service {
     {"inputs":[],"name":"totalAiQueriesSubsidized","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
   ]''';
 
-  /// تهيئة المحفظة السيادية مع استرجاع المفتاح المحفوظ دائماً
+  /// تهيئة المحفظة السيادية مع حماية تامة من الاستدعاء المتزامن (Concurrency Lock)
   Future<void> initialize({
     String? explicitPrivateKeyHex,
   }) async {
     if (_isInitialized && explicitPrivateKeyHex == null) return;
+    if (_initCompleter != null) return _initCompleter!.future;
+
+    _initCompleter = Completer<void>();
 
     try {
       final httpClient = http.Client();
@@ -95,9 +100,12 @@ class Web3Service {
       }
 
       _isInitialized = true;
+      _initCompleter!.complete();
       log('Web3Service: Connected to Arbitrum Sepolia. DID: $didIdentifier');
     } catch (e, st) {
       log('Web3Service: Init error: $e', stackTrace: st);
+      _initCompleter?.completeError(e, st);
+      _initCompleter = null;
     }
   }
 

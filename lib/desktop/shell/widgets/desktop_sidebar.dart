@@ -1,5 +1,5 @@
-﻿// lib/desktop/widgets/desktop_sidebar.dart
-import 'package:beacon_os/core/services/web3_service.dart'; // ðŸ‘ˆ Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø®Ø¯Ù…Ø© Ø§Ù„Ø¨Ù„ÙˆÙƒØ´ÙŠÙ†
+﻿// lib/desktop/shell/widgets/desktop_sidebar.dart
+import 'package:beacon_os/core/services/web3_service.dart';
 import 'package:beacon_os/core/theme/app_theme.dart';
 import 'package:beacon_os/core/theme/cubit/theme_cubit.dart';
 import 'package:flutter/material.dart';
@@ -83,7 +83,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Ø±Ø£Ø³ Ø§Ù„Ø´Ø±ÙŠØ· Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠ (Header)
+          // رأس الشريط الجانبي (Header)
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: _isCollapsed ? 12 : 18,
@@ -148,7 +148,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
           ),
           const Divider(height: 1),
 
-          // Ø¹Ù†Ø§ØµØ± Ø§Ù„ØªÙ†Ù‚Ù„ (Navigation Items)
+          // عناصر التنقل (Navigation Items)
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -228,7 +228,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
 
           const Divider(height: 1),
 
-          // Ø´Ø±ÙŠØ· Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø³ÙÙ„ÙŠ (Web3 DID & Arbitrum Status Footer)
+          // شريط الحالة السفلي (Web3 DID & Arbitrum Status Footer) المحمي ضد الـ Overflow
           _buildStatusFooter(context, isOled, colors),
         ],
       ),
@@ -253,40 +253,49 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
             : MainAxisAlignment.spaceBetween,
         children: [
           if (!_isCollapsed)
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.green,
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.green,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Arbitrum L2: Connected',
-                      style: TextStyle(
-                        color: colors.onSurface,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Arbitrum L2: Connected',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          web3.shortAddress,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 9,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      web3.shortAddress,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 9,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           IconButton(
             icon: Icon(
