@@ -21,24 +21,29 @@ class TvSafetyCard extends StatelessWidget {
 
     return BlocBuilder<TvSafetyCubit, TvSafetyState>(
       builder: (context, state) {
+        final isBroadcasting = state.isBroadcasting;
+
         return TvFocusableCard(
           focusNode: focusNode,
-          title: 'FAMILY SAFETY RADAR (SOS)',
-          subtitle: state.isBroadcasting
-              ? 'Broadcasting SOS Distress Signal to Ledger...'
-              : 'Household distress beacon & Arbitrum L2',
-          icon: Icons.emergency_rounded,
+          title: 'HOUSEHOLD SAFETY RADAR',
+          subtitle: isBroadcasting
+              ? 'Broadcasting SOS distress telemetry...'
+              : 'Immutable distress beacon & Arbitrum L2',
+          icon: Icons.shield_rounded,
           accentColor: colors.error,
           onSelect: cubit.triggerEmergencySos,
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28, // 👈 تكبير الأيقونة لتكون بارزة على الشاشة
-                backgroundColor: colors.error.withValues(
-                  alpha: state.isBroadcasting ? 0.35 : 0.15,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.error.withValues(alpha: isBroadcasting ? 0.35 : 0.14),
+                  border: Border.all(color: colors.error, width: 2),
                 ),
                 child: Icon(
-                  Icons.warning_amber_rounded,
+                  isBroadcasting ? Icons.cell_tower_rounded : Icons.warning_amber_rounded,
                   size: 32,
                   color: colors.error,
                 ),
@@ -49,38 +54,48 @@ class TvSafetyCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (state.isBroadcasting)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.error,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'RADAR ACTIVE • BROADCASTING GPS',
+                    Row(
+                      children: [
+                        Text(
+                          isBroadcasting ? 'EMERGENCY ACTIVE' : 'ARBITRUM VERIFIED',
                           style: TextStyle(
-                            color: colors.surface,
-                            fontSize: 11.5,
+                            color: colors.error,
+                            fontSize: 12,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.8,
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green, width: 0.8),
+                          ),
+                          child: const Text(
+                            'ON-CHAIN',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      state.isBroadcasting
-                          ? 'Distress beacon is broadcasting live GPS coordinates to Arbitrum Sepolia ledger and sounding alarm across home.'
-                          : 'Triple-tapping phone sounds household distress alarm and anchors immutable GPS beacon to Arbitrum Sepolia ledger.',
-                      maxLines: 3,
+                      isBroadcasting
+                          ? 'Broadcasting live GPS beacon to emergency contacts and Arbitrum Sepolia ledger.'
+                          : 'Press [SELECT] to broadcast immediate distress alarm and stream GPS to rescue radar.',
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: colors.onSurface,
-                        fontSize: 13.5, // 👈 خط مريح جداً للقراءة من مسافة 3 أمتار
-                        height: 1.35,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
+                        height: 1.35,
                       ),
                     ),
                   ],

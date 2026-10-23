@@ -24,7 +24,7 @@ class TvAgendaCard extends StatelessWidget {
         return TvFocusableCard(
           focusNode: focusNode,
           title: 'TODAY PRIORITIES',
-          subtitle: 'Press [SELECT] to toggle completion',
+          subtitle: 'Press [SELECT] to complete top priority',
           icon: Icons.calendar_today_rounded,
           accentColor: colors.secondary,
           onSelect: () {
@@ -46,88 +46,93 @@ class TvAgendaCard extends StatelessWidget {
   ) {
     if (state.isLoading && state.isEmpty) {
       return Center(
-        child: CircularProgressIndicator(
-          color: colors.secondary,
-          strokeWidth: 3,
-        ),
+        child: CircularProgressIndicator(color: colors.secondary, strokeWidth: 2.5),
       );
     }
 
     if (state.isEmpty) {
       return Center(
-        child: Text(
-          'Zero pending priorities! Agenda clear.',
-          style: TextStyle(
-            color: colors.onSurfaceVariant,
-            fontSize: 16, // 👈 وضوح القراءة للشاشات الكبيرة
-            fontWeight: FontWeight.bold,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 38),
+            const SizedBox(height: 8),
+            Text(
+              'Zero pending priorities! Agenda is clear.',
+              style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.builder(
+    return ListView.separated(
       itemCount: state.tasks.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         final task = state.tasks[index];
-        return InkWell(
-          onTap: () => cubit.toggleTaskCompletion(task),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: context.scaffoldBg.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: colors.outline.withValues(alpha: 0.35),
+        final isTop = index == 0;
+
+        Color badgeColor = colors.onSurfaceVariant;
+        if (task.priority == 'high') badgeColor = colors.error;
+        if (task.priority == 'medium') badgeColor = colors.secondary;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isTop
+                ? colors.primary.withValues(alpha: 0.08)
+                : context.scaffoldBg.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isTop
+                  ? colors.primary.withValues(alpha: 0.35)
+                  : colors.outline.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.radio_button_unchecked_rounded,
+                size: 20,
+                color: isTop ? colors.primary : colors.onSurfaceVariant,
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.radio_button_unchecked_rounded,
-                  size: 20, // 👈 أيقونة أكبر
-                  color: colors.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    task.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.onSurface,
-                      fontSize: 16, // 👈 اسم المهمة كبير ومقروء بوضوح
-                      fontWeight: FontWeight.w800,
-                    ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 15,
+                    fontWeight: isTop ? FontWeight.w900 : FontWeight.w700,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.secondary.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: colors.secondary.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    task.priority.toUpperCase(),
-                    style: TextStyle(
-                      color: colors.secondary,
-                      fontSize: 11.5, // 👈 شارة أولوية واضحة
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.6,
-                    ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  task.priority.toUpperCase(),
+                  style: TextStyle(
+                    color: badgeColor,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

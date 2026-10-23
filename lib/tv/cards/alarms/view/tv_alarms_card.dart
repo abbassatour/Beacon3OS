@@ -24,7 +24,7 @@ class TvAlarmsCard extends StatelessWidget {
         return TvFocusableCard(
           focusNode: focusNode,
           title: 'UPCOMING ALARM',
-          subtitle: 'Synchronized with Android Clock',
+          subtitle: 'Synchronized with Native Android Clock',
           icon: Icons.alarm_rounded,
           accentColor: colors.primary,
           onSelect: () {
@@ -46,20 +46,17 @@ class TvAlarmsCard extends StatelessWidget {
   ) {
     if (state.status == TvAlarmsStatus.loading && !state.hasUpcomingAlarm) {
       return Center(
-        child: CircularProgressIndicator(
-          color: colors.primary,
-          strokeWidth: 3,
-        ),
+        child: CircularProgressIndicator(color: colors.primary, strokeWidth: 2.5),
       );
     }
 
     if (!state.hasUpcomingAlarm) {
       return Center(
         child: Text(
-          'No active alarms scheduled.',
+          'No active alarms scheduled for today.',
           style: TextStyle(
             color: colors.onSurfaceVariant,
-            fontSize: 16, // 👈 وضوح النص الفارغ
+            fontSize: 15,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -71,49 +68,48 @@ class TvAlarmsCard extends StatelessWidget {
     final period = next.hour >= 12 ? 'PM' : 'AM';
     final minStr = next.minute.toString().padLeft(2, '0');
 
-    return InkWell(
-      onTap: () => cubit.toggleAlarm(next),
-      borderRadius: BorderRadius.circular(14),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.access_time_filled_rounded,
-              size: 32,
-              color: colors.primary,
-            ),
-            const SizedBox(width: 14),
-            Text(
-              '$hour12:$minStr $period',
-              style: TextStyle(
-                color: colors.onSurface,
-                fontSize: 36, // 👈 ساعة رقمية عريضة وواضحة جداً من بعيد
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.primary, width: 1.4),
-              ),
-              child: Text(
-                next.label,
-                style: TextStyle(
-                  color: colors.primary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14.5, // 👈 وضوح اسم المنبه
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.access_time_filled_rounded, size: 36, color: colors.primary),
+        const SizedBox(width: 16),
+        Text(
+          '$hour12:$minStr',
+          style: TextStyle(
+            color: colors.onSurface,
+            fontSize: 38,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -1,
+          ),
         ),
-      ),
+        const SizedBox(width: 6),
+        Text(
+          period,
+          style: TextStyle(
+            color: colors.primary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 20),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: colors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: colors.primary, width: 1.2),
+          ),
+          child: Text(
+            next.label,
+            style: TextStyle(
+              color: colors.primary,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -22,49 +22,56 @@ class TvLocatorCard extends StatelessWidget {
 
     return BlocBuilder<TvLocatorCubit, TvLocatorState>(
       builder: (context, state) {
+        final isPinging = state.isPinging;
+
         return TvFocusableCard(
           focusNode: focusNode,
           title: 'ACOUSTIC PHONE LOCATOR',
-          subtitle: state.isPinging
-              ? 'Pinging Phone Siren & Strobe Flashlight...'
-              : 'Press [SELECT] to ping missing phone in living room',
+          subtitle: isPinging
+              ? 'Broadcasting siren & hardware strobe strobe...'
+              : 'Locate misplaced phone in living room instantly',
           icon: Icons.radar_rounded,
-          accentColor: state.isPinging ? colors.secondary : colors.primary,
+          accentColor: isPinging ? colors.secondary : colors.primary,
           onSelect: cubit.pingPhone,
           child: Center(
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TvPulsingRadarIcon(
-                    icon: Icons.phonelink_ring_rounded,
-                    color: state.isPinging ? colors.secondary : colors.primary,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TvPulsingRadarIcon(
+                  icon: isPinging ? Icons.volume_up_rounded : Icons.phonelink_ring_rounded,
+                  color: isPinging ? colors.secondary : colors.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isPinging ? 'HARDWARE PING ACTIVE' : 'PING PHONE HARDWARE',
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    letterSpacing: 1.2,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    state.isPinging
-                        ? 'SIREN & STROBE ACTIVE'
-                        : 'PING PHONE HARDWARE',
-                    style: TextStyle(
-                      color: colors.onSurface,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 19, // 👈 وضوح تام من مسافة 3 أمتار
-                      letterSpacing: 1.2,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (isPinging ? colors.secondary : colors.primary).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: (isPinging ? colors.secondary : colors.primary).withValues(alpha: 0.4),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Pings phone instantly via Local LAN (< 2ms)',
+                  child: Text(
+                    isPinging ? 'Triggering Siren, Haptics & Flashlight' : 'Press [SELECT] • LAN Direct < 2ms',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 14.5, // 👈 مقروء ومريح
-                      fontWeight: FontWeight.w600,
+                      color: isPinging ? colors.secondary : colors.primary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
